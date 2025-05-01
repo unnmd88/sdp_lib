@@ -1,18 +1,20 @@
 import abc
+import functools
 import typing
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from functools import cached_property
 
 from sdp_lib.management_controllers.controller_modes import NamesMode
 from sdp_lib.management_controllers.fields_names import FieldsNames
 from sdp_lib.management_controllers.parsers.parser_core import Parsers
 from sdp_lib.management_controllers.parsers.snmp_parsers.mixins import StcipMixin, Ug405Mixin
+from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods import get_val_as_str, pretty_print
 from sdp_lib.management_controllers.snmp._types import T_Varbinds
 from sdp_lib.management_controllers.snmp.oids import Oids
 from sdp_lib.management_controllers.snmp.snmp_utils import (
     SwarcoConverters,
     PotokSConverters,
-    PotokPConverters
+    PotokPConverters, remove_scn_from_oid
 )
 
 
@@ -21,12 +23,24 @@ class ConfigsParser(typing.NamedTuple):
     oid_handler: Callable = None
     val_oid_handler: Callable = None
     host_protocol: str = None
-    scn: str = None
+    scn_to_remove_from_oid: str = None
 
 
-default_processing = ConfigsParser(oid_handler=str)
-pretty_processing_stcip = ConfigsParser(extras=True, host_protocol=FieldsNames.protocol_stcip)
-pretty_processing_ug405 = ConfigsParser(extras=True, host_protocol=FieldsNames.protocol_ug405)
+default_processing = ConfigsParser(oid_handler=get_val_as_str, val_oid_handler=pretty_print)
+
+pretty_processing_stcip = ConfigsParser(
+    extras=True,
+    oid_handler=get_val_as_str,
+    val_oid_handler=pretty_print,
+    host_protocol=FieldsNames.protocol_stcip
+)
+
+pretty_processing_ug405 = ConfigsParser(
+    extras=True,
+    oid_handler=get_val_as_str,
+    val_oid_handler=pretty_print,
+    host_protocol=FieldsNames.protocol_ug405
+)
 
 
 class BaseSnmpParser(Parsers):
@@ -34,11 +48,14 @@ class BaseSnmpParser(Parsers):
     def __init__(self):
 
         super().__init__()
-        self._processing_oid_method = None
-        self._processing_val_oid_method = None
+        self._processing_oid_methods = []
+        self._processing_val_oid_methods = []
 
-        self.set_processing_oid_method(str)
-        self.set_processing_val_oid_method(self.pretty_print)
+        # self._processing_oid = None
+        # self._processing_val_oid = None
+
+        # self.set_processing_oid_method(str)
+        # self.set_processing_val_oid_method(self.pretty_print)
 
         self._scn_as_ascii_string = None
 
@@ -62,13 +79,22 @@ class BaseSnmpParser(Parsers):
     def allowed_val_oid_processing_methods(self):
         return {str, self.pretty_print}
 
-    @property
-    def processing_oid_method(self):
-        return self._processing_oid_method
+    # @property
+    # def processing_oid_method(self):
+    #     return self._processing_oid_methods
+    #
+    # @property
+    # def processing_val_oid_method(self):
+    #     return self._processing_val_oid_methods
 
-    @property
-    def processing_val_oid_method(self):
-        return self._processing_val_oid_method
+
+    def processing_oid(self):
+        for method in self._processing_oid_methods:
+            oid = method()
+        return oid
+
+    def processing_val_oid(self):
+        return self._processing_val_oid_methods
 
     def get_val_as_str(self, val: int | str) -> str:
         return str(val)
@@ -76,17 +102,17 @@ class BaseSnmpParser(Parsers):
     def pretty_print(self, oid_or_val) -> str:
         return oid_or_val.prettyPrint()
 
-    def set_processing_oid_method(self, method: Callable):
-        if method in self.allowed_oid_processing_methods:
-            self._processing_oid_method = method
-        else:
-            raise TypeError
+    # def set_processing_oid_method(self, method: Callable):
+    #     if method in self.allowed_oid_processing_methods:
+    #         self._processing_oid_methods = method
+    #     else:
+    #         raise TypeError
 
-    def set_processing_val_oid_method(self, method: Callable):
-        if method in self.allowed_val_oid_processing_methods:
-            self._processing_val_oid_method = method
-        else:
-            raise TypeError
+    # def set_processing_val_oid_method(self, method: Callable):
+    #     if method in self.allowed_val_oid_processing_methods:
+    #         self._processing_val_oid_methods = method
+    #     else:
+    #         raise TypeError
 
     def set_scn(self, value_as_ascii_string: str):
         if isinstance(value_as_ascii_string, str) and value_as_ascii_string.count('.') >= 2:
@@ -123,20 +149,41 @@ class BaseSnmpParser(Parsers):
             print(f'oid: {oid}  >>>> type(val): {type(val)}')
             self.parsed_content_as_dict[oid] = val
 
+    def _processing_oid_with_replace_scn(self, method):
+        oid = remove_scn_from_oid(oid, self._scn_as_ascii_string)
+        return remove_scn_from_oid(oid)
+
     def parse(
             self,
             *,
             varbinds: T_Varbinds,
             config: ConfigsParser = default_processing
     ):
-        if config.scn is not None:
-            self.set_scn(config.scn)
+        if config.scn_to_remove_from_oid is not None:
+
+
+
+
+            self._scn_as_ascii_string = config.scn_to_remove_from_oid
+
+            self._processing_oid_method =
+
+
+            self._processing_oid_methods.append(
+                functools.partial()
+            )
+            self.set_scn(config.scn_to_remove_from_oid)
             self.set_processing_oid_method(self.remove_scn_from_oid)
+        else:
+            self._processing_oid_method = config.oid_handler or str
+
+
+
         try:
             if config.oid_handler is None and config.val_oid_handler is None:
                 for oid, val in varbinds:
                     # print(f'oid: {str(oid)}::: val: {str(val)}')
-                    oid, val = self._processing_oid_method(oid), self._processing_val_oid_method(val)
+                    oid, val = self._processing_oid_methods(oid), self._processing_val_oid_methods(val)
                     field_name, cb_fn = self.matches.get(oid)
                     if field_name is None or cb_fn is None:
                         self.parsed_content_as_dict[oid] = val.prettyPrint()
@@ -161,7 +208,7 @@ class BaseSnmpParser(Parsers):
         return self.data_for_response
 
 
-class StandartVarbindsParsersSwarco(BaseSnmpParser, StcipMixin):
+class StandardVarbindsParsersSwarco(BaseSnmpParser, StcipMixin):
 
     CENTRAL_PLAN              = '16'
     MANUAL_PLAN               = '15'

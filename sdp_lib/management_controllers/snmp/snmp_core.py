@@ -10,12 +10,13 @@ from pysnmp.entity.engine import SnmpEngine
 from sdp_lib.management_controllers.exceptions import BadControllerType
 from sdp_lib.management_controllers.hosts import Host
 from sdp_lib.management_controllers.fields_names import FieldsNames
+from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods import get_val_as_str, pretty_print
 from sdp_lib.management_controllers.parsers.snmp_parsers.varbinds_parsers import (
     pretty_processing_stcip,
     default_processing,
     BaseSnmpParser,
     ConfigsParser,
-    StandartVarbindsParsersSwarco,
+    StandardVarbindsParsersSwarco,
     StandardVarbindsParserPotokS,
     PotokPStandardParser,
     PeekStandardParser
@@ -415,12 +416,16 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
     def _get_pretty_processed_config_with_scn(self):
         return ConfigsParser(
             extras=True,
+            oid_handler=get_val_as_str,
+            val_oid_handler=pretty_print,
             scn=self.scn_as_ascii_string
         )
 
     def _get_default_processed_config_with_scn(self):
         return ConfigsParser(
-            oid_handler=str,
+            extras=False,
+            oid_handler=get_val_as_str,
+            val_oid_handler=pretty_print,
             scn=self.scn_as_ascii_string
         )
 
@@ -454,7 +459,7 @@ class StcipHosts(SnmpHosts):
 
 class SwarcoStcip(StcipHosts):
 
-    parser_class = StandartVarbindsParsersSwarco
+    parser_class = StandardVarbindsParsersSwarco
     converter_class = SwarcoConverters
     varbinds = swarco_stcip_varbinds
 

@@ -2,7 +2,7 @@ import abc
 from typing import Any
 
 
-class Parsers(metaclass=abc.ABCMeta):
+class Parsers:
 
     def __init__(self, content: Any = None):
         self.content = content
