@@ -9,8 +9,7 @@ from sdp_lib.management_controllers.snmp import snmp_api
 async def main():
     obj =  snmp_api.SwarcoStcip(ipv4='10.179.14.185', engine=SnmpEngine())
     await obj.get_states()
-    print(obj)
-    print()
+    assert obj.last_response
 
 
 

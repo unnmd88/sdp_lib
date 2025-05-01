@@ -9,7 +9,9 @@ from pathlib import Path
 from typing import Dict, Set, Tuple, List, Iterator, TextIO
 import logging
 
-from toolkit.sdp_lib.utils_common import set_curr_datetime
+from sdp_lib.utils_common import set_curr_datetime
+
+# from toolkit.sdp_lib.utils_common import set_curr_datetime
 
 logger = logging.getLogger(__name__)
 
