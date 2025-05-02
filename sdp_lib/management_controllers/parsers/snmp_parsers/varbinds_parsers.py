@@ -134,20 +134,6 @@ class BaseSnmpParser(Parsers):
         for field_name, cb_fn in self.extras_methods.items():
             self.parsed_content_as_dict[field_name] = cb_fn()
 
-    def _custom_parse_varbinds_and_add_to_processed_response(
-            self,
-            *,
-            varbinds,
-            oid_handler: Callable = None,
-            val_oid_handler: Callable = None,
-    ):
-        oid_handler = oid_handler or str
-        val_oid_handler = val_oid_handler or self.pretty_print
-        for oid, val in varbinds:
-            oid, val = oid_handler(oid), val_oid_handler(val)
-            print(f'oid: {oid}  >>>> val: {val}')
-            print(f'oid: {oid}  >>>> type(val): {type(val)}')
-            self.parsed_content_as_dict[oid] = val
 
     def parse(
             self,
@@ -161,7 +147,6 @@ class BaseSnmpParser(Parsers):
             oid, val = config.oid_handler(oid), config.val_oid_handler(val)
 
             field_name, cb_fn = self.matches.get(oid)
-            self.parsed_content_as_dict[field_name] = cb_fn(val)
 
             self.parsed_content_as_dict[field_name] = cb_fn(val)
             print(self.parsed_content_as_dict)
