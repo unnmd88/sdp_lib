@@ -6,14 +6,21 @@ from sdp_lib.management_controllers.snmp import snmp_api
 
 
 async def main():
-    obj =  snmp_api.SwarcoStcip(ipv4='10.179.14.185', engine=SnmpEngine())
-    obj =  snmp_api.PotokP(ipv4='10.179.63.241', engine=SnmpEngine())
-    await obj.get_states()
-    print(obj)
+    obj1 =  snmp_api.SwarcoStcip(ipv4='10.179.14.185', engine=SnmpEngine())
+    obj2 =  snmp_api.PotokP(ipv4='10.179.63.241', engine=SnmpEngine())
+    await obj1.get_states()
+    print(obj1)
     print('----------')
-    print(obj.response_as_dict)
+    print(obj1.response_as_dict)
     print('----------')
-    print(obj.last_response[3])
+    print(obj1.last_response[3])
+
+    await obj2.get_states()
+    print(obj2)
+    print('----------')
+    print(obj2.response_as_dict)
+    print('----------')
+    print(obj2.last_response[3])
 
 
 

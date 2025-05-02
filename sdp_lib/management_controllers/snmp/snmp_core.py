@@ -32,17 +32,9 @@ from sdp_lib.management_controllers.snmp import (
 )
 from sdp_lib.management_controllers.structures import SnmpResponseStructure
 from sdp_lib.management_controllers.snmp.set_commands import SnmpEntity
-from sdp_lib.management_controllers.snmp.snmp_utils import (
-    SwarcoConverters,
-    PotokSConverters,
-    PotokPConverters,
-    ScnConverterMixin,
-    PeekConverters
-)
+from sdp_lib.management_controllers.snmp.snmp_utils import ScnConverterMixin
 from sdp_lib.management_controllers.snmp.snmp_requests import SnmpRequests
 from sdp_lib.management_controllers.snmp.varbinds import (
-    VarbindsSwarco,
-    VarbindsPotokS,
     swarco_stcip_varbinds,
     potok_stcip_varbinds,
     potok_ug405_varbinds,
