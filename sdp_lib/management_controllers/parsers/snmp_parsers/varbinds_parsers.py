@@ -23,7 +23,6 @@ class ConfigsParser(typing.NamedTuple):
     oid_handler: Callable = None
     val_oid_handler: Callable = None
     host_protocol: str = None
-    scn_to_remove_from_oid: str = None
 
 
 default_processing = ConfigsParser(oid_handler=get_val_as_str, val_oid_handler=pretty_print)
