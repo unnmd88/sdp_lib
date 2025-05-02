@@ -149,59 +149,35 @@ class BaseSnmpParser(Parsers):
             print(f'oid: {oid}  >>>> type(val): {type(val)}')
             self.parsed_content_as_dict[oid] = val
 
-    def _processing_oid_with_replace_scn(self, method):
-        oid = remove_scn_from_oid(oid, self._scn_as_ascii_string)
-        return remove_scn_from_oid(oid)
-
     def parse(
             self,
             *,
             varbinds: T_Varbinds,
             config: ConfigsParser = default_processing
     ):
-        if config.scn_to_remove_from_oid is not None:
+        print(f'config_parser:{config}')
+        for oid, val in varbinds:
+            # print(f'oid: {str(oid)}::: val: {str(val)}')
+            oid, val = config.oid_handler(oid), config.val_oid_handler(val)
 
+            field_name, cb_fn = self.matches.get(oid)
+            self.parsed_content_as_dict[field_name] = cb_fn(val)
 
+            self.parsed_content_as_dict[field_name] = cb_fn(val)
+            print(self.parsed_content_as_dict)
+            # if field_name is None or cb_fn is None:
+            #     self.parsed_content_as_dict[oid] = val.prettyPrint()
+            # else:
+            #     self.parsed_content_as_dict[field_name] = cb_fn(val)
+        if config.extras:
+            self._add_extras_to_response()
 
-
-            self._scn_as_ascii_string = config.scn_to_remove_from_oid
-
-            self._processing_oid_method =
-
-
-            self._processing_oid_methods.append(
-                functools.partial()
-            )
-            self.set_scn(config.scn_to_remove_from_oid)
-            self.set_processing_oid_method(self.remove_scn_from_oid)
-        else:
-            self._processing_oid_method = config.oid_handler or str
-
-
-
-        try:
-            if config.oid_handler is None and config.val_oid_handler is None:
-                for oid, val in varbinds:
-                    # print(f'oid: {str(oid)}::: val: {str(val)}')
-                    oid, val = self._processing_oid_methods(oid), self._processing_val_oid_methods(val)
-                    field_name, cb_fn = self.matches.get(oid)
-                    if field_name is None or cb_fn is None:
-                        self.parsed_content_as_dict[oid] = val.prettyPrint()
-                    else:
-                        self.parsed_content_as_dict[field_name] = cb_fn(val)
-                if config.extras:
-                    self._add_extras_to_response()
-
-            else:
-                self._custom_parse_varbinds_and_add_to_processed_response(
-                    varbinds=varbinds,
-                    oid_handler=config.oid_handler,
-                    val_oid_handler=config.val_oid_handler
-                )
-
-        except IndexError as err:
-            print(f'except TypeError:: {err}')
-            return self.parsed_content_as_dict
+        # else:
+        #     self._custom_parse_varbinds_and_add_to_processed_response(
+        #         varbinds=varbinds,
+        #         oid_handler=config.oid_handler,
+        #         val_oid_handler=config.val_oid_handler
+        #     )
         # print(f' | resp: {self.parsed_content_as_dict}')
         self.add_host_protocol_to_response(config.host_protocol)
         self.data_for_response = self.parsed_content_as_dict

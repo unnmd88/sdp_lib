@@ -10,7 +10,8 @@ from pysnmp.entity.engine import SnmpEngine
 from sdp_lib.management_controllers.exceptions import BadControllerType
 from sdp_lib.management_controllers.hosts import Host
 from sdp_lib.management_controllers.fields_names import FieldsNames
-from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods import get_val_as_str, pretty_print
+from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods import get_val_as_str, pretty_print, \
+    build_func_with_remove_scn
 from sdp_lib.management_controllers.parsers.snmp_parsers.varbinds_parsers import (
     pretty_processing_stcip,
     default_processing,
@@ -239,9 +240,10 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
     @property
     @abc.abstractmethod
     def operation_mode_dependency(self) -> bool:
-        """ Возвращает True, если для set-запросов требуется
-            предварительная проверка и установка utcType2OperationMode,
-            иначе False.
+        """
+        Возвращает True, если для set-запросов требуется
+        предварительная проверка и установка utcType2OperationMode,
+        иначе False.
         """
 
     async def _get_dependency_data_and_add_error_if_has(self):
@@ -416,9 +418,8 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
     def _get_pretty_processed_config_with_scn(self):
         return ConfigsParser(
             extras=True,
-            oid_handler=get_val_as_str,
+            oid_handler=build_func_with_remove_scn(self.scn_as_ascii_string, get_val_as_str),
             val_oid_handler=pretty_print,
-            scn=self.scn_as_ascii_string
         )
 
     def _get_default_processed_config_with_scn(self):
@@ -426,7 +427,6 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
             extras=False,
             oid_handler=get_val_as_str,
             val_oid_handler=pretty_print,
-            scn=self.scn_as_ascii_string
         )
 
 
