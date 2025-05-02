@@ -23,7 +23,7 @@ from sdp_lib.management_controllers.parsers.snmp_parsers.varbinds_parsers import
     ParsersVarbindsSwarco,
     ParsersVarbindsPotokS,
     ParsersVarbindsPotokP,
-    ParsersVarbindsPeek
+    ParsersVarbindsPeek, default_processing_ug405
 )
 from sdp_lib.management_controllers.snmp.snmp_config import HostSnmpConfig
 from sdp_lib.management_controllers.snmp import (
@@ -285,7 +285,7 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
         if callable(parse_method):
             self._parse_method_config = parse_method()
         else:
-            self._parse_method_config = self._get_default_processed_config_with_scn()
+            self._parse_method_config = self._get_default_processed_config()
 
         return await self._make_request_and_build_response()
 
@@ -299,7 +299,7 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
             method=self._request_sender.snmp_get,
             varbinds_generate_method=self.varbinds.get_varbinds_current_states,
             value=None,
-            parse_method=self._get_pretty_processed_config_with_scn
+            parse_method=self._get_parser_config_with_remove_scn_from_oid_and_pretty_parsed_varbinds
         )
 
     async def set_stage(self, value: int) -> Self:
@@ -312,7 +312,7 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
             method=self._request_sender.snmp_set,
             varbinds_generate_method=self.varbinds.get_varbinds_set_stage,
             value=value,
-            parse_method=self._get_default_processed_config_with_scn
+            parse_method=self._get_default_processed_config
         )
 
     async def set_operation_mode(self, value: int) -> None:
@@ -400,7 +400,7 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
     def _set_scn_from_response(self):
         raise NotImplementedError()
 
-    def _get_pretty_processed_config_with_scn(self):
+    def _get_parser_config_with_remove_scn_from_oid_and_pretty_parsed_varbinds(self):
         return ConfigsParser(
             extras=True,
             oid_handler=build_func_with_remove_scn(self.scn_as_ascii_string, get_val_as_str),
@@ -408,13 +408,8 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
             host_protocol=FieldsNames.protocol_ug405
         )
 
-    def _get_default_processed_config_with_scn(self):
-        return ConfigsParser(
-            extras=False,
-            oid_handler=get_val_as_str,
-            val_oid_handler=pretty_print,
-            host_protocol=FieldsNames.protocol_ug405
-        )
+    def _get_default_processed_config(self):
+        return default_processing_ug405
 
 
 class StcipHosts(SnmpHosts):

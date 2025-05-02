@@ -43,6 +43,15 @@ pretty_processing_stcip = ConfigsParser(
     host_protocol=FieldsNames.protocol_stcip
 )
 
+default_processing_ug405 = ConfigsParser(
+    extras=False,
+    oid_handler=get_val_as_str,
+    val_oid_handler=pretty_print,
+    host_protocol=FieldsNames.protocol_ug405
+)
+
+
+
 
 class BaseSnmpParser(Parsers):
 
