@@ -1,7 +1,6 @@
 import abc
-import functools
 import typing
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from functools import cached_property
 
 from sdp_lib.management_controllers.controller_modes import NamesMode
@@ -25,13 +24,14 @@ from sdp_lib.management_controllers.snmp.snmp_utils import (
 
 
 class ConfigsParser(typing.NamedTuple):
-    extras: bool = False
-    oid_handler: Callable = None
-    val_oid_handler: Callable = None
+    extras: bool
+    oid_handler: Callable
+    val_oid_handler: Callable
     host_protocol: str = None
 
 
 default_processing = ConfigsParser(
+    extras=False,
     oid_handler=get_val_as_str,
     val_oid_handler=pretty_print
 )
