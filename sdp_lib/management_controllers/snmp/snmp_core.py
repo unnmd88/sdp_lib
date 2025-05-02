@@ -420,6 +420,7 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
             extras=True,
             oid_handler=build_func_with_remove_scn(self.scn_as_ascii_string, get_val_as_str),
             val_oid_handler=pretty_print,
+            host_protocol=FieldsNames.protocol_ug405
         )
 
     def _get_default_processed_config_with_scn(self):
@@ -427,6 +428,7 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
             extras=False,
             oid_handler=get_val_as_str,
             val_oid_handler=pretty_print,
+            host_protocol=FieldsNames.protocol_ug405
         )
 
 

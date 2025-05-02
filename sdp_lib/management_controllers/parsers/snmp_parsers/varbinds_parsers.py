@@ -45,20 +45,6 @@ pretty_processing_ug405 = ConfigsParser(
 
 class BaseSnmpParser(Parsers):
 
-    def __init__(self):
-
-        super().__init__()
-        self._processing_oid_methods = []
-        self._processing_val_oid_methods = []
-
-        # self._processing_oid = None
-        # self._processing_val_oid = None
-
-        # self.set_processing_oid_method(str)
-        # self.set_processing_val_oid_method(self.pretty_print)
-
-        self._scn_as_ascii_string = None
-
     @property
     @abc.abstractmethod
     def matches(self) -> dict[str | Oids, tuple[FieldsNames, Callable]]:
@@ -68,60 +54,6 @@ class BaseSnmpParser(Parsers):
     @abc.abstractmethod
     def extras_methods(self) -> dict[str, Callable]:
         ...
-
-    @property
-    def allowed_oid_processing_methods(self):
-        return {
-            str, self.pretty_print, self.remove_scn_from_oid, self.pretty_print
-        }
-
-    @property
-    def allowed_val_oid_processing_methods(self):
-        return {str, self.pretty_print}
-
-    # @property
-    # def processing_oid_method(self):
-    #     return self._processing_oid_methods
-    #
-    # @property
-    # def processing_val_oid_method(self):
-    #     return self._processing_val_oid_methods
-
-
-    def processing_oid(self):
-        for method in self._processing_oid_methods:
-            oid = method()
-        return oid
-
-    def processing_val_oid(self):
-        return self._processing_val_oid_methods
-
-    def get_val_as_str(self, val: int | str) -> str:
-        return str(val)
-
-    def pretty_print(self, oid_or_val) -> str:
-        return oid_or_val.prettyPrint()
-
-    # def set_processing_oid_method(self, method: Callable):
-    #     if method in self.allowed_oid_processing_methods:
-    #         self._processing_oid_methods = method
-    #     else:
-    #         raise TypeError
-
-    # def set_processing_val_oid_method(self, method: Callable):
-    #     if method in self.allowed_val_oid_processing_methods:
-    #         self._processing_val_oid_methods = method
-    #     else:
-    #         raise TypeError
-
-    def set_scn(self, value_as_ascii_string: str):
-        if isinstance(value_as_ascii_string, str) and value_as_ascii_string.count('.') >= 2:
-            self._scn_as_ascii_string = value_as_ascii_string
-        else:
-            raise ValueError
-
-    def remove_scn_from_oid(self, oid) -> str:
-        return str(oid).replace(self._scn_as_ascii_string, '')
 
     def add_fields_to_response(self, **kwargs):
         for field_name, val in kwargs.items():
@@ -134,36 +66,19 @@ class BaseSnmpParser(Parsers):
         for field_name, cb_fn in self.extras_methods.items():
             self.parsed_content_as_dict[field_name] = cb_fn()
 
-
     def parse(
             self,
             *,
             varbinds: T_Varbinds,
             config: ConfigsParser = default_processing
     ):
-        print(f'config_parser:{config}')
         for oid, val in varbinds:
-            # print(f'oid: {str(oid)}::: val: {str(val)}')
             oid, val = config.oid_handler(oid), config.val_oid_handler(val)
-
             field_name, cb_fn = self.matches.get(oid)
-
             self.parsed_content_as_dict[field_name] = cb_fn(val)
-            print(self.parsed_content_as_dict)
-            # if field_name is None or cb_fn is None:
-            #     self.parsed_content_as_dict[oid] = val.prettyPrint()
-            # else:
-            #     self.parsed_content_as_dict[field_name] = cb_fn(val)
         if config.extras:
             self._add_extras_to_response()
 
-        # else:
-        #     self._custom_parse_varbinds_and_add_to_processed_response(
-        #         varbinds=varbinds,
-        #         oid_handler=config.oid_handler,
-        #         val_oid_handler=config.val_oid_handler
-        #     )
-        # print(f' | resp: {self.parsed_content_as_dict}')
         self.add_host_protocol_to_response(config.host_protocol)
         self.data_for_response = self.parsed_content_as_dict
         return self.data_for_response
@@ -218,12 +133,12 @@ class StandardVarbindsParsersSwarco(BaseSnmpParser, StcipMixin):
     @cached_property
     def matches(self):
         return {
-            Oids.swarcoUTCTrafftechFixedTimeStatus: (FieldsNames.fixed_time_status, self.get_val_as_str),
-            Oids.swarcoUTCTrafftechPlanSource: (FieldsNames.plan_source, self.get_val_as_str),
+            Oids.swarcoUTCTrafftechFixedTimeStatus: (FieldsNames.fixed_time_status, get_val_as_str),
+            Oids.swarcoUTCTrafftechPlanSource: (FieldsNames.plan_source, get_val_as_str),
             Oids.swarcoUTCStatusEquipment: (FieldsNames.curr_status, self.get_status),
             Oids.swarcoUTCTrafftechPhaseStatus: (FieldsNames.curr_stage, SwarcoConverters.get_num_stage_from_oid_val),
-            Oids.swarcoUTCTrafftechPlanCurrent: (FieldsNames.curr_plan, self.get_val_as_str),
-            Oids.swarcoUTCDetectorQty: (FieldsNames.num_detectors, self.get_val_as_str),
+            Oids.swarcoUTCTrafftechPlanCurrent: (FieldsNames.curr_plan, get_val_as_str),
+            Oids.swarcoUTCDetectorQty: (FieldsNames.num_detectors, get_val_as_str),
             Oids.swarcoSoftIOStatus: (FieldsNames.status_soft_flag180_181, self.get_soft_flags_180_181_status),
         }
 
@@ -251,9 +166,9 @@ class StandardVarbindsParserPotokS(BaseSnmpParser, StcipMixin):
         return {
         Oids.swarcoUTCStatusEquipment: (FieldsNames.curr_status, self.get_status),
         Oids.swarcoUTCTrafftechPhaseStatus: (FieldsNames.curr_stage, PotokSConverters.get_num_stage_from_oid_val),
-        Oids.swarcoUTCTrafftechPlanCurrent: (FieldsNames.curr_plan, self.get_val_as_str),
-        Oids.swarcoUTCStatusMode: (FieldsNames.curr_status_mode, self.get_val_as_str),
-        Oids.swarcoUTCDetectorQty: (FieldsNames.num_detectors, self.get_val_as_str),
+        Oids.swarcoUTCTrafftechPlanCurrent: (FieldsNames.curr_plan, get_val_as_str),
+        Oids.swarcoUTCStatusMode: (FieldsNames.curr_status_mode, get_val_as_str),
+        Oids.swarcoUTCDetectorQty: (FieldsNames.num_detectors, get_val_as_str),
     }
 
 
@@ -304,15 +219,15 @@ class PotokPStandardParser(BaseSnmpParser, Ug405Mixin):
     @cached_property
     def matches(self):
         return {
-            Oids.utcType2OperationMode: (FieldsNames.operation_mode, self.get_val_as_str),
-            Oids.potokP_utcReplyDarkStatus: (FieldsNames.dark, self.get_val_as_str),
-            Oids.utcReplyFR: (FieldsNames.flash, self.get_val_as_str),
+            Oids.utcType2OperationMode: (FieldsNames.operation_mode, get_val_as_str),
+            Oids.potokP_utcReplyDarkStatus: (FieldsNames.dark, get_val_as_str),
+            Oids.utcReplyFR: (FieldsNames.flash, get_val_as_str),
             Oids.utcReplyGn: (FieldsNames.curr_stage, PotokPConverters.get_num_stage_from_oid_val),
-            Oids.potokP_utcReplyPlanStatus: (FieldsNames.curr_plan, self.get_val_as_str),
-            Oids.potokP_utcReplyLocalAdaptiv: (FieldsNames.local_adaptive_status, self.get_val_as_str),
-            Oids.utcType2ScootDetectorCount: (FieldsNames.num_detectors, self.get_val_as_str),
-            Oids.utcReplyDF: (FieldsNames.has_det_faults, self.get_val_as_str),
-            Oids.utcReplyMC: (FieldsNames.is_mode_man, self.get_val_as_str),
+            Oids.potokP_utcReplyPlanStatus: (FieldsNames.curr_plan, get_val_as_str),
+            Oids.potokP_utcReplyLocalAdaptiv: (FieldsNames.local_adaptive_status, get_val_as_str),
+            Oids.utcType2ScootDetectorCount: (FieldsNames.num_detectors,get_val_as_str),
+            Oids.utcReplyDF: (FieldsNames.has_det_faults, get_val_as_str),
+            Oids.utcReplyMC: (FieldsNames.is_mode_man, get_val_as_str),
         }
 
 
