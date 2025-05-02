@@ -170,30 +170,13 @@ class SnmpHosts(Host):
             self.add_data_to_data_response_attrs(BadControllerType())
         return bool(self.response_errors)
 
-    async def _make_request_and_build_response(self):
+    async def _make_request_and_build_response(self) -> Self:
         """
         Осуществляет вызов соответствующего snmp-запроса и передает
         self.__parse_response_all_types_requests полученный ответ для парса response.
         """
 
         self.last_response = await self._request_method(varbinds=self._varbinds_for_request)
-        # print(f'self.last_response: {self.last_response}')
-        # for i in self.last_response:
-        #     print(f'i: {i}')
-        # for oid, val in self.last_response[3]:
-        #     print(f'oid: {str(oid)}, val: {str(val)}')
-        # print('-----------------------------')
-        # for oid, val in self._varbinds_for_request:
-        #     print(f'oid: {str(oid)}, val: {str(val)}')
-        return self.__parse_and_processing_response_all_types_requests()
-
-    def __parse_and_processing_response_all_types_requests(self) -> Self:
-        """
-        Осуществляет проверку snmp-response и передает его парсеру для формирования
-        response из полученных значений оидов.
-        """
-        # if ErrorResponseCheckers(self).check_response_errors_and_add_to_host_data_if_has():
-        #     return self
 
         if self.check_snmp_response_errors_and_add_to_host_data_if_has():
             return self
