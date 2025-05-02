@@ -98,10 +98,7 @@ class SnmpHosts(Host):
     получение и обработка snmp-ответов.
     """
 
-    protocol = FieldsNames.protocol_snmp
-    host_properties: T_DataHosts
     parser_class: Any
-    converter_class: Any
     varbinds: Any
 
     def __init__(
@@ -124,6 +121,10 @@ class SnmpHosts(Host):
     #         self._engine = engine
     #     else:
     #         raise TypeError(f'engine должен быть типа "SnmpEngine", передан: {type(engine)}')
+
+    @property
+    def protocol(self):
+        return FieldsNames.protocol_snmp
 
     @property
     @abc.abstractmethod
@@ -196,8 +197,6 @@ class SnmpHosts(Host):
 
 
 class Ug405Hosts(SnmpHosts, ScnConverterMixin):
-
-    converter_class: PotokPConverters
 
     def __init__(
             self,
@@ -420,10 +419,6 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
 
 class StcipHosts(SnmpHosts):
 
-    parser_class: Any
-    converter_class: SwarcoConverters | PotokSConverters
-    varbinds: VarbindsSwarco | VarbindsPotokS
-
     @property
     def snmp_config(self) -> HostSnmpConfig:
         return snmp_config.stcip
@@ -448,21 +443,18 @@ class StcipHosts(SnmpHosts):
 class SwarcoStcip(StcipHosts):
 
     parser_class = ParsersVarbindsSwarco
-    converter_class = SwarcoConverters
     varbinds = swarco_stcip_varbinds
 
 
 class PotokS(StcipHosts):
 
     parser_class = ParsersVarbindsPotokS
-    converter_class = PotokSConverters
     varbinds = potok_stcip_varbinds
 
 
 class PotokP(Ug405Hosts):
 
     parser_class = ParsersVarbindsPotokP
-    converter_class = PotokPConverters
     varbinds = potok_ug405_varbinds
 
     @property
@@ -485,7 +477,6 @@ class PotokP(Ug405Hosts):
 class PeekUg405(Ug405Hosts):
 
     parser_class = ParsersVarbindsPeek
-    converter_class = PeekConverters
     varbinds = peek_ug405_varbinds
 
     @property
