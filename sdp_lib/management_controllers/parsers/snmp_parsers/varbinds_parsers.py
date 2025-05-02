@@ -43,13 +43,6 @@ pretty_processing_stcip = ConfigsParser(
     host_protocol=FieldsNames.protocol_stcip
 )
 
-pretty_processing_ug405 = ConfigsParser(
-    extras=True,
-    oid_handler=get_val_as_str,
-    val_oid_handler=pretty_print,
-    host_protocol=FieldsNames.protocol_ug405
-)
-
 
 class BaseSnmpParser(Parsers):
 
@@ -92,7 +85,7 @@ class BaseSnmpParser(Parsers):
         return self.data_for_response
 
 
-class StandardVarbindsParsersSwarco(BaseSnmpParser, StcipMixin):
+class ParsersVarbindsSwarco(BaseSnmpParser, StcipMixin):
 
     CENTRAL_PLAN              = '16'
     MANUAL_PLAN               = '15'
@@ -151,7 +144,7 @@ class StandardVarbindsParsersSwarco(BaseSnmpParser, StcipMixin):
         }
 
 
-class StandardVarbindsParserPotokS(BaseSnmpParser, StcipMixin):
+class ParsersVarbindsPotokS(BaseSnmpParser, StcipMixin):
 
     modes = {
         '8': str(NamesMode.VA),
@@ -180,7 +173,7 @@ class StandardVarbindsParserPotokS(BaseSnmpParser, StcipMixin):
     }
 
 
-class PotokPStandardParser(BaseSnmpParser, Ug405Mixin):
+class ParsersVarbindsPotokP(BaseSnmpParser, Ug405Mixin):
 
     def get_current_mode(self) -> str | None:
 
@@ -239,7 +232,7 @@ class PotokPStandardParser(BaseSnmpParser, Ug405Mixin):
         }
 
 
-class PeekStandardParser(BaseSnmpParser, Ug405Mixin):
+class ParsersVarbindsPeek(BaseSnmpParser, Ug405Mixin):
     @property
     def matches(self) -> dict[str | Oids, tuple[FieldsNames, Callable]]:
         return {}

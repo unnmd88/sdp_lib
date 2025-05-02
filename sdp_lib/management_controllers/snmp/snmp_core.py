@@ -20,10 +20,10 @@ from sdp_lib.management_controllers.parsers.snmp_parsers.varbinds_parsers import
     default_processing,
     BaseSnmpParser,
     ConfigsParser,
-    StandardVarbindsParsersSwarco,
-    StandardVarbindsParserPotokS,
-    PotokPStandardParser,
-    PeekStandardParser
+    ParsersVarbindsSwarco,
+    ParsersVarbindsPotokS,
+    ParsersVarbindsPotokP,
+    ParsersVarbindsPeek
 )
 from sdp_lib.management_controllers.snmp.snmp_config import HostSnmpConfig
 from sdp_lib.management_controllers.snmp import (
@@ -73,9 +73,9 @@ def ug405_dependency(
                         return instance
 
             if value is None:
-                instance.set_varbinds_for_request(varbinds_builder_method(instance.scn_as_ascii_string))
+                instance._set_varbinds_for_request(varbinds_builder_method(instance.scn_as_ascii_string))
             else:
-                instance.set_varbinds_for_request(varbinds_builder_method(instance.scn_as_ascii_string, value))
+                instance._set_varbinds_for_request(varbinds_builder_method(instance.scn_as_ascii_string, value))
 
             # print(f'varbinds_for_req: {instance._varbinds_for_request}')
             #
@@ -132,30 +132,29 @@ class SnmpHosts(Host):
 
     @classmethod
     def _get_parser(cls, *args, **kwargs):
-        # print(f'*args" {args}, kwargs: {kwargs}')
         return cls.parser_class(*args, **kwargs)
 
-    def set_varbinds_for_request(self, varbinds: T_Varbinds):
+    def _set_varbinds_for_request(self, varbinds: T_Varbinds):
         self._varbinds_for_request = varbinds
 
-    def reset_varbinds_for_request(self):
+    def _reset_varbinds_for_request(self):
         self._varbinds_for_request = None
 
-    def set_current_request_method(self, method: Callable):
+    def _set_current_request_method(self, method: Callable):
         self._request_method = method
 
-    def reset_current_request_method(self):
+    def _reset_current_request_method(self):
         self._request_method = None
 
-    def set_varbinds_and_method_for_request(self, varbinds: T_Varbinds, method: Callable):
+    def _set_varbinds_and_method_for_request(self, varbinds: T_Varbinds, method: Callable):
         self._varbinds_for_request = varbinds
         self._request_method = method
 
-    def reset_varbinds_and_method_for_request(self):
-        self.reset_varbinds_for_request()
-        self.reset_current_request_method()
+    def _reset_varbinds_and_method_for_request(self):
+        self._reset_varbinds_for_request()
+        self._reset_current_request_method()
 
-    def check_snmp_response_errors_and_add_to_host_data_if_has(self):
+    def _check_snmp_response_errors_and_add_to_host_data_if_has(self):
         """
             self.__response[ResponseStructure.ERROR_INDICATION] = error_indication: errind.ErrorIndication,
             self.__response[ResponseStructure.ERROR_STATUS] = error_status: Integer32 | int,
@@ -178,7 +177,7 @@ class SnmpHosts(Host):
 
         self.last_response = await self._request_method(varbinds=self._varbinds_for_request)
 
-        if self.check_snmp_response_errors_and_add_to_host_data_if_has():
+        if self._check_snmp_response_errors_and_add_to_host_data_if_has():
             return self
 
         self._parser.parse(
@@ -188,11 +187,11 @@ class SnmpHosts(Host):
 
         if not self._parser.data_for_response:
             self.add_data_to_data_response_attrs(BadControllerType())
-            self.reset_varbinds_and_method_for_request()
+            self._reset_varbinds_and_method_for_request()
             return self
 
         self.add_data_to_data_response_attrs(data=self._parser.data_for_response)
-        self.reset_varbinds_and_method_for_request()
+        self._reset_varbinds_and_method_for_request()
         return self
 
 
@@ -221,12 +220,12 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
 
     @property
     @abc.abstractmethod
-    def method_for_get_scn(self) -> Callable:
+    def _method_for_get_scn(self) -> Callable:
         """ Snmp-метод для получения scn """
 
     @property
     @abc.abstractmethod
-    def operation_mode_dependency(self) -> bool:
+    def _operation_mode_dependency(self) -> bool:
         """
         Возвращает True, если для set-запросов требуется
         предварительная проверка и установка utcType2OperationMode,
@@ -239,9 +238,9 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
         В данной реализации получение scn и установка в соответствующие атрибуты.
         """
 
-        self.last_response = await self.method_for_get_scn(varbinds=[VarbindsUg405.site_id_varbind])
+        self.last_response = await self._method_for_get_scn(varbinds=[VarbindsUg405.site_id_varbind])
 
-        if self.check_snmp_response_errors_and_add_to_host_data_if_has():
+        if self._check_snmp_response_errors_and_add_to_host_data_if_has():
             return
         try:
             self._set_scn_from_response()
@@ -265,19 +264,19 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
             return self
 
         if method == self._request_sender.snmp_get:
-            self.set_varbinds_and_method_for_request(
+            self._set_varbinds_and_method_for_request(
                 varbinds=varbinds_generate_method(self.scn_as_ascii_string),
                 method=method
             )
             # self.set_varbinds_for_request(varbinds_generate_method(self.scn_as_ascii_string))
         elif method == self._request_sender.snmp_set:
 
-            if self.operation_mode_dependency:
+            if self._operation_mode_dependency:
                 await self.set_operation_mode3_across_operation_mode2()
-                if self.check_snmp_response_errors_and_add_to_host_data_if_has():
+                if self._check_snmp_response_errors_and_add_to_host_data_if_has():
                     return self
 
-            self.set_varbinds_and_method_for_request(
+            self._set_varbinds_and_method_for_request(
                 varbinds=varbinds_generate_method(self.scn_as_ascii_string, value),
                 method=method
             )
@@ -366,7 +365,7 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
         self.last_response = await self._request_sender.snmp_get(
             varbinds=[VarbindsUg405.operation_mode_varbind]
         )
-        if self.check_snmp_response_errors_and_add_to_host_data_if_has():
+        if self._check_snmp_response_errors_and_add_to_host_data_if_has():
             return False
 
         op_mode = str(self.last_response[SnmpResponseStructure.VAR_BINDS][0][1])
@@ -375,21 +374,21 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
 
         if op_mode == '1':
             await self.set_operation_mode2()
-            if self.check_snmp_response_errors_and_add_to_host_data_if_has():
+            if self._check_snmp_response_errors_and_add_to_host_data_if_has():
                 return False
             await self.set_operation_mode3()
-            if self.check_snmp_response_errors_and_add_to_host_data_if_has():
+            if self._check_snmp_response_errors_and_add_to_host_data_if_has():
                 return False
         elif op_mode == '2':
             await self.set_operation_mode3()
-            if self.check_snmp_response_errors_and_add_to_host_data_if_has():
+            if self._check_snmp_response_errors_and_add_to_host_data_if_has():
                 return False
 
         self.last_response = await self._request_sender.snmp_get(
             varbinds=[VarbindsUg405.operation_mode_varbind]
         )
 
-        if self.check_snmp_response_errors_and_add_to_host_data_if_has():
+        if self._check_snmp_response_errors_and_add_to_host_data_if_has():
             return False
         return str(self.last_response[SnmpResponseStructure.VAR_BINDS][0][1]) == '3'
 
@@ -431,7 +430,7 @@ class StcipHosts(SnmpHosts):
 
     async def get_states(self):
         self._parse_method_config = pretty_processing_stcip
-        self.set_varbinds_and_method_for_request(
+        self._set_varbinds_and_method_for_request(
             varbinds=self.varbinds.get_varbinds_current_states(),
             method=self._request_sender.snmp_get
         )
@@ -439,7 +438,7 @@ class StcipHosts(SnmpHosts):
 
     async def set_stage(self, value: int):
         self._parse_method_config = default_processing
-        self.set_varbinds_and_method_for_request(
+        self._set_varbinds_and_method_for_request(
             varbinds=self.varbinds.get_varbinds_set_stage(value),
             method=self._request_sender.snmp_set
         )
@@ -448,30 +447,30 @@ class StcipHosts(SnmpHosts):
 
 class SwarcoStcip(StcipHosts):
 
-    parser_class = StandardVarbindsParsersSwarco
+    parser_class = ParsersVarbindsSwarco
     converter_class = SwarcoConverters
     varbinds = swarco_stcip_varbinds
 
 
 class PotokS(StcipHosts):
 
-    parser_class = StandardVarbindsParserPotokS
+    parser_class = ParsersVarbindsPotokS
     converter_class = PotokSConverters
     varbinds = potok_stcip_varbinds
 
 
 class PotokP(Ug405Hosts):
 
-    parser_class = PotokPStandardParser
+    parser_class = ParsersVarbindsPotokP
     converter_class = PotokPConverters
     varbinds = potok_ug405_varbinds
 
     @property
-    def method_for_get_scn(self) -> Callable:
+    def _method_for_get_scn(self) -> Callable:
         return self._request_sender.snmp_get
 
     @property
-    def operation_mode_dependency(self) -> bool:
+    def _operation_mode_dependency(self) -> bool:
         return False
 
     def _set_scn_from_response(self) -> None | BadControllerType:
@@ -485,16 +484,16 @@ class PotokP(Ug405Hosts):
 
 class PeekUg405(Ug405Hosts):
 
-    parser_class = PeekStandardParser
+    parser_class = ParsersVarbindsPeek
     converter_class = PeekConverters
     varbinds = peek_ug405_varbinds
 
     @property
-    def method_for_get_scn(self) -> Callable:
+    def _method_for_get_scn(self) -> Callable:
         return self._request_sender.snmp_get_next
 
     @property
-    def operation_mode_dependency(self) -> bool:
+    def _operation_mode_dependency(self) -> bool:
         return True
 
     def _set_scn_from_response(self) -> None | BadControllerType:
