@@ -10,8 +10,11 @@ from pysnmp.entity.engine import SnmpEngine
 from sdp_lib.management_controllers.exceptions import BadControllerType
 from sdp_lib.management_controllers.hosts import Host
 from sdp_lib.management_controllers.fields_names import FieldsNames
-from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods import get_val_as_str, pretty_print, \
+from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods import (
+    get_val_as_str,
+    pretty_print,
     build_func_with_remove_scn
+)
 from sdp_lib.management_controllers.parsers.snmp_parsers.varbinds_parsers import (
     pretty_processing_stcip,
     default_processing,
@@ -23,7 +26,10 @@ from sdp_lib.management_controllers.parsers.snmp_parsers.varbinds_parsers import
     PeekStandardParser
 )
 from sdp_lib.management_controllers.snmp.snmp_config import HostSnmpConfig
-from sdp_lib.management_controllers.snmp import snmp_config, oids
+from sdp_lib.management_controllers.snmp import (
+    snmp_config,
+    oids
+)
 from sdp_lib.management_controllers.structures import SnmpResponseStructure
 from sdp_lib.management_controllers.snmp.set_commands import SnmpEntity
 from sdp_lib.management_controllers.snmp.snmp_utils import (
@@ -42,9 +48,7 @@ from sdp_lib.management_controllers.snmp.varbinds import (
     potok_ug405_varbinds,
     VarbindsUg405, peek_ug405_varbinds
 )
-from sdp_lib.management_controllers.snmp._types import (
-    T_Varbinds
-)
+from sdp_lib.management_controllers.snmp._types import T_Varbinds
 
 
 T_DataHosts = TypeVar('T_DataHosts', bound=HostSnmpConfig)

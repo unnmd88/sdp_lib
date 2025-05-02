@@ -7,14 +7,20 @@ from functools import cached_property
 from sdp_lib.management_controllers.controller_modes import NamesMode
 from sdp_lib.management_controllers.fields_names import FieldsNames
 from sdp_lib.management_controllers.parsers.parser_core import Parsers
-from sdp_lib.management_controllers.parsers.snmp_parsers.mixins import StcipMixin, Ug405Mixin
-from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods import get_val_as_str, pretty_print
+from sdp_lib.management_controllers.parsers.snmp_parsers.mixins import (
+    StcipMixin,
+    Ug405Mixin
+)
+from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods import (
+    get_val_as_str,
+    pretty_print
+)
 from sdp_lib.management_controllers.snmp._types import T_Varbinds
 from sdp_lib.management_controllers.snmp.oids import Oids
 from sdp_lib.management_controllers.snmp.snmp_utils import (
     SwarcoConverters,
     PotokSConverters,
-    PotokPConverters, remove_scn_from_oid
+    PotokPConverters
 )
 
 
@@ -25,7 +31,10 @@ class ConfigsParser(typing.NamedTuple):
     host_protocol: str = None
 
 
-default_processing = ConfigsParser(oid_handler=get_val_as_str, val_oid_handler=pretty_print)
+default_processing = ConfigsParser(
+    oid_handler=get_val_as_str,
+    val_oid_handler=pretty_print
+)
 
 pretty_processing_stcip = ConfigsParser(
     extras=True,
