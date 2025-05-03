@@ -1,11 +1,9 @@
 import abc
 import asyncio
-import pprint
 import sys
 import time
 
 from pysnmp.entity.engine import SnmpEngine
-from pysnmp.proto import rfc1905
 from pysnmp.proto.rfc1902 import (
     Unsigned32,
     Integer,
@@ -19,7 +17,6 @@ from pysnmp.smi.rfc1902 import (
 from sdp_lib.management_controllers.snmp import (
     oids,
     snmp_requests,
-    snmp_config
 )
 from sdp_lib.management_controllers.snmp._types import (
     T_Oids,
@@ -89,18 +86,12 @@ class VarbindsStcip(Varbinds):
     #     return [cls._varbinds_set_stage.get(num_stage)]
 
 
-class VarbindsSwarco(VarbindsStcip):
+# class VarbindsSwarco(VarbindsStcip):
+#
+#     _oids_state = oids.oids_state_swarco
+#     _varbinds_set_stage = swarco_stcip_set_stage_varbinds
 
-    _oids_state = oids.oids_state_swarco
-    _varbinds_set_stage = swarco_stcip_set_stage_varbinds
 
-    # @classmethod
-    # def _build_varbinds_for_set_stage(cls) -> dict[int, ObjectType]:
-    #     return {
-    #         num_stage: wrap_oid_by_object_type(Oids.swarcoUTCTrafftechPhaseCommand, Unsigned32(num_stage + 1))
-    #         for num_stage in range(1, 8)
-    #     } | {8: wrap_oid_by_object_type(Oids.swarcoUTCTrafftechPhaseCommand, 1),
-    #          0: wrap_oid_by_object_type(Oids.swarcoUTCTrafftechPhaseCommand, 0)}
 
 
 class VarbindsPotokS(VarbindsStcip):
@@ -220,7 +211,7 @@ class VarbindsPeek(VarbindsUg405):
 # Singleton instances
 potok_ug405_varbinds = VarbindsPotokP()
 potok_stcip_varbinds = VarbindsPotokS()
-swarco_stcip_varbinds = VarbindsSwarco()
+# swarco_stcip_varbinds = VarbindsSwarco()
 peek_ug405_varbinds = VarbindsPeek()
 
 
@@ -274,57 +265,29 @@ class WrapperVarbindsByScnPotokP(AbstractVarbindsWrappersByScn):
 
     _ug405_varbinds = potok_ug405_varbinds
 
-
-def build_test_obj():
-    p = VarbindsPotokP()
-    scn155 = convert_chars_string_to_ascii_string('CO155')
-
-    # vb = p.get_varbinds_get_state_by_scn(scn_as_ascii=scn155)
-    # print(vb)
-    print(f'Volume: {sys.getsizeof(p._varbinds_get_state)}')
-    print(f'Volume 2 : {sys.getsizeof(list(p._varbinds_get_state.values()))}')
-    print(f'Volume 1 el: {sys.getsizeof(p._varbinds_get_state.get(scn155))}')
+###########################
 
 
-async def main():
+class VarbindsBase:
+
+    def __init__(self, state_oids: T_Oids, set_stage_varbinds: dict[int, T_Varbinds]):
+        self._states_oids = state_oids
+        self._states_varbinds = tuple(wrap_oid_by_object_type(oid) for oid in state_oids)
+        self._set_stage_varbinds = set_stage_varbinds
+
+    def get_varbinds_current_states(self):
+        return self._states_varbinds
+
+    def get_varbinds_set_stage(self, num_stage: int):
+        return [self._set_stage_varbinds[num_stage]]
 
 
-    r_sender = snmp_requests.SnmpRequests(
-        ip='10.179.8.105',
-        community_r=host_data.swarco_stcip.community_r,
-        community_w=host_data.swarco_stcip.community_w,
-        engine=SnmpEngine()
-    )
+swarco_stcip_varbinds = VarbindsBase(
+    oids.oids_state_swarco, swarco_stcip_set_stage_varbinds
+)
 
-    r_sender = snmp_requests.SnmpRequests(
-        # ip='10.179.56.105',
-        ip='10.179.69.65',
-        community_r=host_data.potok_p.community_r,
-        community_w=host_data.potok_p.community_w,
-        engine=SnmpEngine()
-    )
 
-    r_sender = snmp_requests.SnmpRequests(
-        # ip='10.179.56.105',
-        ip='10.179.69.65',
-        community_r=host_data.potok_p.community_r,
-        community_w=host_data.potok_p.community_w,
-        engine=SnmpEngine()
-    )
 
-    r_sender = snmp_requests.SnmpRequests(
-        # ip='10.179.56.105',
-        ip='10.179.68.177',
-        community_r=host_data.potok_s.community_r,
-        community_w=host_data.potok_s.community_w,
-        engine=SnmpEngine()
-    )
-
-    res = await r_sender.snmp_get(potok_stcip_varbinds.get_varbinds_current_states())
-
-    print(res)
-
-    potok_stcip_varbinds.parse_response(res[3])
 
 if __name__ == '__main__':
     asyncio.run(main())
