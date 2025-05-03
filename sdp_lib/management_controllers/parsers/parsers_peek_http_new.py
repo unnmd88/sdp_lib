@@ -1,14 +1,16 @@
-import asyncio
 import json
 import pprint
 import time
-from typing import Any
+from typing import (
+    Any,
+    TypeAlias
+)
 
 from sdp_lib.management_controllers.fields_names import FieldsNames
 from sdp_lib.management_controllers.parsers.parser_core import Parsers
 
 
-properties = dict[str, tuple[str, ...]]
+properties: TypeAlias = dict[str, tuple[str, ...]]
 
 
 class ParserBase(Parsers):
@@ -283,7 +285,7 @@ class MainPageParser(ParserBase):
         ]
 
 
-INPUT_DATA = tuple[str, str, str, str, str, str]
+input_data: TypeAlias = tuple[str, str, str, str, str, str]
 
 
 class InputsPageParser(ParserBase):

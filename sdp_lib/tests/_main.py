@@ -1,0 +1,28 @@
+import asyncio
+
+from pysnmp.entity.engine import SnmpEngine
+
+from sdp_lib.management_controllers.snmp import snmp_api
+
+
+async def main():
+    obj1 =  snmp_api.SwarcoStcip(ipv4='10.179.14.185', engine=SnmpEngine())
+    obj2 =  snmp_api.PotokP(ipv4='10.179.63.241', engine=SnmpEngine())
+    await obj1.get_states()
+    print(obj1)
+    print('----------')
+    print(obj1.response_as_dict)
+    print('----------')
+    print(obj1.last_response[3])
+
+    await obj2.get_states()
+    print(obj2)
+    print('----------')
+    print(obj2.response_as_dict)
+    print('----------')
+    print(obj2.last_response[3])
+
+
+
+if __name__ == '__main__':
+    asyncio.run(main())

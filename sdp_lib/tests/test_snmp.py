@@ -20,12 +20,3 @@ async def test_get_states_swarco():
 
 
 
-async def main():
-    obj =  snmp_api.SwarcoStcip(ipv4='10.179.14.185', engine=SnmpEngine())
-    await obj.get_states()
-    assert obj.last_response
-
-
-
-# if __name__ == '__main__':
-#     asyncio.run(main())
