@@ -28,7 +28,7 @@ from pysnmp.smi.rfc1902 import (
 from sdp_lib.management_controllers.snmp import oids
 from sdp_lib.management_controllers.snmp.user_types import (
     T_Oids,
-    T_Varbinds
+    T_Varbinds, T_Varbind
 )
 from sdp_lib.management_controllers.snmp.oids import (
     Oids,
@@ -69,7 +69,7 @@ def convert_chars_string_to_ascii_string(
 def create_varbinds(
         oids: Iterable[T_Oids],
         container: Type[list | tuple] = list
-) -> Iterable[T_Varbinds]:
+) -> Iterable[T_Varbind]:
     """
     Оборачивает каждый оид из oids в класс ObjectIdentity.
     :param oids: Итерируемые объект, элементы которого представлены T_Oids.
