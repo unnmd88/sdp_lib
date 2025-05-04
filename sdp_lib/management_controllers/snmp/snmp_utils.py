@@ -1,9 +1,9 @@
-
 import logging
 import math
 from collections.abc import Iterable
 from typing import Type
 
+import pysnmp
 from pysnmp.proto import rfc1905
 from pysnmp.proto.rfc1902 import (
     Unsigned32,
@@ -54,11 +54,10 @@ def convert_chars_string_to_ascii_string(
 ) -> str:
     """
     Генерирует SCN.
-    :param  scn_as_chars: символы строки, которые необходимо конвертировать, например: CO3995.
-    :return -> возвращет scn виде строки ascii, например .1.6.67.79.51.57.57.53.
+    :param:  scn_as_chars: Cимволы строки, которые необходимо конвертировать, например: CO3995.
+    :return: Scn в виде строки ascii, например .1.6.67.79.51.57.57.53.
     """
     return f'.1.{str(len(scn_as_chars))}.{".".join([str(ord(c)) for c in scn_as_chars])}'
-
 
 def create_varbinds(
         oids: Iterable[T_Oids],
@@ -346,3 +345,5 @@ potok_stcip_varbinds = VarbPotokS()
 potok_ug405_varbinds = VarbPotokP()
 peek_ug405_varbinds = VarbPeek()
 
+if __name__ == '__main__':
+    logger.debug([wrap_oid_by_object_type([1])])
