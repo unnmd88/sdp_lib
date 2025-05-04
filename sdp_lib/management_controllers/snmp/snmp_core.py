@@ -32,16 +32,17 @@ from sdp_lib.management_controllers.snmp import (
 )
 from sdp_lib.management_controllers.structures import SnmpResponseStructure
 from sdp_lib.management_controllers.snmp.set_commands import SnmpEntity
+# from sdp_lib.management_controllers.snmp.snmp_utils import ScnConverterMixin
 from sdp_lib.management_controllers.snmp.snmp_utils import ScnConverterMixin
 from sdp_lib.management_controllers.snmp.snmp_requests import SnmpRequests
-from sdp_lib.management_controllers.snmp.varbinds import (
+from sdp_lib.management_controllers.snmp.snmp_utils import (
     swarco_stcip_varbinds,
     potok_stcip_varbinds,
     potok_ug405_varbinds,
     VarbindsUg405,
     peek_ug405_varbinds, AbstractVarbindsWithScn
 )
-from sdp_lib.management_controllers.snmp._types import T_Varbinds
+from sdp_lib.management_controllers.snmp.user_types import T_Varbinds
 
 
 T_DataHosts = TypeVar('T_DataHosts', bound=HostSnmpConfig)

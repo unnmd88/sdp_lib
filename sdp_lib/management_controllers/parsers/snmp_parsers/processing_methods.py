@@ -4,6 +4,12 @@ from collections.abc import Callable
 def get_val_as_str(val: int | str) -> str:
     return str(val)
 
+def get_val_as_int(val: int | str) -> int | str:
+    try:
+        return int(val)
+    except ValueError:
+        return str(val)
+
 def pretty_print(oid_or_val) -> str:
     return oid_or_val.prettyPrint()
 

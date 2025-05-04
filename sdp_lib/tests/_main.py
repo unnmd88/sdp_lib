@@ -10,21 +10,21 @@ async def main():
     obj2 =  snmp_api.PotokP(ipv4='10.179.63.241', engine=SnmpEngine())
     obj3 =  snmp_api.PotokS(ipv4='10.179.65.153', engine=SnmpEngine())
 
-    # await obj1.get_states()
-    # print(obj1)
-    # print('----------')
-    # print(obj1.response_as_dict)
-    # print('----------')
-    # print(obj1.last_response[3])
+    await obj1.get_states()
+    print(obj1)
+    print('----------')
+    print(obj1.response_as_dict)
+    print('----------')
+    print(obj1.last_response[3])
 
-    # await obj2.get_states()
-    # print(obj2)
-    # print(obj2.scn_as_ascii_string)
-    # print(obj2.scn_as_chars)
-    # print('----------')
-    # print(obj2.response_as_dict)
-    # print('----------')
-    # print(obj2.last_response[3])
+    await obj2.get_states()
+    print(obj2)
+    print(obj2.scn_as_ascii_string)
+    print(obj2.scn_as_chars)
+    print('----------')
+    print(obj2.response_as_dict)
+    print('----------')
+    print(obj2.last_response[3])
     #
     # await obj3.get_states()
     # print(obj3)
@@ -33,7 +33,7 @@ async def main():
     # print('----------')
     # print(obj3.last_response[3])
 
-    await obj2.set_stage(0)
+    # await obj2.set_stage(0)
 
 
 
