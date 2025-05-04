@@ -32,15 +32,13 @@ from sdp_lib.management_controllers.snmp import (
 )
 from sdp_lib.management_controllers.structures import SnmpResponseStructure
 from sdp_lib.management_controllers.snmp.set_commands import SnmpEntity
-# from sdp_lib.management_controllers.snmp.snmp_utils import ScnConverterMixin
 from sdp_lib.management_controllers.snmp.snmp_utils import ScnConverterMixin
 from sdp_lib.management_controllers.snmp.snmp_requests import SnmpRequests
 from sdp_lib.management_controllers.snmp.snmp_utils import (
     swarco_stcip_varbinds,
     potok_stcip_varbinds,
     potok_ug405_varbinds,
-    VarbindsUg405,
-    peek_ug405_varbinds, AbstractVarbindsWithScn
+    peek_ug405_varbinds, CommonVarbindsUg405
 )
 from sdp_lib.management_controllers.snmp.user_types import T_Varbinds
 
@@ -231,7 +229,7 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
         В данной реализации получение scn и установка в соответствующие атрибуты.
         """
 
-        self.last_response = await self._method_for_get_scn(varbinds=[AbstractVarbindsWithScn.site_id_varbind])
+        self.last_response = await self._method_for_get_scn(varbinds=[CommonVarbindsUg405.site_id_varbind])
 
         if self._check_snmp_response_errors_and_add_to_host_data_if_has():
             return
@@ -316,7 +314,7 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
         :return: None
         """
         self.last_response = await self._request_sender.snmp_set(
-            varbinds=[VarbindsUg405.get_operation_mode_varbinds(value)]
+            varbinds=[CommonVarbindsUg405.get_operation_mode_varbinds(value)]
         )
 
     async def set_operation_mode1(self):
@@ -356,7 +354,7 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
         """
 
         self.last_response = await self._request_sender.snmp_get(
-            varbinds=[VarbindsUg405.operation_mode_varbind]
+            varbinds=[CommonVarbindsUg405.operation_mode_varbind]
         )
         if self._check_snmp_response_errors_and_add_to_host_data_if_has():
             return False
@@ -378,7 +376,7 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
                 return False
 
         self.last_response = await self._request_sender.snmp_get(
-            varbinds=[VarbindsUg405.operation_mode_varbind]
+            varbinds=[CommonVarbindsUg405.operation_mode_varbind]
         )
 
         if self._check_snmp_response_errors_and_add_to_host_data_if_has():

@@ -1,6 +1,3 @@
-import asyncio
-from collections import abc
-
 import pytest
 from pysnmp.entity.engine import SnmpEngine
 

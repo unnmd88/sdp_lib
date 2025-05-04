@@ -1,22 +1,12 @@
-import abc
-import asyncio
-import dataclasses
+
+import logging
 import math
-import sys
-import time
-from  typing import Type
-from collections.abc import (
-    Sequence,
-    Iterable,
-    Callable
-)
-from dataclasses import asdict
-from typing import TypeAlias, TypeVar
+from collections.abc import Iterable
+from typing import Type
 
 from pysnmp.proto import rfc1905
 from pysnmp.proto.rfc1902 import (
     Unsigned32,
-    Integer,
     OctetString,
     Integer32
 )
@@ -25,33 +15,37 @@ from pysnmp.smi.rfc1902 import (
     ObjectIdentity
 )
 
+from sdp_lib.constants import swarco_itc2, potok
 from sdp_lib.management_controllers.snmp import oids
 from sdp_lib.management_controllers.snmp.user_types import (
     T_Oids,
-    T_Varbinds, T_Varbind
+    T_Varbinds,
+    T_Varbind,
+    Oid_Value
 )
 from sdp_lib.management_controllers.snmp.oids import (
     Oids,
     oids_scn_required
 )
+from sdp_lib import logging_config
 
 
-Oid_Value: TypeAlias = TypeVar('Oid_Value',
-    Unsigned32, Integer, OctetString, rfc1905.unSpecified
-)
+logger = logging.getLogger(__name__)
 
 
 def convert_val_to_num_stage_set_req_ug405(
         max_stage: int
 ) -> dict:
     stg_mask = ['01', '02', '04', '08', '10', '20', '40', '80']
-    return {str(k): v for k, v in enumerate((f'{i}{j * "00"}' for j in range(max_stage // 8) for i in stg_mask), 1)}
+    return {
+        str(k): v for k, v in enumerate((f'{i}{j * "00"}' for j in range(max_stage // 8) for i in stg_mask), 1)
+    }
 
 
 def wrap_oid_by_object_type(
         oid: Oids | str,
         val: Oid_Value = rfc1905.unSpecified
-) -> ObjectType:
+) -> T_Varbind:
     return ObjectType(ObjectIdentity(oid), val)
 
 
@@ -113,13 +107,14 @@ def create_varbinds_get_state_with_scn(
         num_co_min: int = 1,
         num_co_max: int = 9999
 ) -> dict[str, Iterable[T_Varbinds]]:
-    start_time = time.perf_counter()
     varbinds_get_state = {}
     for num_co in range(num_co_min, num_co_max + 1):
         scn = convert_chars_string_to_ascii_string(f'{prefix}{str(num_co)}')
-        varbinds_get_state[scn] = add_scn_to_oids(scn, get_state_oids_pattern, True)
-    print(f'FinS: {time.time() - start_time}')
-    print(f'len(varbinds_get_state): {len(varbinds_get_state)}')
+        varbinds_get_state[scn] = add_scn_to_oids(
+            scn,
+            get_state_oids_pattern,
+            wrap_oids_by_object_type=True
+        )
     return varbinds_get_state
 
 def convert_val_as_hex_to_decimal(val: str) -> int | None:
@@ -136,23 +131,88 @@ def convert_val_as_hex_to_decimal(val: str) -> int | None:
         elif val == '@':
             return 7
     except ValueError:
-        print(f'Значение val: {val}')
+        logger.error(f'Значение val: {val}')
+        raise
+
+
+def create_stcip_set_stage_varbinds(
+    max_stage: int,
+    user_vals: dict[int, int] = None
+) -> dict[int, T_Varbind]:
+    """
+    Формирует словарь с varbinds для утсановки фазы.
+    :param max_stage: Максимальный номер фазы.
+    :param user_vals: Значения пользователя в виде словаря, которые будут добавлены
+                      в возвращаемый словарь после всех вычислений(Дубли будут перезаписаны
+                      user_vals).
+    :return: Словарь с соответствием фазы к varbinds.
+    """
+    stages = {0: wrap_oid_by_object_type(Oids.swarcoUTCTrafftechPhaseCommand, Unsigned32(0))}
+
+    stages |= {
+        num_stage: wrap_oid_by_object_type(Oids.swarcoUTCTrafftechPhaseCommand, Unsigned32(num_stage + 1))
+        for num_stage in range(1, max_stage + 1)
+    }
+
+    usr_data = {}
+
+    try:
+        for k_k, v_v in user_vals.items():
+            usr_data[k_k] = wrap_oid_by_object_type(Oids.swarcoUTCTrafftechPhaseCommand, Unsigned32(v_v))
+    except AttributeError:
+        usr_data.clear()
+
+    return stages | usr_data
 
 ug405_set_stage_values = convert_val_to_num_stage_set_req_ug405(128)
+swarco_stcip_set_stage_varbinds = create_stcip_set_stage_varbinds(swarco_itc2.MAX_STAGE, user_vals={8: 1})
+potok_stcip_set_stage_varbinds = create_stcip_set_stage_varbinds(potok.MAX_STAGE)
 
-swarco_stcip_set_stage_varbinds = {
-                                      num_stage: wrap_oid_by_object_type(Oids.swarcoUTCTrafftechPhaseCommand,
-                                                                         Unsigned32(num_stage + 1))
-                                      for num_stage in range(1, 8)
-                                  } | {8: wrap_oid_by_object_type(Oids.swarcoUTCTrafftechPhaseCommand, Unsigned32(1)),
-                                       0: wrap_oid_by_object_type(Oids.swarcoUTCTrafftechPhaseCommand, Unsigned32(0))}
 
-potok_stcip_set_stage_varbinds = {
-                                     num_stage: wrap_oid_by_object_type(Oids.swarcoUTCTrafftechPhaseCommand,
-                                                                        Unsigned32(num_stage + 1))
-                                     for num_stage in range(1, 129)
-                                 } | {0: wrap_oid_by_object_type(Oids.swarcoUTCTrafftechPhaseCommand, Unsigned32(0))}
+class ScnConverterMixin:
 
+    @classmethod
+    def get_scn_as_ascii_from_scn_as_chars(cls, scn_as_chars_string: str) -> str | None:
+        return cls.convert_chars_string_to_ascii_string(scn_as_chars_string)
+
+    @classmethod
+    def convert_ascii_string_to_chars(cls, scn_as_ascii: str) -> str:
+        """
+        Генерирует SCN
+        :param scn -> символы строки, которые необходимо конвертировать в scn
+        :return -> возвращет scn
+        .1.6.67.79.50.48.56.48
+        """
+        splitted = scn_as_ascii.split('.')
+        num_chars = int(splitted[2])
+        scn_as_chars = ''.join([chr(int(c)) for c in splitted[3:]])
+        logger.debug(f'scn_as_chars: {scn_as_chars}')
+        assert num_chars == len(scn_as_chars)
+        return scn_as_chars
+
+    @classmethod
+    def convert_chars_string_to_ascii_string(cls, scn: str) -> str:
+        """
+        Генерирует SCN
+        :param scn -> символы строки, которые необходимо конвертировать в scn
+        :return -> возвращет scn
+        """
+        return convert_chars_string_to_ascii_string(scn)
+
+    @classmethod
+    def add_CO_to_scn(cls, scn: str) -> str | None:
+        if not isinstance(scn, str) or not scn.isdigit():
+            return None
+        return f'CO{scn}'
+
+    def get_scn_as_ascii_from_scn_as_chars_attr(self, scn_as_chars) -> str | None:
+        if scn_as_chars is not None:
+            return self.convert_chars_string_to_ascii_string(scn_as_chars)
+        return None
+
+    def get_scn_as_chars_from_scn_as_ascii(self, scn_as_ascii_string) -> str:
+        if scn_as_ascii_string is not None:
+            return self.convert_ascii_string_to_chars(scn_as_ascii_string)
 
 
 class HexValueToIntegerStageConverter:
@@ -219,7 +279,8 @@ class VarbPotokS(AbstractVarbinds):
     set_stage_varbinds = swarco_stcip_set_stage_varbinds
 
 
-class AbstractVarbindsWithScn:
+class CommonVarbindsUg405:
+
     max_scn = 9999
     num_CO_prefix = 'CO'
 
@@ -239,6 +300,14 @@ class AbstractVarbindsWithScn:
 
     states_varbinds: dict[str, Iterable[T_Varbinds]]
     states_oids: T_Oids
+
+    @classmethod
+    def get_operation_mode_varbinds(cls, op_mode_val: int) -> ObjectType:
+        if op_mode_val == 3:
+            return cls.operation_mode3_varbind
+        if op_mode_val == 2:
+            return cls.operation_mode2_varbind
+        return cls.operation_mode1_varbind
 
     def get_varbinds_current_states(self, scn_as_ascii: str):
         try:
@@ -262,12 +331,12 @@ class AbstractVarbindsWithScn:
         return (self.operation_mode1_varbind,)
 
 
-class VarbPotokP(AbstractVarbindsWithScn):
+class VarbPotokP(CommonVarbindsUg405):
     states_oids = oids.oids_state_potok_p
     states_varbinds = create_varbinds_get_state_with_scn(oids.oids_state_potok_p)
 
 
-class VarbPeek(AbstractVarbindsWithScn):
+class VarbPeek(CommonVarbindsUg405):
     """ Класс для создания синглтона varbinds peek """
 
 
@@ -277,60 +346,3 @@ potok_stcip_varbinds = VarbPotokS()
 potok_ug405_varbinds = VarbPotokP()
 peek_ug405_varbinds = VarbPeek()
 
-VarbindsUg405 = ''
-
-
-class ScnConverterMixin:
-
-    @classmethod
-    def get_scn_as_ascii_from_scn_as_chars(cls, scn_as_chars_string: str) -> str | None:
-        return cls.convert_chars_string_to_ascii_string(scn_as_chars_string)
-
-    @classmethod
-    def convert_ascii_string_to_chars(cls, scn_as_ascii: str) -> str:
-        """
-        Генерирует SCN
-        :param scn -> символы строки, которые необходимо конвертировать в scn
-        :return -> возвращет scn
-        .1.6.67.79.50.48.56.48
-        """
-        splitted = scn_as_ascii.split('.')
-        num_chars = int(splitted[2])
-        scn_as_chars = ''.join([chr(int(c)) for c in splitted[3:]])
-        # print(f'scn_as_chars: {scn_as_chars}')
-        assert num_chars == len(scn_as_chars)
-        return scn_as_chars
-
-    @classmethod
-    def convert_chars_string_to_ascii_string(cls, scn: str) -> str:
-        """
-        Генерирует SCN
-        :param scn -> символы строки, которые необходимо конвертировать в scn
-        :return -> возвращет scn
-        """
-        return convert_chars_string_to_ascii_string(scn)
-
-    @classmethod
-    def add_CO_to_scn(cls, scn: str) -> str | None:
-        if not isinstance(scn, str) or not scn.isdigit():
-            return None
-        return f'CO{scn}'
-
-    def get_scn_as_ascii_from_scn_as_chars_attr(self, scn_as_chars) -> str | None:
-        if scn_as_chars is not None:
-            return self.convert_chars_string_to_ascii_string(scn_as_chars)
-        return None
-
-    def get_scn_as_chars_from_scn_as_ascii(self, scn_as_ascii_string) -> str:
-        if scn_as_ascii_string is not None:
-            return self.convert_ascii_string_to_chars(scn_as_ascii_string)
-
-
-if __name__ == '__main__':
-    o = add_scn_to_oids('aaaaaaa', oids.oids_state_potok_p)
-    print(o)
-    print('-' * 50)
-    o = add_scn_to_oids('aaaaaaa', oids.oids_state_potok_p, wrap_oids_by_object_type=True)
-    print(o)
-
-    # build_test_obj()
