@@ -83,7 +83,6 @@ class BaseSnmpParser(Parsers):
     ):
         for oid, val in varbinds:
             oid, val = config.oid_handler(oid), config.val_oid_handler(val)
-            print(f'oid: {oid} val: {val}')
             try:
                 field_name, cb_fn = self.matches[oid]
                 self.parsed_content_as_dict[field_name] = cb_fn(val)

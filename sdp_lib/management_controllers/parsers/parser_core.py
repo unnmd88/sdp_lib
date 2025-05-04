@@ -12,6 +12,6 @@ class Parsers:
 
     @abc.abstractmethod
     def parse(self, *args, **kwargs) -> dict[str, Any]:
-        ...
+        """ Основной метод парса данных для формирования response. """
 
 
