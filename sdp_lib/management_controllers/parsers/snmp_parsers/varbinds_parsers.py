@@ -14,12 +14,13 @@ from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods impo
     get_val_as_str,
     pretty_print
 )
-from sdp_lib.management_controllers.snmp._types import T_Varbinds
+from sdp_lib.management_controllers.snmp.user_types import T_Varbinds
 from sdp_lib.management_controllers.snmp.oids import Oids
-from sdp_lib.management_controllers.snmp.snmp_utils import (
-    SwarcoConverters,
-    PotokSConverters,
-    PotokPConverters
+
+from sdp_lib.management_controllers.snmp.snmp_utils import(
+    StageConverterMixinPotokS,
+    StageConverterMixinSwarco,
+    StageConverterMixinUg405
 )
 
 
@@ -49,8 +50,6 @@ default_processing_ug405 = ConfigsParser(
     val_oid_handler=pretty_print,
     host_protocol=FieldsNames.protocol_ug405
 )
-
-
 
 
 class BaseSnmpParser(Parsers):
@@ -84,8 +83,13 @@ class BaseSnmpParser(Parsers):
     ):
         for oid, val in varbinds:
             oid, val = config.oid_handler(oid), config.val_oid_handler(val)
-            field_name, cb_fn = self.matches.get(oid)
-            self.parsed_content_as_dict[field_name] = cb_fn(val)
+            print(f'oid: {oid} val: {val}')
+            try:
+                field_name, cb_fn = self.matches[oid]
+                self.parsed_content_as_dict[field_name] = cb_fn(val)
+            except TypeError:
+                self.parsed_content_as_dict[oid] = val
+
         if config.extras:
             self._add_extras_to_response()
 
@@ -146,7 +150,8 @@ class ParsersVarbindsSwarco(BaseSnmpParser, StcipMixin):
             Oids.swarcoUTCTrafftechFixedTimeStatus: (FieldsNames.fixed_time_status, get_val_as_str),
             Oids.swarcoUTCTrafftechPlanSource: (FieldsNames.plan_source, get_val_as_str),
             Oids.swarcoUTCStatusEquipment: (FieldsNames.curr_status, self.get_status),
-            Oids.swarcoUTCTrafftechPhaseStatus: (FieldsNames.curr_stage, SwarcoConverters.get_num_stage_from_oid_val),
+            Oids.swarcoUTCTrafftechPhaseStatus:
+                (FieldsNames.curr_stage, StageConverterMixinSwarco.get_num_stage_from_oid_val),
             Oids.swarcoUTCTrafftechPlanCurrent: (FieldsNames.curr_plan, get_val_as_str),
             Oids.swarcoUTCDetectorQty: (FieldsNames.num_detectors, get_val_as_str),
             Oids.swarcoSoftIOStatus: (FieldsNames.status_soft_flag180_181, self.get_soft_flags_180_181_status),
@@ -175,7 +180,8 @@ class ParsersVarbindsPotokS(BaseSnmpParser, StcipMixin):
     def matches(self):
         return {
         Oids.swarcoUTCStatusEquipment: (FieldsNames.curr_status, self.get_status),
-        Oids.swarcoUTCTrafftechPhaseStatus: (FieldsNames.curr_stage, PotokSConverters.get_num_stage_from_oid_val),
+        Oids.swarcoUTCTrafftechPhaseStatus:
+            (FieldsNames.curr_stage, StageConverterMixinPotokS.get_num_stage_from_oid_val),
         Oids.swarcoUTCTrafftechPlanCurrent: (FieldsNames.curr_plan, get_val_as_str),
         Oids.swarcoUTCStatusMode: (FieldsNames.curr_status_mode, get_val_as_str),
         Oids.swarcoUTCDetectorQty: (FieldsNames.num_detectors, get_val_as_str),
@@ -232,7 +238,7 @@ class ParsersVarbindsPotokP(BaseSnmpParser, Ug405Mixin):
             Oids.utcType2OperationMode: (FieldsNames.operation_mode, get_val_as_str),
             Oids.potokP_utcReplyDarkStatus: (FieldsNames.dark, get_val_as_str),
             Oids.utcReplyFR: (FieldsNames.flash, get_val_as_str),
-            Oids.utcReplyGn: (FieldsNames.curr_stage, PotokPConverters.get_num_stage_from_oid_val),
+            Oids.utcReplyGn: (FieldsNames.curr_stage, StageConverterMixinUg405.get_num_stage_from_oid_val),
             Oids.potokP_utcReplyPlanStatus: (FieldsNames.curr_plan, get_val_as_str),
             Oids.potokP_utcReplyLocalAdaptiv: (FieldsNames.local_adaptive_status, get_val_as_str),
             Oids.utcType2ScootDetectorCount: (FieldsNames.num_detectors,get_val_as_str),
