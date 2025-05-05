@@ -74,7 +74,7 @@ def create_varbinds(
 
 def add_scn_to_oids(
         scn_as_ascii: str,
-        oids: [T_Oids],
+        oids: T_Oids,
         wrap_oids_by_object_type=False,
         container: Type[list | tuple] = list
 ) -> T_Oids | T_Varbinds:
@@ -129,6 +129,7 @@ def convert_val_as_hex_to_decimal(val: str) -> int | None:
             return 6
         elif val == '@':
             return 7
+        return None
     except ValueError:
         logger.error(f'Значение val: {val}')
         raise
@@ -190,13 +191,13 @@ class ScnConverterMixin:
         return scn_as_chars
 
     @classmethod
-    def convert_chars_string_to_ascii_string(cls, scn: str) -> str:
+    def convert_chars_string_to_ascii_string(cls, scn_as_chars: str) -> str:
         """
         Генерирует SCN
-        :param scn -> символы строки, которые необходимо конвертировать в scn
+        :param scn_as_chars -> символы строки, которые необходимо конвертировать в scn
         :return -> возвращет scn
         """
-        return convert_chars_string_to_ascii_string(scn)
+        return convert_chars_string_to_ascii_string(scn_as_chars)
 
     @classmethod
     def add_CO_to_scn(cls, scn: str) -> str | None:
@@ -209,9 +210,10 @@ class ScnConverterMixin:
             return self.convert_chars_string_to_ascii_string(scn_as_chars)
         return None
 
-    def get_scn_as_chars_from_scn_as_ascii(self, scn_as_ascii_string) -> str:
+    def get_scn_as_chars_from_scn_as_ascii(self, scn_as_ascii_string) -> str | None:
         if scn_as_ascii_string is not None:
             return self.convert_ascii_string_to_chars(scn_as_ascii_string)
+        return None
 
 
 class HexValueToIntegerStageConverter:
