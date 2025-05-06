@@ -6,9 +6,9 @@ from sdp_lib.management_controllers.snmp import snmp_api
 
 
 async def main():
-    obj1 =  snmp_api.SwarcoStcip(ipv4='10.179.14.185', engine=SnmpEngine())
-    obj2 =  snmp_api.PotokP(ipv4='10.179.63.241', engine=SnmpEngine())
-    obj3 =  snmp_api.PotokS(ipv4='10.179.65.153', engine=SnmpEngine())
+    obj1 =  snmp_api.SwarcoStcip(ipv4='10.179.14.185')
+    obj2 =  snmp_api.PotokP(ipv4='10.179.63.241')
+    obj3 =  snmp_api.PotokS(ipv4='10.179.65.153')
 
     await obj1.get_states()
     print(obj1)

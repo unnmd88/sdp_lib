@@ -1,3 +1,4 @@
+from collections.abc import MutableMapping
 from typing import Any
 
 from sdp_lib.management_controllers.fields_names import FieldsNames
@@ -70,7 +71,7 @@ class Responses:
             error: Exception | str = None,
             data: dict[str, Any] = None
     ):
-        if isinstance(data, dict):
+        if isinstance(data, MutableMapping):
             self._data_response |= data
         if isinstance(error, (Exception, str)):
             self._errors.append(error)

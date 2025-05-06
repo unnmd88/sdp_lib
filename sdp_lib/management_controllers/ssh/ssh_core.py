@@ -8,7 +8,7 @@ from asyncssh import SSHClientProcess
 
 from sdp_lib.management_controllers.exceptions import ReadFromInteractiveShellError
 from sdp_lib.management_controllers.fields_names import FieldsNames
-from sdp_lib.management_controllers.hosts import Host
+from sdp_lib.management_controllers.hosts_core import Host
 # from sdp_lib.management_controllers.parsers.parsers_swarco_ssh import process_stdout_instat
 from sdp_lib.management_controllers.ssh.constants import (
     kex_algs,

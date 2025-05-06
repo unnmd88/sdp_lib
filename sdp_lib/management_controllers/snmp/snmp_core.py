@@ -8,7 +8,7 @@ from collections.abc import Callable
 from pysnmp.entity.engine import SnmpEngine
 
 from sdp_lib.management_controllers.exceptions import BadControllerType
-from sdp_lib.management_controllers.hosts import Host
+from sdp_lib.management_controllers.hosts_core import Host
 from sdp_lib.management_controllers.fields_names import FieldsNames
 from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods import (
     get_val_as_str,
