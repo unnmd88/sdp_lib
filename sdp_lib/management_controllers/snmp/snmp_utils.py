@@ -116,6 +116,8 @@ def create_varbinds_get_state_with_scn(
         )
     return varbinds_get_state
 
+oid_vals_stages_6_and_7_hex = {' ', '@'}
+
 def convert_val_as_hex_to_decimal(val: str) -> int | None:
     """
     Конвертирует значение, полученное из oid фазы в номер фазы десятичного представления
@@ -123,7 +125,7 @@ def convert_val_as_hex_to_decimal(val: str) -> int | None:
     :return: значение(номер) фазы в десятичном виде
     """
     try:
-        if val not in (' ', '@'):
+        if val not in oid_vals_stages_6_and_7_hex:
             return int(math.log2(int(val, 16))) + 1
         elif val == ' ':
             return 6
@@ -347,5 +349,6 @@ potok_stcip_varbinds = VarbPotokS()
 potok_ug405_varbinds = VarbPotokP()
 peek_ug405_varbinds = VarbPeek()
 
+
 if __name__ == '__main__':
-    logger.debug([wrap_oid_by_object_type([1])])
+    pass
