@@ -5,12 +5,14 @@ from pysnmp.proto import errind, rfc1905
 
 from sdp_lib.management_controllers.snmp.oids import Oids
 
+snmp_engine = SnmpEngine()
+
 
 async def get(
         ip_v4: str,
         community: str,
         oids: list[str | Oids] | tuple[str | Oids, ...] | KeysView[str | Oids],
-        engine: SnmpEngine,
+        engine: SnmpEngine = SnmpEngine(),
         timeout: float = 0.2,
         retries: int = 0
 ) -> tuple:
@@ -51,7 +53,7 @@ async def snmp_get_next(
         ip_v4: str,
         community: str,
         oids: list[str | Oids] | KeysView[str | Oids],
-        engine: SnmpEngine,
+        engine: SnmpEngine = SnmpEngine(),
         timeout: float = 0.2,
         retries: int = 0
 ):
@@ -67,7 +69,7 @@ async def snmp_get_next(
 async def snmp_set(
         self,
         oids: list[tuple[str | Oids, Any]],
-        engine: SnmpEngine,
+        engine: SnmpEngine = SnmpEngine(),
         timeout: float = 1,
         retries: int = 0
 ):
@@ -124,9 +126,9 @@ class SnmpRequests:
         """
         # print(f'oids: {oids}')
         return await get_cmd(
-            self._instance_host.driver,
+            self._instance_host.driver or snmp_engine,
             CommunityData(self.community_r),
-            await UdpTransportTarget.create((self._instance_host._ipv4, 161), timeout=timeout, retries=retries),
+            await UdpTransportTarget.create((self._instance_host.ip_v4, 161), timeout=timeout, retries=retries),
             ContextData(),
             *varbinds
         )
@@ -153,8 +155,6 @@ class SnmpRequests:
             # *[ObjectType(ObjectIdentity(oid), val) for oid, val in oids]
             # *[ObjectType(ObjectIdentity('1.3.6.1.4.1.1618.3.7.2.11.1.0'), Unsigned32('2')) for oid, val in oids]
         )
-        print(error_indication, error_status, error_index, var_binds)
-        return error_indication, error_status, error_index, var_binds
 
     async def snmp_get_next(
             self,
