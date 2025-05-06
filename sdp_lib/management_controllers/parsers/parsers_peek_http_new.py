@@ -177,7 +177,7 @@ class MainPageParser(ParserBase):
                               ":ENDTABLE"]
         :return: Кортеж из значений текущего режима и фазы потока(xp). Пример: ("FT", "6")
         """
-        print(f'lines::: {lines}')
+        # print(f'lines::: {lines}')
         num_xp = self.extract_current_num_xp(lines[0])
         state = self.extract_current_xp_state(lines[3])
         mode, stage = self.extract_current_xp_mode_and_stage(lines[5])

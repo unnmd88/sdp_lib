@@ -53,7 +53,7 @@ class AsyncHttpRequests:
                  при ошибке в получении контента, иначе None.
                  [1] -> контент веб страницы типа str, если запрос выполнен успешно, иначе None.
         """
-        print(f'++ self.method: {method.__name__}')
+        # print(f'++ self.method: {method.__name__}')
         error = content = None
         try:
             content = await method(
