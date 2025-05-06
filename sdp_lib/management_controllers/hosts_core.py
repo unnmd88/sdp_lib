@@ -6,7 +6,6 @@ import aiohttp
 from pysnmp.entity.engine import SnmpEngine
 
 from sdp_lib.management_controllers.fields_names import FieldsNames
-# from sdp_lib.management_controllers.response import Responses
 from sdp_lib.management_controllers.structures import HostResponseStructure
 from sdp_lib.utils_common.utils_common import check_is_ipv4
 
