@@ -16,13 +16,13 @@ from sdp_lib.management_controllers.constants import AllowedControllers
 from sdp_lib.management_controllers.snmp.oids import Oids
 
 
-T_Oids: TypeAlias = TypeVar('T_Oids', tuple[Oids | str, ...], list[Oids | str])
-T_Varbinds: TypeAlias = TypeVar('T_Varbinds', tuple[ObjectType, ...], list[ObjectType])
-T_Varbind: TypeAlias = TypeVar('T_Varbind', bound=ObjectType)
-T_Parsers: TypeAlias = TypeVar('T_Parsers')
-Oid_Value: TypeAlias = TypeVar('Oid_Value', Unsigned32, Integer, OctetString, rfc1905.unSpecified)
+T_Oids: TypeAlias = tuple[Oids | str, ...] | list[Oids | str]
+T_Varbinds: TypeAlias = tuple[ObjectType, ...] | list[ObjectType]
+T_Varbind: TypeAlias = ObjectType
+T_Parsers = TypeVar('T_Parsers')
+Oid_Value = TypeVar('Oid_Value', Unsigned32, Integer, OctetString, rfc1905.unSpecified)
 
-StcipContrloller: TypeAlias = Literal[AllowedControllers.SWARCO, AllowedControllers.POTOK_S]
+StcipController: TypeAlias = Literal[AllowedControllers.SWARCO, AllowedControllers.POTOK_S]
 
 RequestModes: TypeAlias = Literal['get', 'set', 'get_next']
 ParserMethodType: TypeAlias = Literal['pretty', 'default']
