@@ -3,7 +3,6 @@ import math
 from collections.abc import Iterable
 from typing import Type
 
-import pysnmp
 from pysnmp.proto import rfc1905
 from pysnmp.proto.rfc1902 import (
     Unsigned32,
@@ -21,7 +20,8 @@ from sdp_lib.management_controllers.snmp.user_types import (
     T_Oids,
     T_Varbinds,
     T_Varbind,
-    Oid_Value
+    Oid_Value,
+    T_Oid
 )
 from sdp_lib.management_controllers.snmp.oids import (
     Oids,
@@ -60,7 +60,7 @@ def convert_chars_string_to_ascii_string(
     return f'.1.{str(len(scn_as_chars))}.{".".join([str(ord(c)) for c in scn_as_chars])}'
 
 def create_varbinds(
-        oids: Iterable[T_Oids],
+        oids: Iterable[T_Oid],
         container: Type[list | tuple] = list
 ) -> Iterable[T_Varbind]:
     """
@@ -105,7 +105,7 @@ def create_varbinds_get_state_with_scn(
         prefix: str = 'CO',
         num_co_min: int = 1,
         num_co_max: int = 9999
-) -> dict[str, Iterable[T_Varbinds]]:
+) -> dict[str, T_Varbinds]:
     varbinds_get_state = {}
     for num_co in range(num_co_min, num_co_max + 1):
         scn = convert_chars_string_to_ascii_string(f'{prefix}{str(num_co)}')
