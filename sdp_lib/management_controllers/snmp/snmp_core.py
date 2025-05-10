@@ -8,7 +8,7 @@ from collections.abc import Callable
 from pysnmp.entity.engine import SnmpEngine
 
 from sdp_lib.management_controllers.exceptions import BadControllerType
-from sdp_lib.management_controllers.hosts import Host
+from sdp_lib.management_controllers.hosts_core import Host
 from sdp_lib.management_controllers.fields_names import FieldsNames
 from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods import (
     get_val_as_str,
@@ -23,7 +23,7 @@ from sdp_lib.management_controllers.parsers.snmp_parsers.varbinds_parsers import
     ParsersVarbindsSwarco,
     ParsersVarbindsPotokS,
     ParsersVarbindsPotokP,
-    ParsersVarbindsPeek, default_processing_ug405
+    ParsersVarbindsPeek, default_processing_ug405, default_processing_stcip
 )
 from sdp_lib.management_controllers.snmp.snmp_config import HostSnmpConfig
 from sdp_lib.management_controllers.snmp import (
@@ -419,7 +419,7 @@ class StcipHosts(SnmpHosts):
         return await self._make_request_and_build_response()
 
     async def set_stage(self, value: int):
-        self._parse_method_config = default_processing
+        self._parse_method_config = default_processing_stcip
         self._set_varbinds_and_method_for_request(
             varbinds=self.varbinds.get_varbinds_set_stage(value),
             method=self._request_sender.snmp_set

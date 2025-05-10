@@ -1,39 +1,41 @@
 import asyncio
 
+import aiohttp
 from pysnmp.entity.engine import SnmpEngine
 
-from sdp_lib.management_controllers.snmp import snmp_api
+# from sdp_lib.management_controllers.http.peek import peek_http
+# from sdp_lib.management_controllers.snmp import snmp_api
+from sdp_lib.management_controllers import api
+
+
+async def get_states(session=None):
+
+    obj1 = api.SwarcoStcip(ipv4='10.179.14.185')
+    obj2 = api.PotokP(ipv4='10.179.63.241')
+    obj3 = api.PotokS(ipv4='10.179.65.153')
+    obj4 = api.PeekWebHosts(ipv4='10.179.59.9', session=session)
+    objs = [obj1, obj2, obj3, obj4]
+    res = await asyncio.gather(*(ob.get_states() for ob in objs))
+    for r in res:
+        print(r)
+        print('----------')
+        print(r.response_as_dict)
+    return res
+
+
+async def set_stage_swarco(ip='10.179.14.185', val=0):
+    ob = api.SwarcoStcip(ipv4=ip)
+    await ob.set_stage(val)
+    return ob
 
 
 async def main():
-    obj1 =  snmp_api.SwarcoStcip(ipv4='10.179.14.185', engine=SnmpEngine())
-    obj2 =  snmp_api.PotokP(ipv4='10.179.63.241', engine=SnmpEngine())
-    obj3 =  snmp_api.PotokS(ipv4='10.179.65.153', engine=SnmpEngine())
-
-    await obj1.get_states()
-    print(obj1)
-    print('----------')
-    print(obj1.response_as_dict)
-    print('----------')
-    print(obj1.last_response[3])
-
-    await obj2.get_states()
-    print(obj2)
-    print(obj2.scn_as_ascii_string)
-    print(obj2.scn_as_chars)
-    print('----------')
-    print(obj2.response_as_dict)
-    print('----------')
-    print(obj2.last_response[3])
-    #
-    # await obj3.get_states()
-    # print(obj3)
-    # print('----------')
-    # print(obj3.response_as_dict)
-    # print('----------')
-    # print(obj3.last_response[3])
-
-    # await obj2.set_stage(0)
+    a_session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(1))
+    try:
+        ob = await set_stage_swarco(val=0)
+        print(ob)
+    finally:
+        await a_session.close()
 
 
 

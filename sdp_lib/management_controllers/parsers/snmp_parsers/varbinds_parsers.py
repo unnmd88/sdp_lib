@@ -34,7 +34,7 @@ class ConfigsParser(typing.NamedTuple):
 default_processing = ConfigsParser(
     extras=False,
     oid_handler=get_val_as_str,
-    val_oid_handler=pretty_print
+    val_oid_handler=pretty_print,
 )
 
 pretty_processing_stcip = ConfigsParser(
@@ -51,6 +51,12 @@ default_processing_ug405 = ConfigsParser(
     host_protocol=FieldsNames.protocol_ug405
 )
 
+default_processing_stcip = ConfigsParser(
+    extras=False,
+    oid_handler=get_val_as_str,
+    val_oid_handler=pretty_print,
+    host_protocol=FieldsNames.protocol_stcip
+)
 
 class BaseSnmpParser(Parsers):
 
@@ -86,9 +92,8 @@ class BaseSnmpParser(Parsers):
             try:
                 field_name, cb_fn = self.matches[oid]
                 self.parsed_content_as_dict[field_name] = cb_fn(val)
-            except TypeError:
+            except (TypeError, KeyError):
                 self.parsed_content_as_dict[oid] = val
-
         if config.extras:
             self._add_extras_to_response()
 

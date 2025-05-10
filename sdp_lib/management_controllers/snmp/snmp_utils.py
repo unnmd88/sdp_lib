@@ -1,9 +1,9 @@
-
 import logging
 import math
 from collections.abc import Iterable
 from typing import Type
 
+import pysnmp
 from pysnmp.proto import rfc1905
 from pysnmp.proto.rfc1902 import (
     Unsigned32,
@@ -54,11 +54,10 @@ def convert_chars_string_to_ascii_string(
 ) -> str:
     """
     Генерирует SCN.
-    :param  scn_as_chars: символы строки, которые необходимо конвертировать, например: CO3995.
-    :return -> возвращет scn виде строки ascii, например .1.6.67.79.51.57.57.53.
+    :param:  scn_as_chars: Cимволы строки, которые необходимо конвертировать, например: CO3995.
+    :return: Scn в виде строки ascii, например .1.6.67.79.51.57.57.53.
     """
     return f'.1.{str(len(scn_as_chars))}.{".".join([str(ord(c)) for c in scn_as_chars])}'
-
 
 def create_varbinds(
         oids: Iterable[T_Oids],
@@ -75,7 +74,7 @@ def create_varbinds(
 
 def add_scn_to_oids(
         scn_as_ascii: str,
-        oids: [T_Oids],
+        oids: T_Oids,
         wrap_oids_by_object_type=False,
         container: Type[list | tuple] = list
 ) -> T_Oids | T_Varbinds:
@@ -117,6 +116,8 @@ def create_varbinds_get_state_with_scn(
         )
     return varbinds_get_state
 
+oid_vals_stages_6_and_7_hex = {' ', '@'}
+
 def convert_val_as_hex_to_decimal(val: str) -> int | None:
     """
     Конвертирует значение, полученное из oid фазы в номер фазы десятичного представления
@@ -124,12 +125,13 @@ def convert_val_as_hex_to_decimal(val: str) -> int | None:
     :return: значение(номер) фазы в десятичном виде
     """
     try:
-        if val not in (' ', '@'):
+        if val not in oid_vals_stages_6_and_7_hex:
             return int(math.log2(int(val, 16))) + 1
         elif val == ' ':
             return 6
         elif val == '@':
             return 7
+        return None
     except ValueError:
         logger.error(f'Значение val: {val}')
         raise
@@ -191,13 +193,13 @@ class ScnConverterMixin:
         return scn_as_chars
 
     @classmethod
-    def convert_chars_string_to_ascii_string(cls, scn: str) -> str:
+    def convert_chars_string_to_ascii_string(cls, scn_as_chars: str) -> str:
         """
         Генерирует SCN
-        :param scn -> символы строки, которые необходимо конвертировать в scn
+        :param scn_as_chars -> символы строки, которые необходимо конвертировать в scn
         :return -> возвращет scn
         """
-        return convert_chars_string_to_ascii_string(scn)
+        return convert_chars_string_to_ascii_string(scn_as_chars)
 
     @classmethod
     def add_CO_to_scn(cls, scn: str) -> str | None:
@@ -210,9 +212,10 @@ class ScnConverterMixin:
             return self.convert_chars_string_to_ascii_string(scn_as_chars)
         return None
 
-    def get_scn_as_chars_from_scn_as_ascii(self, scn_as_ascii_string) -> str:
+    def get_scn_as_chars_from_scn_as_ascii(self, scn_as_ascii_string) -> str | None:
         if scn_as_ascii_string is not None:
             return self.convert_ascii_string_to_chars(scn_as_ascii_string)
+        return None
 
 
 class HexValueToIntegerStageConverter:
@@ -346,3 +349,6 @@ potok_stcip_varbinds = VarbPotokS()
 potok_ug405_varbinds = VarbPotokP()
 peek_ug405_varbinds = VarbPeek()
 
+
+if __name__ == '__main__':
+    pass
