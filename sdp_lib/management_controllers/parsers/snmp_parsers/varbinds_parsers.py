@@ -94,7 +94,6 @@ class BaseSnmpParser(Parsers):
                 self.parsed_content_as_dict[field_name] = cb_fn(val)
             except (TypeError, KeyError):
                 self.parsed_content_as_dict[oid] = val
-
         if config.extras:
             self._add_extras_to_response()
 
