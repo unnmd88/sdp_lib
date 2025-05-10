@@ -147,7 +147,7 @@ class SnmpRequests:
     ) -> tuple[errind.ErrorIndication, Integer32 | int, Integer32 | int, tuple[ObjectType, ...]]:
 
         return await set_cmd(
-            self._instance_host.driver,
+            self._instance_host.driver or snmp_engine,
             CommunityData(self.community_w),
             await UdpTransportTarget.create((self.ip, 161), timeout=timeout, retries=retries),
             ContextData(),
@@ -188,7 +188,7 @@ class SnmpRequests:
         """
         # print(f'oids: {oids}')
         return await next_cmd(
-            self._instance_host.driver,
+            self._instance_host.driver or snmp_engine,
             CommunityData(self.community_r),
             await UdpTransportTarget.create((self.ip, 161), timeout=timeout, retries=retries),
             ContextData(),
