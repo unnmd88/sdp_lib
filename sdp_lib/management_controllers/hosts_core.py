@@ -38,6 +38,10 @@ class Host:
                 f'Response data as json:\n'
                 f'{json.dumps(self.response_as_dict, indent=4, ensure_ascii=False)}')
 
+    def __getattr__(self, item):
+        if 'stage' in item:
+            return self._response.data.get(FieldsNames.curr_stage)
+
     # def __setattr__(self, key, value):
     #     if key == 'ip_v4':
     #         if value is None or check_is_ipv4(value):

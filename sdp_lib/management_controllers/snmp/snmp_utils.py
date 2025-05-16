@@ -258,6 +258,11 @@ class StageConverterMixinUg405(AbstractStageConverterMixin):
     matches_oid_val_to_num_stage = HexValueToIntegerStageConverter
 
 
+class StcipVarbindsMixin:
+
+    get_stage_varbinds: T_Varbinds = create_varbinds([oids.Oids.swarcoUTCTrafftechPhaseStatus])
+
+
 class AbstractVarbinds:
     states_oids: T_Oids
     states_varbinds: T_Varbinds
@@ -270,13 +275,13 @@ class AbstractVarbinds:
         return [self.set_stage_varbinds[num_stage]]
 
 
-class VarbSwarco(AbstractVarbinds, StageConverterMixinSwarco):
+class VarbSwarco(AbstractVarbinds, StageConverterMixinSwarco, StcipVarbindsMixin):
     states_oids = oids.oids_state_swarco
     states_varbinds = create_varbinds(oids.oids_state_swarco)
     set_stage_varbinds = swarco_stcip_set_stage_varbinds
 
 
-class VarbPotokS(AbstractVarbinds, StageConverterMixinPotokS):
+class VarbPotokS(AbstractVarbinds, StageConverterMixinPotokS, StcipVarbindsMixin):
     states_oids = oids.oids_state_potok_s
     states_varbinds = tuple(wrap_oid_by_object_type(oid) for oid in oids.oids_state_potok_s)
     set_stage_varbinds = potok_stcip_set_stage_varbinds

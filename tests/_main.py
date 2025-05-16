@@ -27,10 +27,19 @@ async def set_stage_swarco(ip='10.179.14.185', val=0):
     await ob.set_stage(val)
     return ob
 
+async def get_curr_stage(session=None):
+    obj3 = api.PotokS(ipv4='10.179.65.153')
+    res= await obj3.get_current_stage()
+    print(res)
+    print("*" * 100)
+    print(obj3.currentstage)
+    return res
+
+
 async def main():
     a_session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(1))
     try:
-        await get_states(session=a_session)
+        await get_curr_stage()
     finally:
         await a_session.close()
 

@@ -23,7 +23,7 @@ from sdp_lib.management_controllers.parsers.snmp_parsers.varbinds_parsers import
     ParsersVarbindsSwarco,
     ParsersVarbindsPotokS,
     ParsersVarbindsPotokP,
-    ParsersVarbindsPeek, default_processing_ug405, default_processing_stcip
+    ParsersVarbindsPeek, default_processing_ug405, default_processing_stcip, pretty_processing_stcip_without_extras
 )
 from sdp_lib.management_controllers.snmp.snmp_config import HostSnmpConfig
 from sdp_lib.management_controllers.snmp import (
@@ -396,6 +396,7 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
             extras=True,
             oid_handler=build_func_with_remove_scn(self.scn_as_ascii_string, get_val_as_str),
             val_oid_handler=pretty_print,
+            oid_name_by_alias=True,
             host_protocol=FieldsNames.protocol_ug405
         )
 
@@ -422,6 +423,14 @@ class StcipHosts(SnmpHosts):
         self._set_varbinds_and_method_for_request(
             varbinds=self.varbinds.get_varbinds_set_stage(value),
             method=self._request_sender.snmp_set
+        )
+        return await self._make_request_and_build_response()
+
+    async def get_current_stage(self):
+        self._parse_method_config = pretty_processing_stcip_without_extras
+        self._set_varbinds_and_method_for_request(
+            varbinds=self.varbinds.get_stage_varbinds,
+            method=self._request_sender.snmp_get
         )
         return await self._make_request_and_build_response()
 

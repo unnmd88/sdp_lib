@@ -28,6 +28,7 @@ class ConfigsParser(typing.NamedTuple):
     extras: bool
     oid_handler: Callable
     val_oid_handler: Callable
+    oid_name_by_alias: bool = False
     host_protocol: str = None
 
 
@@ -41,6 +42,7 @@ pretty_processing_stcip = ConfigsParser(
     extras=True,
     oid_handler=get_val_as_str,
     val_oid_handler=pretty_print,
+    oid_name_by_alias=True,
     host_protocol=FieldsNames.protocol_stcip
 )
 
@@ -55,6 +57,14 @@ default_processing_stcip = ConfigsParser(
     extras=False,
     oid_handler=get_val_as_str,
     val_oid_handler=pretty_print,
+    host_protocol=FieldsNames.protocol_stcip
+)
+
+pretty_processing_stcip_without_extras = ConfigsParser(
+    extras=False,
+    oid_handler=get_val_as_str,
+    val_oid_handler=pretty_print,
+    oid_name_by_alias=True,
     host_protocol=FieldsNames.protocol_stcip
 )
 
@@ -91,7 +101,10 @@ class BaseSnmpParser(Parsers):
             oid, val = config.oid_handler(oid), config.val_oid_handler(val)
             try:
                 field_name, cb_fn = self.matches[oid]
-                self.parsed_content_as_dict[field_name] = cb_fn(val)
+                if config.oid_name_by_alias:
+                    self.parsed_content_as_dict[field_name] = cb_fn(val)
+                else:
+                    self.parsed_content_as_dict[oid] = cb_fn(val)
             except (TypeError, KeyError):
                 self.parsed_content_as_dict[oid] = val
         if config.extras:
