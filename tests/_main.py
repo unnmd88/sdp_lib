@@ -22,18 +22,15 @@ async def get_states(session=None):
         print(r.response_as_dict)
     return res
 
-
 async def set_stage_swarco(ip='10.179.14.185', val=0):
     ob = api.SwarcoStcip(ipv4=ip)
     await ob.set_stage(val)
     return ob
 
-
 async def main():
     a_session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(1))
     try:
-        ob = await set_stage_swarco(val=0)
-        print(ob)
+        await get_states(session=a_session)
     finally:
         await a_session.close()
 

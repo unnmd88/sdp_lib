@@ -270,19 +270,19 @@ class AbstractVarbinds:
         return [self.set_stage_varbinds[num_stage]]
 
 
-class VarbSwarco(AbstractVarbinds):
+class VarbSwarco(AbstractVarbinds, StageConverterMixinSwarco):
     states_oids = oids.oids_state_swarco
     states_varbinds = create_varbinds(oids.oids_state_swarco)
     set_stage_varbinds = swarco_stcip_set_stage_varbinds
 
 
-class VarbPotokS(AbstractVarbinds):
+class VarbPotokS(AbstractVarbinds, StageConverterMixinPotokS):
     states_oids = oids.oids_state_potok_s
     states_varbinds = tuple(wrap_oid_by_object_type(oid) for oid in oids.oids_state_potok_s)
-    set_stage_varbinds = swarco_stcip_set_stage_varbinds
+    set_stage_varbinds = potok_stcip_set_stage_varbinds
 
 
-class CommonVarbindsUg405:
+class CommonVarbindsUg405(StageConverterMixinUg405):
 
     max_scn = 9999
     num_CO_prefix = 'CO'
