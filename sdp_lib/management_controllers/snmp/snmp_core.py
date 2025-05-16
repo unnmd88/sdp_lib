@@ -167,6 +167,7 @@ class SnmpHosts(Host):
         Осуществляет вызов соответствующего snmp-запроса и передает
         self.__parse_response_all_types_requests полученный ответ для парса response.
         """
+        self.response.clear()
         self.last_response = await self._request_method(varbinds=self._varbinds_for_request)
 
         if self._check_snmp_response_errors_and_add_to_host_data_if_has():

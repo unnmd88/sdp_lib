@@ -33,13 +33,15 @@ async def get_curr_stage(session=None):
     print(res)
     print("*" * 100)
     print(obj3.currentstage)
+    print(obj3.last_response)
     return res
 
 
 async def main():
     a_session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(1))
     try:
-        await get_curr_stage()
+        # await get_curr_stage()
+        await get_states(session=a_session)
     finally:
         await a_session.close()
 

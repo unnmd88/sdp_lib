@@ -106,10 +106,10 @@ class Host:
         self._response.add_data_to_attrs(error, data)
 
     def remove_data_from_response(self):
-        self._response.remove_data_from_data_response()
+        self._response.clear_data()
 
     def remove_errors_from_response(self):
-        self._response.remove_errors_from_errors()
+        self._response.clear_errors()
 
 
 class Responses:
@@ -183,8 +183,13 @@ class Responses:
         if isinstance(error, (Exception, str)):
             self._errors.append(error)
 
-    def remove_data_from_data_response(self):
+    def clear(self):
+        self.clear_data()
+        self.clear_errors()
+
+    def clear_data(self):
         self._data_response = {}
 
-    def remove_errors_from_errors(self):
+    def clear_errors(self):
         self._errors = []
+
