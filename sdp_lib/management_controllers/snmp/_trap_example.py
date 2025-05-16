@@ -1,5 +1,4 @@
 import datetime
-from collections.abc import Callable
 from enum import StrEnum
 
 from pysnmp.carrier.asyncio.dispatch import AsyncioDispatcher
@@ -10,11 +9,17 @@ import logging
 from sdp_lib.management_controllers.snmp import oids
 from sdp_lib.management_controllers.snmp import snmp_utils
 
-from sdp_lib import logging_config
+import logging_config
+
+
 
 
 class ExtraOids(StrEnum):
+
     time_ticks = '1.3.6.1.2.1.1.3.0'
+
+
+
 
 
 class Fields(StrEnum):
@@ -58,38 +63,68 @@ def get_varbinds_as_dict(varbinds) -> dict[str, int | str] | None:
 logger_reduce_msg_writer = logging.getLogger('reduce_log')
 logger_msg_writer = logging.getLogger('msg_writer')
 # noinspection PyUnusedLocal
+def __callback(transportDispatcher, transportDomain, transportAddress, wholeMsg):
 
-def callback(tr_dispatcher, transport_domain, transport_address, whole_msg):
 
-    while whole_msg:
-        msg_ver = int(api.decodeMessageVersion(whole_msg))
-        if msg_ver in api.PROTOCOL_MODULES:
-            p_mod = api.PROTOCOL_MODULES[msg_ver]
+    while wholeMsg:
+        msgVer = int(api.decodeMessageVersion(wholeMsg))
+        if msgVer in api.PROTOCOL_MODULES:
+            pMod = api.PROTOCOL_MODULES[msgVer]
+
         else:
-            print(f'Unsupported SNMP version {msg_ver}')
+            print("Unsupported SNMP version %s" % msgVer)
             return
 
-        req_msg, whole_msg = decoder.decode(
-            whole_msg,
-            asn1Spec=p_mod.Message(),
+        reqMsg, wholeMsg = decoder.decode(
+            wholeMsg,
+            asn1Spec=pMod.Message(),
         )
 
         print(
             "Notification message from {}:{}: ".format(
-                transport_domain, transport_address
+                transportDomain, transportAddress
             )
         )
 
-        req_pdu = p_mod.apiMessage.get_pdu(req_msg)
-        if req_pdu.isSameTypeWith(p_mod.TrapPDU()):
+        reqPDU = pMod.apiMessage.get_pdu(reqMsg)
+        if reqPDU.isSameTypeWith(pMod.TrapPDU()):
+            if msgVer == api.SNMP_VERSION_1:
+                print(
+                    "Enterprise: %s"
+                    % (pMod.apiTrapPDU.get_enterprise(reqPDU).prettyPrint())
+                )
+                print(
+                    "Agent Address: %s"
+                    % (pMod.apiTrapPDU.get_agent_address(reqPDU).prettyPrint())
+                )
+                print(
+                    "Generic Trap: %s"
+                    % (pMod.apiTrapPDU.get_generic_trap(reqPDU).prettyPrint())
+                )
+                print(
+                    "Specific Trap: %s"
+                    % (pMod.apiTrapPDU.get_specific_trap(reqPDU).prettyPrint())
+                )
+                print(
+                    "Uptime: %s" % (pMod.apiTrapPDU.get_timestamp(reqPDU).prettyPrint())
+                )
+                varBinds = pMod.apiTrapPDU.get_varbinds(reqPDU)
 
-            varBinds = p_mod.apiPDU.get_varbinds(req_pdu)
+            else:
+                varBinds = pMod.apiPDU.get_varbinds(reqPDU)
+
+            # print("Var-binds:")
             vb_as_dict = get_varbinds_as_dict(varBinds)
             if vb_as_dict is not None:
                 current_time_ticks =  vb_as_dict[Fields.current_time_ticks]
-
+                # print(f'current_time_ticks: {current_time_ticks}')
+                # print(f'last_time_ticks[0]: {last_time_ticks[0]}')
                 vb_as_dict[Fields.time_delta] = datetime.timedelta(seconds=current_time_ticks/100) - datetime.timedelta(seconds=last_time_ticks[0]/100 if last_time_ticks[0] > 0 else last_time_ticks[0])
                 last_time_ticks[0] = current_time_ticks
+                # print(f'-' * 40)
+                # print(f'current_time_ticks: {current_time_ticks}')
+                # print(f'last_time_ticks[0]: {last_time_ticks[0]}')
+
 
                 stage_val = vb_as_dict[Fields.stage_val]
                 stage_num = vb_as_dict[Fields.stage_num]
@@ -104,36 +139,34 @@ def callback(tr_dispatcher, transport_domain, transport_address, whole_msg):
                 logger_reduce_msg_writer.info(msg)
             print(vb_as_dict)
 
-    return whole_msg
-
-def setup_dispatcher(
-    ip_addr_dest: str,
-    port_destination: int,
-    callback_fn: Callable
-) -> AsyncioDispatcher:
-
-    tr_dispatcher = AsyncioDispatcher()
-    tr_dispatcher.register_recv_callback(callback_fn)
-
-    # UDP/IPv4
-    tr_dispatcher.register_transport(
-        udp.DOMAIN_NAME, udp.UdpAsyncioTransport().open_server_mode((ip_addr_dest, port_destination))
-    )
-
-    return tr_dispatcher
+    return wholeMsg
 
 
-ip_addr_destination = '192.168.45.248'
-port = 164
-transport_dispatcher = setup_dispatcher(ip_addr_destination, port, callback)
+
+transportDispatcher = AsyncioDispatcher()
+
+transportDispatcher.register_recv_callback(__callback)
+
+# UDP/IPv4
+transportDispatcher.register_transport(
+    udp.DOMAIN_NAME, udp.UdpAsyncioTransport().open_server_mode(("192.168.45.248", 164))
+)
+
+# UDP/IPv6
+transportDispatcher.register_transport(
+    udp6.DOMAIN_NAME, udp6.Udp6AsyncioTransport().open_server_mode(("::1", 164))
+)
+
+transportDispatcher.job_started(1)
 
 try:
+    print("This program needs to run as root/administrator to monitor port 164.")
     print("Started. Press Ctrl-C to stop")
     # Dispatcher will never finish as job#1 never reaches zero
-    transport_dispatcher.job_started(1)
-    transport_dispatcher.run_dispatcher()
+    transportDispatcher.run_dispatcher()
+
 except KeyboardInterrupt:
     print("Shutting down...")
 
 finally:
-    transport_dispatcher.close_dispatcher()
+    transportDispatcher.close_dispatcher()
