@@ -42,12 +42,10 @@ LOGGING_CONFIG = {
     },
     "formatters": {
         "verbose": {
-            # "format": "{name} {levelname} {asctime} {module} {process:d} {thread:d} {message}",
             "format": "{name} {levelname} {asctime} {module} {lineno} {funcName} {message} ",
             "style": "{",
         },
         "verbose2": {
-            # "format": "{name} {levelname} {asctime} {module} {process:d} {thread:d} {message}",
             "format": "{name} [{levelname:^11}] {asctime} {message}",
             "style": "{",
         },
