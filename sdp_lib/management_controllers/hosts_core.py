@@ -131,11 +131,11 @@ class Responses:
 
     @property
     def errors(self) -> list:
-        return self._response[HostResponseStructure.ERRORS]
+        return self._errors
 
     @property
     def data(self) -> dict:
-        return self._response[HostResponseStructure.DATA_RESPONSE]
+        return self._data_response
 
     def build_as_dict(self, ip_v4: str):
         """
