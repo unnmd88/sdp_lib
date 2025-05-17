@@ -20,6 +20,7 @@ T_CommunityData: TypeAlias = Sequence[tuple[str, str]]
 
 
 def handler1(varbinds, *args, **kwargs):
+    print(f'< Varbinds:  {varbinds} >')
     print(f'< Handler 1 >')
     for name, val in varbinds:
         print(f"{str(name)} = {str(val)}")
@@ -27,6 +28,7 @@ def handler1(varbinds, *args, **kwargs):
 
 
 def handler2(varbinds, *args, **kwargs):
+    print(f'< Varbinds:  {varbinds} >')
     print(f'< Handler 2 >')
     for name, val in varbinds:
         print(f"{str(name)} = {str(val)}")
@@ -47,7 +49,8 @@ class HandlersData:
                 self._handlers[ip] = collections.deque(maxlen=self._max_handlers)
             self._handlers[ip].append(handler)
 
-    def get_registered_handlers(self):
+    @cached_property
+    def registered_handlers(self):
         return self._handlers
 
 
@@ -55,6 +58,8 @@ handlers = HandlersData()
 handlers.register_handlers(('10.45.154.11', handler1), ('10.45.154.11', handler2),
                            ('10.45.154.12', handler1))
 
+IP_ADDRESS = 0
+PORT       = 1
 
 def _cbFun(snmp_engine, stateReference, contextEngineId, contextName, varBinds, cbCtx):
     # Callback function for receiving notifications
@@ -63,8 +68,13 @@ def _cbFun(snmp_engine, stateReference, contextEngineId, contextName, varBinds, 
     source = exec_context["transportAddress"]
     domain = exec_context["transportDomain"]
     print(f'Notification from {source}, Domain {domain}')
-    for ip, handler in handlers.get_registered_handlers().items():
-        print(f'ip: {ip}\nhandler: {handler.__name__}')
+
+    _handlers = handlers.registered_handlers.get(source[IP_ADDRESS], [])
+    for handler in _handlers:
+        handler(varBinds)
+
+
+
     # for name, val in varBinds:
     #     # print(f"{name.prettyPrint()} = {val.prettyPrint()}")
     #     print(f"{str(name)} = {str(val)}")
