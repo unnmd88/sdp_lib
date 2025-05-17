@@ -37,7 +37,8 @@ def cbFun(snmpEngine, stateReference, contextEngineId, contextName, varBinds, cb
         )
     )
     for name, val in varBinds:
-        print(f"{name.prettyPrint()} = {val.prettyPrint()}")
+        # print(f"{name.prettyPrint()} = {val.prettyPrint()}")
+        print(f"{str(name)} = {str(val)}")
 
 
 # Register SNMP Application at the SNMP engine
