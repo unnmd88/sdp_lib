@@ -9,7 +9,7 @@ from pysnmp.proto import api
 import logging
 from sdp_lib.management_controllers.snmp import oids
 from sdp_lib.management_controllers.snmp import snmp_utils
-from sdp_lib.utils_common
+from sdp_lib.utils_common.utils_common import check_is_ipv4
 
 from sdp_lib import logging_config
 
@@ -60,7 +60,7 @@ logger_reduce_msg_writer = logging.getLogger('reduce_log')
 logger_msg_writer = logging.getLogger('msg_writer')
 # noinspection PyUnusedLocal
 
-def callback(tr_dispatcher, transport_domain, transport_address, whole_msg):
+def __callback(tr_dispatcher, transport_domain, transport_address, whole_msg):
 
     while whole_msg:
         msg_ver = int(api.decodeMessageVersion(whole_msg))
@@ -125,29 +125,80 @@ def setup_dispatcher(
 
 
 class TrapServer:
-    def __init__(self, ip_v4, port):
-        self.ip_v4 = ip_v4
-        self.port = port
+    def __init__(self, ip_v4: str, port: int, callback: Callable):
+        self._ip_v4 = ip_v4
+        self._port = port
+        self._callback = callback
+        self._transport_dispatcher = self._setup_dispatcher()
+
+    def __repr__(self):
+        return (
+            f'ip: {self._ip_v4}\n'
+            f'port: {self._port}\n'
+            f'callback func name: {self._callback.__name__}'
+        )
 
     def __setattr__(self, key, value):
-        if key == 'ip_v4':
+        if key == 'ip_v4' and not check_is_ipv4(value):
+            raise ValueError('Невалидный ipv4 адрес')
+        elif key == 'port' and not 0 < int(value) <= 65535:
+            raise ValueError('Значение порта должно быть целым числом в диапазоне от 0 до 65535')
+        elif key == 'callback' and not callable(value):
+            raise ValueError('Атрибут callback должен быть функцией')
+        super().__setattr__(key, value)
+
+    def __getattr__(self, item):
+        if 'ip' in item:
+            return self._ip_v4
+        elif 'port' in item:
+            return self._port
+        raise AttributeError()
+
+    def _setup_dispatcher(self) -> AsyncioDispatcher:
+        tr_dispatcher = AsyncioDispatcher()
+        tr_dispatcher.register_recv_callback(self._callback)
+
+        # UDP/IPv4
+        tr_dispatcher.register_transport(
+            udp.DOMAIN_NAME,
+            udp.UdpAsyncioTransport().open_server_mode((self._ip_v4, self._port))
+        )
+        return tr_dispatcher
+
+    @property
+    def transport_dispatcher(self):
+        return self._transport_dispatcher
+
+    def run(self):
+        self._transport_dispatcher.job_started(1)
+        self._transport_dispatcher.run_dispatcher()
+
+    def shutdown(self):
+        self._transport_dispatcher.close_dispatcher()
 
 
 
+# ip_addr_destination = '192.168.45.248'
+# port = 164
+# transport_dispatcher = setup_dispatcher(ip_addr_destination, port, callback)
+
+server = TrapServer('192.168.45.248', 164, __callback)
 
 
 
-ip_addr_destination = '192.168.45.248'
-port = 164
-transport_dispatcher = setup_dispatcher(ip_addr_destination, port, callback)
 
 try:
     print("Started. Press Ctrl-C to stop")
+    print(server)
     # Dispatcher will never finish as job#1 never reaches zero
-    transport_dispatcher.job_started(1)
-    transport_dispatcher.run_dispatcher()
+    # transport_dispatcher.job_started(1)
+    # transport_dispatcher.run_dispatcher()
 except KeyboardInterrupt:
     print("Shutting down...")
 
 finally:
-    transport_dispatcher.close_dispatcher()
+    server.shutdown()
+    # transport_dispatcher.close_dispatcher()
+
+if __name__ == '__main__':
+    pass
