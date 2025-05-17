@@ -1,6 +1,7 @@
 import datetime
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from enum import StrEnum
+from functools import cached_property
 
 from pysnmp.carrier.asyncio.dispatch import AsyncioDispatcher
 from pysnmp.carrier.asyncio.dgram import udp, udp6
@@ -9,6 +10,7 @@ from pysnmp.proto import api
 import logging
 from sdp_lib.management_controllers.snmp import oids
 from sdp_lib.management_controllers.snmp import snmp_utils
+from sdp_lib.management_controllers.snmp.user_types import T_Oids, T_Varbinds
 from sdp_lib.utils_common.utils_common import check_is_ipv4
 
 from sdp_lib import logging_config
@@ -60,6 +62,79 @@ logger_reduce_msg_writer = logging.getLogger('reduce_log')
 logger_msg_writer = logging.getLogger('msg_writer')
 # noinspection PyUnusedLocal
 
+class Handlers(StrEnum):
+    write_log_to_file = 'write_log_to_file'
+
+
+class VarbindsStageTrap:
+
+    expected_oids = {oids.Oids.swarcoUTCTrafftechPhaseStatus, ExtraOids.time_ticks}
+
+    def __init__(self, varbinds, expected_oids_for_processing: T_Oids):
+        self._varbinds = varbinds
+        self._handlers = {}
+        self._expected_oids = expected_oids_for_processing
+        self._varbinds_data_as_dict = self.build_varbinds_data_as_dict()
+
+    def load_varbinds(self, varbinds: T_Varbinds):
+        self._varbinds = varbinds
+
+    def build_varbinds_data_as_dict(self) -> dict[str, int | str] | None:
+
+        self._varbinds_data_as_dict = {}
+
+        for oid, val in self._varbinds:
+            oid_as_str = str(oid)
+            val_as_str = str(val)
+
+
+
+            if oid_as_str in self.expected_oids:
+                match oid_as_str:
+                    case ExtraOids.time_ticks:
+                        self._varbinds_data_as_dict[Fields.current_time_ticks] = int(val_as_str)
+                    case oids.Oids.swarcoUTCTrafftechPhaseStatus:
+                        self._varbinds_data_as_dict[Fields.stage_val] = val_as_str
+                        stage_val_as_int = snmp_utils.StageConverterMixinPotokS.get_num_stage_from_oid_val(val_as_str)
+                        self._varbinds_data_as_dict[Fields.stage_num] = stage_val_as_int
+
+
+                if oid_as_str == ExtraOids.time_ticks:
+                    val_as_int = int(val_as_str)
+                    self._varbinds_data_as_dict[Fields.current_time_ticks] = val_as_int
+                elif oid_as_str == oids.Oids.swarcoUTCTrafftechPhaseStatus:
+                    self._varbinds_data_as_dict[Fields.stage_val] = val_as_str
+                    self._varbinds_data_as_dict[Fields.stage_num] = snmp_utils.StageConverterMixinPotokS.get_num_stage_from_oid_val(val_as_str)
+        if len(data) > 1:
+            return data
+        return None
+
+    def processing_varbinds(self):
+        pass
+
+    def register_handler(self, handler: Handlers):
+        pass
+
+    def unregister_handler(self, handler):
+        pass
+
+    def get_available_handlers(self):
+        pass
+
+    @cached_property
+    def process_oid_methods(self):
+        return {
+            oids.Oids.swarcoUTCTrafftechPhaseStatus: [
+                (Fields.stage_val, )
+            ]
+        }
+
+
+domains = {
+
+}
+
+
 def __callback(tr_dispatcher, transport_domain, transport_address, whole_msg):
 
     while whole_msg:
@@ -74,12 +149,7 @@ def __callback(tr_dispatcher, transport_domain, transport_address, whole_msg):
             whole_msg,
             asn1Spec=p_mod.Message(),
         )
-
-        print(
-            "Notification message from {}:{}: ".format(
-                transport_domain, transport_address
-            )
-        )
+        print(f'Notification message from {transport_domain}:{transport_address}')
 
         req_pdu = p_mod.apiMessage.get_pdu(req_msg)
         if req_pdu.isSameTypeWith(p_mod.TrapPDU()):

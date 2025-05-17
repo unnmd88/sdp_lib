@@ -17,7 +17,8 @@ from sdp_lib.management_controllers.constants import AllowedControllers
 from sdp_lib.management_controllers.snmp.oids import Oids
 
 
-T_Oids: TypeAlias = tuple[Oids | str, ...] | list[Oids | str]
+# T_Oids: TypeAlias = tuple[Oids | str, ...] | list[Oids | str]
+T_Oids: TypeAlias = abc.Collection[Oids | str]
 T_Oid: TypeAlias = Oids | str
 # T_Varbinds: TypeAlias = tuple[ObjectType, ...] | list[ObjectType]
 T_Varbinds: TypeAlias = abc.Collection[ObjectType]

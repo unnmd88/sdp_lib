@@ -17,6 +17,12 @@ LOGGING_CONFIG = {
             "filename": "reduce_log.log",
             "formatter": "verbose2",
         },
+        "file_trap_recv": {
+            "level": "DEBUG",
+            "class": "logging.FileHandler",
+            "filename": "trap.log",
+            "formatter": "verbose2",
+        },
         "console": {
             "level": "DEBUG",
             "class": "logging.StreamHandler",
@@ -37,6 +43,11 @@ LOGGING_CONFIG = {
         "reduce_log": {
             "level": "INFO",
             "handlers": ['file2'],
+            "propagate": True,
+        },
+        "trap": {
+            "level": "INFO",
+            "handlers": ['file_trap_recv'],
             "propagate": True,
         }
     },
