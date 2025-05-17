@@ -11,12 +11,82 @@ from pysnmp.entity.engine import SnmpEngine
 from pysnmp.entity.rfc3413 import ntfrcv
 import ipaddress
 
-
+from sdp_lib.management_controllers.constants import AllowedControllers
+from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods import get_val_as_str
+from sdp_lib.management_controllers.snmp import oids, snmp_utils
+from sdp_lib.management_controllers.snmp.trap_recv import Fields
 from sdp_lib.utils_common.utils_common import check_is_ipv4
 
 
 T_Interfaces: TypeAlias = Sequence[tuple[str, int]]
 T_CommunityData: TypeAlias = Sequence[tuple[str, str]]
+
+
+class AbstractEventProcessors:
+    def __init__(self):
+        self._max_log_messages = 20
+        self.time_ticks = 0
+        self._messages_to_write = collections.deque(maxlen=self._max_log_messages)
+
+    def set_max_messages(self, val: int):
+        self._max_log_messages = int(val)
+
+    def process_event(self, *args, **kwargs):
+        pass
+
+
+class StageEventProcessors(AbstractEventProcessors):
+    def __init__(
+            self,
+            type_controller: AllowedControllers,
+    ):
+        super().__init__()
+        self._type_controller = type_controller
+        self._expected_oid = self._get_expected_oid()
+
+
+    def _get_expected_oid(self):
+        if self._type_controller in (AllowedControllers.POTOK_S, AllowedControllers.SWARCO):
+            return oids.Oids.swarcoUTCTrafftechPhaseStatus
+        else:
+            raise NotImplementedError()
+
+    @cached_property
+    def stage_handlers(self):
+        return {
+            AllowedControllers.POTOK_S: [
+                (Fields.stage_val, get_val_as_str),
+                (Fields.stage_num, snmp_utils.StageConverterMixinPotokS.get_num_stage_from_oid_val),
+            ]
+        }
+
+    def process_event(self, parsed_varbinds: dict[str, Any]):
+        print(f'process_stage')
+        try:
+            oid_val = parsed_varbinds[self._expected_oid]
+        except KeyError:
+            return
+
+        for field_name, handler in self.stage_handlers.get(self._type_controller):
+            msg = (
+                f'{field_name}={handler(oid_val)}'
+            )
+            self._messages_to_write.append(msg)
+
+        for m in self._messages_to_write:
+            with open('Tets_msg', 'a') as f:
+                f.write(m + '\n')
+
+
+
+
+
+
+
+def parse_varbinds(varbinds):
+    return {str(k): v.prettyPrint() for k, v in varbinds}
+    # for name, val in varbinds:
+    #     print(f"{name.prettyPrint()} = {val.prettyPrint()}")
 
 
 def handler1(varbinds, *args, **kwargs):
@@ -50,13 +120,19 @@ class HandlersData:
             self._handlers[ip].append(handler)
 
     @cached_property
-    def registered_handlers(self):
+    def registered_handlers(self) -> dict[str, Sequence[Callable]]:
         return self._handlers
+
+    def get_handlers(self, ip_address: str) -> Sequence[Callable]:
+        return self._handlers.get(ip_address, [])
 
 
 handlers = HandlersData()
-handlers.register_handlers(('10.45.154.11', handler1), ('10.45.154.11', handler2),
-                           ('10.45.154.12', handler1))
+# handlers.register_handlers(('10.45.154.11', handler1), ('10.45.154.11', handler2),
+#                            ('10.45.154.12', handler1))
+handlers.register_handlers(('10.45.154.11', StageEventProcessors(AllowedControllers.POTOK_S)))
+
+
 
 IP_ADDRESS = 0
 PORT       = 1
@@ -68,10 +144,11 @@ def _cbFun(snmp_engine, stateReference, contextEngineId, contextName, varBinds, 
     source = exec_context["transportAddress"]
     domain = exec_context["transportDomain"]
     print(f'Notification from {source}, Domain {domain}')
+    parsed_varbinds = parse_varbinds(varbinds=varBinds)
 
-    _handlers = handlers.registered_handlers.get(source[IP_ADDRESS], [])
-    for handler in _handlers:
-        handler(varBinds)
+    curr_source_handlers = handlers.get_handlers(source[IP_ADDRESS])
+    for handler in curr_source_handlers:
+        handler.process_event(varBinds)
 
 
 
