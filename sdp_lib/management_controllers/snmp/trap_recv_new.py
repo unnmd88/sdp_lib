@@ -1,5 +1,8 @@
+from runpy import run_path
+
 from pysnmp.entity import engine, config
 from pysnmp.carrier.asyncio.dgram import udp
+from pysnmp.entity.engine import SnmpEngine
 from pysnmp.entity.rfc3413 import ntfrcv
 
 # Create SNMP engine with autogenernated engineID and pre-bound
@@ -36,12 +39,17 @@ def cbFun(snmpEngine, stateReference, contextEngineId, contextName, varBinds, cb
             contextEngineId.prettyPrint(), contextName.prettyPrint()
         )
     )
+    execContext = snmpEngine.observer.get_execution_context(
+        'rfc3412.receiveMessage:request'
+    )
 
-    print(f'snmpEngine: {snmpEngine}\n'
-          f'stateReference: {stateReference}\n'
-          f'contextEngineId: {contextEngineId}\n'
-          f'contextName: {contextName}\n'
-          f'cbCtx: {cbCtx}')
+    print(f'snmpEngine: {type(snmpEngine)}\n')
+    print(f'snmpEngine cache: {snmpEngine.cache}\n'
+          f'execContext c: {execContext}\n',
+          f'stateReference: {type(stateReference)}\n'
+          f'contextEngineId: {type(contextEngineId)}\n'
+          f'contextName: {type(contextName)}\n'
+          f'cbCtx: {type(cbCtx)}')
 
     for name, val in varBinds:
         # print(f"{name.prettyPrint()} = {val.prettyPrint()}")
