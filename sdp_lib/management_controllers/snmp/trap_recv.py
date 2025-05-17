@@ -9,6 +9,7 @@ from pysnmp.proto import api
 import logging
 from sdp_lib.management_controllers.snmp import oids
 from sdp_lib.management_controllers.snmp import snmp_utils
+from sdp_lib.utils_common
 
 from sdp_lib import logging_config
 
@@ -121,6 +122,19 @@ def setup_dispatcher(
     )
 
     return tr_dispatcher
+
+
+class TrapServer:
+    def __init__(self, ip_v4, port):
+        self.ip_v4 = ip_v4
+        self.port = port
+
+    def __setattr__(self, key, value):
+        if key == 'ip_v4':
+
+
+
+
 
 
 ip_addr_destination = '192.168.45.248'

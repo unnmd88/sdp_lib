@@ -20,7 +20,7 @@ def timed(func: Callable):
         return func
     return wrapper
 
-def set_curr_datetime(sep: str = ':') -> str:
+def get_curr_datetime(sep: str = ':') -> str:
     """
     Возвращает текущую дату и время
     :param sep: разделитель между датой и временем
