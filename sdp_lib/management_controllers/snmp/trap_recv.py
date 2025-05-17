@@ -135,15 +135,16 @@ class TrapServer:
         return (
             f'ip: {self._ip_v4}\n'
             f'port: {self._port}\n'
+            f'dispatcher: {self._transport_dispatcher}\n'
             f'callback func name: {self._callback.__name__}'
         )
 
     def __setattr__(self, key, value):
-        if key == 'ip_v4' and not check_is_ipv4(value):
+        if key == '_ip_v4' and not check_is_ipv4(value):
             raise ValueError('Невалидный ipv4 адрес')
-        elif key == 'port' and not 0 < int(value) <= 65535:
+        elif key == '_port' and not 0 < int(value) <= 65535:
             raise ValueError('Значение порта должно быть целым числом в диапазоне от 0 до 65535')
-        elif key == 'callback' and not callable(value):
+        elif key == '__callback' and not callable(value):
             raise ValueError('Атрибут callback должен быть функцией')
         super().__setattr__(key, value)
 
