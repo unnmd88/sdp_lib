@@ -36,6 +36,13 @@ def cbFun(snmpEngine, stateReference, contextEngineId, contextName, varBinds, cb
             contextEngineId.prettyPrint(), contextName.prettyPrint()
         )
     )
+
+    print(f'snmpEngine: {snmpEngine}\n'
+          f'stateReference: {stateReference}\n'
+          f'contextEngineId: {contextEngineId}\n'
+          f'contextName: {contextName}\n'
+          f'cbCtx: {cbCtx}')
+
     for name, val in varBinds:
         # print(f"{name.prettyPrint()} = {val.prettyPrint()}")
         print(f"{str(name)} = {str(val)}")
