@@ -37,14 +37,18 @@ T_CommunityData: TypeAlias = Sequence[tuple[str, str]]
 def _cbFun(snmpEngine, stateReference, contextEngineId, contextName, varBinds, cbCtx):
     # Callback function for receiving notifications
     # noinspection PyUnusedLocal,PyUnusedLocal,PyUnusedLocal
-    print(
-        'Notification from ContextEngineId "{}", ContextName "{}"'.format(
-            contextEngineId.prettyPrint(), contextName.prettyPrint()
-        )
-    )
-    execContext = snmpEngine.observer.get_execution_context(
+    # print(
+    #     'Notification from ContextEngineId "{}", ContextName "{}"'.format(
+    #         contextEngineId.prettyPrint(), contextName.prettyPrint()
+    #     )
+    # )
+    exec_context = snmpEngine.observer.get_execution_context(
         'rfc3412.receiveMessage:request'
     )
+    print(
+        f'Notification from {exec_context["transportAddress"]}, Domain {exec_context["transportDomain"]}'
+    )
+
 
     print(f'snmpEngine: {type(snmpEngine)}\n')
     print(f'snmpEngine cache: {snmpEngine.cache}\n'
