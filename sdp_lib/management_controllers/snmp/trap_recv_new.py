@@ -12,7 +12,7 @@ snmpEngine = engine.SnmpEngine()
 config.add_transport(
     snmpEngine,
     udp.DOMAIN_NAME + (1,),
-    udp.UdpTransport().open_server_mode(("192.168.45.228", 164)),
+    udp.UdpTransport().open_server_mode(("192.168.45.248", 164)),
 )
 
 # UDP over IPv4, second listening interface/port
