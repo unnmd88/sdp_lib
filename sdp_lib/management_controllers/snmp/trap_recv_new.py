@@ -50,13 +50,13 @@ def _cbFun(snmpEngine, stateReference, contextEngineId, contextName, varBinds, c
     )
 
 
-    print(f'snmpEngine: {type(snmpEngine)}\n')
-    print(f'snmpEngine cache: {snmpEngine.cache}\n'
-          f'execContext c: {execContext}\n',
-          f'stateReference: {type(stateReference)}\n'
-          f'contextEngineId: {type(contextEngineId)}\n'
-          f'contextName: {type(contextName)}\n'
-          f'cbCtx: {type(cbCtx)}')
+    # print(f'snmpEngine: {type(snmpEngine)}\n')
+    # print(f'snmpEngine cache: {snmpEngine.cache}\n'
+    #       f'execContext c: {execContext}\n',
+    #       f'stateReference: {type(stateReference)}\n'
+    #       f'contextEngineId: {type(contextEngineId)}\n'
+    #       f'contextName: {type(contextName)}\n'
+    #       f'cbCtx: {type(cbCtx)}')
 
     for name, val in varBinds:
         # print(f"{name.prettyPrint()} = {val.prettyPrint()}")
@@ -122,6 +122,7 @@ class TrapReceiver:
         self._community_data = community_data
         self._handlers = handlers
 
+
     def _add_transport_target(self):
         for i, interface in enumerate(self._net_interfaces, 1):
             ip_v4, port = interface
@@ -139,7 +140,7 @@ class TrapReceiver:
     def _register_community(self):
         for community_index, community_name in self._community_data:
             # SecurityName <-> CommunityName mapping
-            config.add_v1_system(snmp_engine, community_index, community_name)
+            config.add_v1_system(self._snmp_engine, community_index, community_name)
 
     def _register_receiver(self):
         # Register SNMP Application at the SNMP engine
@@ -160,6 +161,7 @@ class TrapReceiver:
         self._register_handlers()
 
     def run(self):
+        self._setup()
         self._snmp_engine.transport_dispatcher.job_started(1)
         self._snmp_engine.open_dispatcher()
         print("Started. Press Ctrl-C to stop")
@@ -192,4 +194,4 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print(f'Ctrl-C was pressed.')
     finally:
-        snmp_engine.close_dispatcher()
+        server.shutdown()
