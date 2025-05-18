@@ -23,10 +23,18 @@ T_CommunityData: TypeAlias = Sequence[tuple[str, str]]
 
 
 class AbstractEventProcessors:
-    def __init__(self):
+    def __init__(self, type_controller: AllowedControllers):
+        self._type_controller = type_controller
         self._max_log_messages = 20
         self.time_ticks = 0
+        self.time_ticks_oid = self._get_time_ticks_oid()
         self._messages_to_write = collections.deque(maxlen=self._max_log_messages)
+
+    def __call__(self, *args, **kwargs):
+        varbinds: dict[str, Any]  = args[0]
+        self.time_ticks = varbinds.get(self.time_ticks_oid)
+        print(f'TIME_TICKS: {self.time_ticks}')
+        self.process_event(varbinds)
 
     def set_max_messages(self, val: int):
         self._max_log_messages = int(val)
@@ -34,16 +42,17 @@ class AbstractEventProcessors:
     def process_event(self, *args, **kwargs):
         pass
 
+    def _get_time_ticks_oid(self):
+        if self._type_controller in (AllowedControllers.POTOK_S, AllowedControllers.SWARCO):
+            return '1.3.6.1.2.1.1.3.0'
+        else:
+            raise NotImplementedError()
+
 
 class StageEventProcessors(AbstractEventProcessors):
-    def __init__(
-            self,
-            type_controller: AllowedControllers,
-    ):
-        super().__init__()
-        self._type_controller = type_controller
+    def __init__(self, type_controller):
+        super().__init__(type_controller)
         self._expected_oid = self._get_expected_oid()
-
 
     def _get_expected_oid(self):
         if self._type_controller in (AllowedControllers.POTOK_S, AllowedControllers.SWARCO):
@@ -128,7 +137,7 @@ def _cbFun(snmp_engine, stateReference, contextEngineId, contextName, varBinds, 
 
     curr_source_handlers = handlers.get_handlers(source[IP_ADDRESS])
     for handler in curr_source_handlers:
-        handler.process_event(parsed_varbinds)
+        handler(parsed_varbinds)
 
 
 
