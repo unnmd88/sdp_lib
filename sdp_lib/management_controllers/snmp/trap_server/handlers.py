@@ -15,14 +15,14 @@ from sdp_lib.management_controllers.snmp.trap_recv import Fields
 from sdp_lib import logging_config
 
 
-all_trap_logger = logging.getLogger('trap')
 reduce_logger = logging.getLogger('reduce_log')
 
 
 
 
 class AbstractEvents:
-    def __init__(self, type_controller: AllowedControllers):
+    def __init__(self, type_controller: AllowedControllers, ip_source: str = ""):
+        self._ip_source = ip_source
         self._type_controller = type_controller
         self._max_log_messages = 20
         self.time_ticks_current_event = 0
@@ -73,10 +73,13 @@ class AbstractEvents:
 
 
 class StageEvents(AbstractEvents):
-    def __init__(self, type_controller):
-        super().__init__(type_controller)
+    def __init__(self, type_controller, ip_source, stages_data: dict[int, tuple[int, int]], reset_cyc_stage_point=1):
+        super().__init__(type_controller, ip_source)
+        self._stages_data = stages_data
+        self._stages_times = {}
         self._stage_oid = self._get_stage_oid()
-        # self._stage_val_from_oid = None
+        self._reset_cyc_stage_point = reset_cyc_stage_point
+        self._cyc_counter = 0
 
     def _get_stage_oid(self):
         if self._type_controller in (AllowedControllers.POTOK_S, AllowedControllers.SWARCO):
@@ -101,27 +104,44 @@ class StageEvents(AbstractEvents):
     def process_event(self):
         print(f'process_stage')
         try:
-            oid_val = self._processed_varbinds[self._stage_oid]
+            stage_oid_val = self._processed_varbinds[self._stage_oid]
         except KeyError:
             return
 
         self.time_ticks_current_event = int(self._processed_varbinds.get(self.time_ticks_oid))
         self.set_delta_time_ticks()
-        td = dt.timedelta(seconds=self.time_ticks_delta / 100)
+        self.time_ticks_delta = self.time_ticks_current_event - self.time_ticks_last_event
+        # td_curr_stage = dt.timedelta(seconds=self.time_ticks_delta / 100)
+        num_stage = snmp_utils.StageConverterMixinPotokS.get_num_stage_from_oid_val(stage_oid_val)
+        td_curr_stage_as_seconds = self.time_ticks_delta / 100
+        self._cyc_counter += td_curr_stage_as_seconds
+
+        num_stg, prom_tact = self._stages_data[num_stage]
+        self._stages_times[num_stg] = f'stage={num_stg}[green={td_curr_stage_as_seconds - prom_tact} prom={prom_tact} green+prom={td_curr_stage_as_seconds}]'
+
+        if num_stage == self._reset_cyc_stage_point:
+            stages_info = ' | '.join(v for v in self._stages_times.values())
+            cyc_data = (
+                f'\nCycle={dt.timedelta(seconds=self._cyc_counter)} | {self._cyc_counter} seconds, Stages info: {stages_info}'
+            )
+            self._cyc_counter = 0
+        else:
+            cyc_data = ''
+
+
+
+        print(f'self.time_ticks_delta: {self.time_ticks_delta}')
+        print(f'td: {td_curr_stage_as_seconds}')
 
         msg = (
-            f'{Fields.stage_num}={snmp_utils.StageConverterMixinPotokS.get_num_stage_from_oid_val(oid_val)} | '
-            f'{Fields.stage_val}={get_val_as_str} | Time Ticks={self.time_ticks_current_event} | '
-            f'Last stage was change {td.seconds} seconds ago'
+            f'Source: {self._ip_source} | {Fields.stage_num}={num_stage} | '
+            f'{Fields.stage_val}={get_val_as_str(stage_oid_val)} | Time Ticks={self.time_ticks_current_event} | '
+            # f'Last stage was change {td_curr_stage.seconds} seconds {td_curr_stage.microseconds} microseconds ago'
+            f'Last stage was change {td_curr_stage_as_seconds} seconds ago'
+            f'{cyc_data}'
         )
         reduce_logger.info(msg)
         self.time_ticks_last_event = self.time_ticks_current_event
-
-        # for field_name, handler in self.stage_handlers.get(self._type_controller):
-        #     msg = (
-        #         f'{field_name}={handler(oid_val)}'
-        #     )
-        #     self._messages_to_write.append(msg)
 
 
 class HandlersData:
