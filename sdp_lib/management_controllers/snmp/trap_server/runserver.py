@@ -17,8 +17,10 @@ def _cbFun(snmp_engine, stateReference, contextEngineId, contextName, varBinds, 
     domain = exec_context["transportDomain"]
     print(f'Notification from {source}, Domain {domain}')
     parsed_varbinds = parse_varbinds_to_dict(varbinds=varBinds)
+    print(f'parsed_varb: {parsed_varbinds}')
 
     curr_source_handlers = handlers.get_handlers(source[TrapTransport.ip_address])
+    print(f'curr_source_handlers: {curr_source_handlers}')
     for handler in curr_source_handlers:
         handler(parsed_varbinds)
 

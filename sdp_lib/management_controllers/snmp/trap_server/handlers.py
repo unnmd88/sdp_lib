@@ -38,9 +38,9 @@ class AbstractEvents:
             *args,
             **kwargs
     ):
+        if processed_varbinds:
+            self.load_processed_varbinds(processed_varbinds)
         if self.check_if_process_need_to_run():
-            if processed_varbinds:
-                self.load_processed_varbinds(processed_varbinds)
             print(f'time_ticks_last_event: {self.time_ticks_last_event}')
             print(f'time_ticks_current_event: {self.time_ticks_current_event}')
             print(f'time_ticks_delta: {self.time_ticks_delta}')
@@ -98,11 +98,10 @@ class StageEvents(AbstractEvents):
             ]
         }
 
-    def process_event(self, parsed_varbinds: dict[str, Any]):
+    def process_event(self):
         print(f'process_stage')
-        print(f'parsed_varbinds: {parsed_varbinds}')
         try:
-            oid_val = parsed_varbinds[self._stage_oid]
+            oid_val = self._processed_varbinds[self._stage_oid]
         except KeyError:
             return
 
