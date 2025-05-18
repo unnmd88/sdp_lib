@@ -62,6 +62,7 @@ class StageEventProcessors(AbstractEventProcessors):
 
     def process_event(self, parsed_varbinds: dict[str, Any]):
         print(f'process_stage')
+        print(f'parsed_varbinds: {parsed_varbinds}')
         try:
             oid_val = parsed_varbinds[self._expected_oid]
         except KeyError:
@@ -78,31 +79,10 @@ class StageEventProcessors(AbstractEventProcessors):
                 f.write(m + '\n')
 
 
-
-
-
-
-
 def parse_varbinds(varbinds):
     return {str(k): v.prettyPrint() for k, v in varbinds}
     # for name, val in varbinds:
     #     print(f"{name.prettyPrint()} = {val.prettyPrint()}")
-
-
-def handler1(varbinds, *args, **kwargs):
-    print(f'< Varbinds:  {varbinds} >')
-    print(f'< Handler 1 >')
-    for name, val in varbinds:
-        print(f"{str(name)} = {str(val)}")
-    print(f'End handler 1')
-
-
-def handler2(varbinds, *args, **kwargs):
-    print(f'< Varbinds:  {varbinds} >')
-    print(f'< Handler 2 >')
-    for name, val in varbinds:
-        print(f"{str(name)} = {str(val)}")
-    print(f'End handler 2')
 
 
 class HandlersData:
@@ -112,8 +92,8 @@ class HandlersData:
 
     def register_handlers(self, *args: tuple[str, Callable]):
         for ip, handler in args:
-            if not callable(handler):
-                raise ValueError(f'Обработчик должен быть вызываемым объектом')
+            # if not callable(handler):
+            #     raise ValueError(f'Обработчик должен быть вызываемым объектом')
             ipaddress.IPv4Address(ip)
             if ip not in self._handlers:
                 self._handlers[ip] = collections.deque(maxlen=self._max_handlers)
@@ -148,7 +128,7 @@ def _cbFun(snmp_engine, stateReference, contextEngineId, contextName, varBinds, 
 
     curr_source_handlers = handlers.get_handlers(source[IP_ADDRESS])
     for handler in curr_source_handlers:
-        handler.process_event(varBinds)
+        handler.process_event(parsed_varbinds)
 
 
 
