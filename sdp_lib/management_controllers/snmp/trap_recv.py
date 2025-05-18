@@ -2,18 +2,21 @@ import datetime
 from collections.abc import Callable, Collection
 from enum import StrEnum
 from functools import cached_property
+import logging
 
 from pysnmp.carrier.asyncio.dispatch import AsyncioDispatcher
 from pysnmp.carrier.asyncio.dgram import udp, udp6
 from pyasn1.codec.ber import decoder
 from pysnmp.proto import api
-import logging
+
 from sdp_lib.management_controllers.snmp import oids
 from sdp_lib.management_controllers.snmp import snmp_utils
 from sdp_lib.management_controllers.snmp.user_types import T_Oids, T_Varbinds
 from sdp_lib.utils_common.utils_common import check_is_ipv4
-
 from sdp_lib import logging_config
+
+
+logger_full = logging.getLogger()
 
 
 class ExtraOids(StrEnum):

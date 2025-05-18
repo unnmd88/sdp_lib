@@ -1,7 +1,7 @@
 import logging
 import math
 from collections.abc import Iterable
-from typing import Type
+from typing import Type, Any
 
 from pysnmp.proto import rfc1905
 from pysnmp.proto.rfc1902 import (
@@ -169,6 +169,10 @@ def create_stcip_set_stage_varbinds(
 ug405_set_stage_values = convert_val_to_num_stage_set_req_ug405(128)
 swarco_stcip_set_stage_varbinds = create_stcip_set_stage_varbinds(swarco_itc2.MAX_STAGE, user_vals={8: 1})
 potok_stcip_set_stage_varbinds = create_stcip_set_stage_varbinds(potok.MAX_STAGE)
+
+
+def parse_varbinds_to_dict(varbinds) -> dict[str, Any]:
+    return {str(k): v.prettyPrint() for k, v in varbinds}
 
 
 class ScnConverterMixin:
