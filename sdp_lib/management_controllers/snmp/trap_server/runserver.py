@@ -12,15 +12,15 @@ all_trap_logger = logging.getLogger('trap')
 
 handlers = HandlersData()
 stages_data = {
-    # 1: (7, 8),
-    # 4: (1, 6),
-    # 5: (4, 8),
-    # 7: (5, 7),
+    # 1: (7, 7),
+    # 4: (1, 8),
+    # 5: (4, 6),
+    # 7: (5, 8),
 
-    1: (7, 7),
-    4: (1, 8),
+    1: (7, 6),
+    4: (1, 6),
     5: (4, 6),
-    7: (5, 8),
+    7: (5, 6),
 }
 handlers.register_handlers(
     ('10.45.154.11', StageEvents(AllowedControllers.POTOK_S, '10.45.154.11', stages_data))
