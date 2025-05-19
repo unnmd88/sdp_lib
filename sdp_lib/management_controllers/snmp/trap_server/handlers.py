@@ -15,7 +15,7 @@ from sdp_lib.management_controllers.snmp.trap_recv import Fields
 from sdp_lib import logging_config
 
 
-reduce_logger = logging.getLogger('trap info')
+verbose_trap_logger = logging.getLogger('trap_verbose')
 
 
 class HandlersData:
@@ -135,12 +135,14 @@ class StageEvents(AbstractEvents):
         self._cyc_counter += td_curr_stage_as_seconds
 
         num_stg, prom_tact = self._stages_data[num_stage]
-        self._stages_times[num_stg] = f'stage={num_stg}[green={td_curr_stage_as_seconds - prom_tact} prom={prom_tact} green+prom={td_curr_stage_as_seconds}]'
+        self._stages_times[num_stg] = (
+            f'\nstage={num_stg}[green={td_curr_stage_as_seconds - prom_tact:.2f} prom={prom_tact} green+prom={td_curr_stage_as_seconds:.2f}]'
+        )
 
         if num_stage == self._reset_cyc_stage_point:
             stages_info = ' | '.join(v for v in self._stages_times.values())
             cyc_data = (
-                f'\nCycle={dt.timedelta(seconds=self._cyc_counter)} | {self._cyc_counter} seconds, Stages info: {stages_info}'
+                f'\nCycle={dt.timedelta(seconds=self._cyc_counter):.2f} | {self._cyc_counter} seconds, Stages info: {stages_info}'
             )
             self._cyc_counter = 0
         else:
@@ -158,7 +160,7 @@ class StageEvents(AbstractEvents):
             f'Last stage was change {td_curr_stage_as_seconds} seconds ago'
             f'{cyc_data}'
         )
-        reduce_logger.info(msg)
+        verbose_trap_logger.info(msg)
         self.time_ticks_last_event = self.time_ticks_current_event
 
 
