@@ -1,4 +1,5 @@
 import logging
+from dotenv import load_dotenv
 
 from sdp_lib.management_controllers.constants import AllowedControllers
 from sdp_lib.management_controllers.snmp.snmp_utils import parse_varbinds_to_dict
@@ -6,21 +7,17 @@ from sdp_lib.management_controllers.snmp.trap_server.server import TrapReceiver
 from sdp_lib.management_controllers.snmp.trap_server.handlers import StageEvents, HandlersData
 from sdp_lib.management_controllers.structures import TrapTransport
 
+load_dotenv()
 
-all_trap_logger = logging.getLogger('trap')
+all_trap_logger = logging.getLogger('trap_common')
 
 
 handlers = HandlersData()
 stages_data = {
-    # 1: (7, 7),
-    # 4: (1, 8),
-    # 5: (4, 6),
-    # 7: (5, 8),
-
-    1: (7, 6),
-    4: (1, 6),
+    1: (7, 7),
+    4: (1, 8),
     5: (4, 6),
-    7: (5, 6),
+    7: (5, 8),
 }
 handlers.register_handlers(
     ('10.45.154.11', StageEvents(AllowedControllers.POTOK_S, '10.45.154.11', stages_data))
@@ -38,6 +35,7 @@ def _cbFun(snmp_engine, stateReference, contextEngineId, contextName, varBinds, 
 
     varbinds_as_str = " | ".join(f'{oid}={val}' for oid, val in parsed_varbinds.items())
     all_trap_logger.info( f'Source: {source}\nVarbinds: {varbinds_as_str}')
+    print( f'Raw varbinds:\n{varBinds}')
 
     curr_source_handlers = handlers.get_handlers(source)
     for handler in curr_source_handlers:
@@ -46,7 +44,7 @@ def _cbFun(snmp_engine, stateReference, contextEngineId, contextName, varBinds, 
 
 server = TrapReceiver(
         net_interfaces=[('192.168.45.248', 164)],
-        community_data=[("my-area", "public")],
+        community_data=[ ("public", "public"), ("UTMC", "UTMC"),],
         cb_func=_cbFun
     )
 

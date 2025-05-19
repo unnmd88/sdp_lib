@@ -94,6 +94,7 @@ class StageEvents(AbstractEvents):
     def __init__(self, type_controller, name_source, stages_data: dict[int, tuple[int, int]], reset_cyc_stage_point=1):
         super().__init__(type_controller, name_source)
         self._stages_data = stages_data
+        self._last_stage = 0
         self._stages_times = {}
         self._stage_oid = self._get_stage_oid()
         self._reset_cyc_stage_point = reset_cyc_stage_point
@@ -119,6 +120,7 @@ class StageEvents(AbstractEvents):
             ]
         }
 
+
     def process_event(self):
         print(f'process_stage')
         try:
@@ -135,14 +137,15 @@ class StageEvents(AbstractEvents):
         self._cyc_counter += td_curr_stage_as_seconds
 
         num_stg, prom_tact = self._stages_data[num_stage]
-        self._stages_times[num_stg] = (
-            f'\nstage={num_stg}[green={td_curr_stage_as_seconds - prom_tact:.2f} prom={prom_tact} green+prom={td_curr_stage_as_seconds:.2f}]'
-        )
+        # self._stages_times[num_stg] = (
+        #     f'\nstage={num_stg}[green={td_curr_stage_as_seconds - prom_tact:.2f} prom={prom_tact} green+prom={td_curr_stage_as_seconds:.2f}]'
+        # )
+        self._stages_times[num_stg] = f'\nstage={num_stg}[green+prom={td_curr_stage_as_seconds:.2f} prom={prom_tact}]'
 
         if num_stage == self._reset_cyc_stage_point:
-            stages_info = ' | '.join(v for v in self._stages_times.values())
+            stages_info = ''.join(v for v in self._stages_times.values())
             cyc_data = (
-                f'\nCycle={dt.timedelta(seconds=self._cyc_counter):.2f} | {self._cyc_counter} seconds, Stages info: {stages_info}'
+                f'\nCycle={self._cyc_counter:.2f} seconds\nStages info: {stages_info}'
             )
             self._cyc_counter = 0
         else:
@@ -162,8 +165,6 @@ class StageEvents(AbstractEvents):
         )
         verbose_trap_logger.info(msg)
         self.time_ticks_last_event = self.time_ticks_current_event
-
-
 
 
 
