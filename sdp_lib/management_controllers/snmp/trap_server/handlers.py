@@ -15,14 +15,32 @@ from sdp_lib.management_controllers.snmp.trap_recv import Fields
 from sdp_lib import logging_config
 
 
-reduce_logger = logging.getLogger('reduce_log')
+reduce_logger = logging.getLogger('trap info')
 
 
+class HandlersData:
+    def __init__(self):
+        self._handlers = {}
+        self._max_handlers = 10
+
+    def register_handlers(self, *args: tuple[str, Callable]):
+        for ip, handler in args:
+            ipaddress.IPv4Address(ip)
+            if ip not in self._handlers:
+                self._handlers[ip] = collections.deque(maxlen=self._max_handlers)
+            self._handlers[ip].append(handler)
+
+    @cached_property
+    def registered_handlers(self) -> dict[str, Sequence[Callable]]:
+        return self._handlers
+
+    def get_handlers(self, ip_address: str) -> Sequence[Callable]:
+        return self._handlers.get(ip_address, [])
 
 
 class AbstractEvents:
-    def __init__(self, type_controller: AllowedControllers, ip_source: str = ""):
-        self._ip_source = ip_source
+    def __init__(self, type_controller: AllowedControllers, name_source: str = ""):
+        self._name_source = name_source
         self._type_controller = type_controller
         self._max_log_messages = 20
         self.time_ticks_current_event = 0
@@ -41,9 +59,9 @@ class AbstractEvents:
         if processed_varbinds:
             self.load_processed_varbinds(processed_varbinds)
         if self.check_if_process_need_to_run():
-            print(f'time_ticks_last_event: {self.time_ticks_last_event}')
-            print(f'time_ticks_current_event: {self.time_ticks_current_event}')
-            print(f'time_ticks_delta: {self.time_ticks_delta}')
+            # print(f'time_ticks_last_event: {self.time_ticks_last_event}')
+            # print(f'time_ticks_current_event: {self.time_ticks_current_event}')
+            # print(f'time_ticks_delta: {self.time_ticks_delta}')
             self.process_event()
 
     @abc.abstractmethod
@@ -73,8 +91,8 @@ class AbstractEvents:
 
 
 class StageEvents(AbstractEvents):
-    def __init__(self, type_controller, ip_source, stages_data: dict[int, tuple[int, int]], reset_cyc_stage_point=1):
-        super().__init__(type_controller, ip_source)
+    def __init__(self, type_controller, name_source, stages_data: dict[int, tuple[int, int]], reset_cyc_stage_point=1):
+        super().__init__(type_controller, name_source)
         self._stages_data = stages_data
         self._stages_times = {}
         self._stage_oid = self._get_stage_oid()
@@ -134,7 +152,7 @@ class StageEvents(AbstractEvents):
         print(f'td: {td_curr_stage_as_seconds}')
 
         msg = (
-            f'Source: {self._ip_source} | {Fields.stage_num}={num_stage} | '
+            f'Source: {self._name_source} | {Fields.stage_num}={num_stage} | '
             f'{Fields.stage_val}={get_val_as_str(stage_oid_val)} | Time Ticks={self.time_ticks_current_event} | '
             # f'Last stage was change {td_curr_stage.seconds} seconds {td_curr_stage.microseconds} microseconds ago'
             f'Last stage was change {td_curr_stage_as_seconds} seconds ago'
@@ -144,23 +162,6 @@ class StageEvents(AbstractEvents):
         self.time_ticks_last_event = self.time_ticks_current_event
 
 
-class HandlersData:
-    def __init__(self):
-        self._handlers = {}
-        self._max_handlers = 10
 
-    def register_handlers(self, *args: tuple[str, Callable]):
-        for ip, handler in args:
-            ipaddress.IPv4Address(ip)
-            if ip not in self._handlers:
-                self._handlers[ip] = collections.deque(maxlen=self._max_handlers)
-            self._handlers[ip].append(handler)
-
-    @cached_property
-    def registered_handlers(self) -> dict[str, Sequence[Callable]]:
-        return self._handlers
-
-    def get_handlers(self, ip_address: str) -> Sequence[Callable]:
-        return self._handlers.get(ip_address, [])
 
 

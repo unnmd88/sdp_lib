@@ -5,28 +5,28 @@ LOGGING_CONFIG = {
     "version": 1,
     "disable_existing_loggers": False,
     "handlers": {
-        "file": {
-            "level": "DEBUG",
-            "class": "logging.FileHandler",
-            "filename": "log.log",
-            "formatter": "verbose2",
-        },
-        "file2": {
-            "level": "DEBUG",
-            "class": "logging.FileHandler",
-            "filename": "reduce_log.log",
-            "formatter": "verbose2",
-        },
-        "file_trap_recv": {
-            "level": "DEBUG",
-            "class": "logging.FileHandler",
-            "filename": "trap.log",
-            "formatter": "verbose2",
-        },
         "console": {
             "level": "DEBUG",
             "class": "logging.StreamHandler",
             "formatter": "verbose",
+        },
+        "file": {
+            "level": "DEBUG",
+            "class": "logging.FileHandler",
+            "filename": "log.log",
+            "formatter": "verbose",
+        },
+        "trap_verbose_file_handler": {
+            "level": "DEBUG",
+            "class": "logging.FileHandler",
+            "filename": "verbose_traps.log",
+            "formatter": "verbose_trap",
+        },
+        "trap_common_file_handler": {
+            "level": "DEBUG",
+            "class": "logging.FileHandler",
+            "filename": "common_traps.log",
+            "formatter": "verbose_trap",
         },
     },
     "loggers": {
@@ -40,14 +40,14 @@ LOGGING_CONFIG = {
             "handlers": ['file'],
             "propagate": True,
         },
-        "reduce_log": {
+        "trap_verbose": {
             "level": "INFO",
-            "handlers": ['file2'],
+            "handlers": ['trap_verbose_file_handler'],
             "propagate": True,
         },
-        "trap": {
+        "trap_common": {
             "level": "INFO",
-            "handlers": ['file_trap_recv'],
+            "handlers": ['trap_common_file_handler'],
             "propagate": True,
         }
     },
@@ -56,7 +56,7 @@ LOGGING_CONFIG = {
             "format": "{name} {levelname} {asctime} {module} {lineno} {funcName} {message} ",
             "style": "{",
         },
-        "verbose2": {
+        "verbose_trap": {
             "format": "{name} [{levelname:^11}] {asctime} {message}",
             "style": "{",
         },
