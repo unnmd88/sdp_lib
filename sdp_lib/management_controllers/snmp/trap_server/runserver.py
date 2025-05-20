@@ -35,7 +35,6 @@ def _cbFun(snmp_engine, stateReference, contextEngineId, contextName, varBinds, 
 
     varbinds_as_str = " | ".join(f'{oid}={val}' for oid, val in parsed_varbinds.items())
     all_trap_logger.info( f'Source: {source}\nVarbinds: {varbinds_as_str}')
-    print( f'Raw varbinds:\n{varBinds}')
 
     curr_source_handlers = handlers.get_handlers(source)
     for handler in curr_source_handlers:
@@ -54,6 +53,5 @@ except KeyboardInterrupt:
     print(f'Ctrl-C was pressed.')
 finally:
     server.shutdown()
-
 
 

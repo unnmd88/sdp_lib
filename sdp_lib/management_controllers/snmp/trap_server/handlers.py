@@ -63,10 +63,11 @@ class AbstractHandler:
 
     @abc.abstractmethod
     def check_if_process_need_to_run(self) -> bool:
-        """
-        Пользовательское определение для подготовки и запуска
-        основного метода process_event.
-        """
+        """ Если возвращает True, self.process_event будет запущен. """
+
+    @abc.abstractmethod
+    def process_event(self, *args, **kwargs):
+        """ Основной метод обработки события. """
 
     # def _get_time_ticks_oid(self):
     #     if self._type_controller in (AllowedControllers.POTOK_S, AllowedControllers.SWARCO):
@@ -98,14 +99,14 @@ class AbstractHandler:
             raise ValueError('Устанавливаемое значение должно быть в диапазоне от 1 до 4096')
         self._max_stored_events = val
 
-    def process_event(self, *args, **kwargs):
-        pass
-
     def load_event_to_storage(self, event):
         self._event_storage.append(event)
 
     def load_message_to_storage(self, message):
         self._messages_storage.append(message)
+
+    def clear_event_storage(self):
+        self._event_storage.clear()
 
     def get_time_ticks_from_processed_varbinds(self):
         try:
@@ -114,14 +115,19 @@ class AbstractHandler:
             return int(self._processed_varbinds[oids.Oids.time_ticks][:-2])
 
 class CycleAndStagesHandler(AbstractHandler):
-    def __init__(self, type_controller, name_source, stages_data: dict[int, tuple[int, int]], reset_cyc_stage_point=1):
+    def __init__(
+            self,
+            type_controller,
+            name_source,
+            stages_data: dict[int, tuple[int, int]],
+            reset_cyc_num_stage=1
+    ):
         super().__init__(type_controller, name_source)
         self._stages_data = stages_data
         self._stages_times = {}
         self._stage_oid = self._get_stage_oid()
-        self._reset_cyc_stage_point = reset_cyc_stage_point
+        self._reset_cyc_stage_point = reset_cyc_num_stage
         self._cyc_counter = 0
-
 
     def _get_stage_oid(self):
         if self._type_controller in (AllowedControllers.POTOK_S, AllowedControllers.SWARCO):
@@ -143,14 +149,70 @@ class CycleAndStagesHandler(AbstractHandler):
             return
 
         curr_event = StageEvents(
-            self._processed_varbinds,
-            num_stage,
-            stage_oid_val,
-            self.get_time_ticks_from_processed_varbinds()
+            varbinds=self._processed_varbinds,
+            time_ticks=self.get_time_ticks_from_processed_varbinds(),
+            num_stage=num_stage,
+            val_stage=stage_oid_val,
+            is_restart_cycle_stage_point=(num_stage == self._reset_cyc_stage_point)
         )
-        self.load_event_to_storage(curr_event)
-        print(f'curr_event: {curr_event}')
-        print(f'self._event_storage: {self._event_storage}')
+        if not num_stage == self._reset_cyc_stage_point:
+            self.load_event_to_storage(curr_event)
+            print(f'curr_event: {curr_event}')
+            print(f'self._event_storage: {self._event_storage}')
+        else:
+            print('*' * 100)
+            # print(f'TT: {self._event_storage[0].time_ticks - curr_event.time_ticks}')
+            for s in self._event_storage:
+                print(f's: {s}')
+            print('*' * 100)
+
+            # for event in self._event_storage:
+            cyc = 0
+            cyc1 = curr_event.time_ticks - self._event_storage[0].time_ticks
+            nw = collections.deque()
+
+            while self._event_storage:
+                event = self._event_storage.popleft()
+                # if cnt == 0:
+                #     nw.append(f'stage: num={curr_event.num_stage} | val={curr_event.val_stage} delta from stage {event.num_stage} to {curr_event.num_stage} = {curr_event.time_ticks - event.time_ticks}')
+                #     cnt += 1
+                # else:
+                #     nw.append(f'stage: num={curr_event.num_stage} | val={curr_event.val_stage} delta from stage {event.num_stage} to {curr_event.num_stage} = {curr_event.time_ticks - event.time_ticks}')
+                if self._event_storage:
+                    next_event = self._event_storage[0]
+                else:
+                    next_event = curr_event
+
+                nw.append(
+                    f'delta from stage {event.num_stage} to {next_event.num_stage} = {abs(next_event.time_ticks - event.time_ticks)}'
+                )
+                cyc += abs(next_event.time_ticks - event.time_ticks)
+
+                # if self._event_storage:
+                #     next_event = self._event_storage[0]
+                #     time_delta =
+                #
+                #     nw.append(
+                #         f'delta from stage {event.num_stage} to {next_event.num_stage} = {abs(next_event.time_ticks - event.time_ticks)}'
+                #     )
+                #
+                # else:
+                #     nw.append(
+                #         f'delta from stage {event.num_stage} to {curr_event.num_stage} = {abs(curr_event.time_ticks - event.time_ticks)}'
+                #     )
+
+            for s in nw:
+                print(s)
+            print('*' * 100)
+
+            print(f'self._event_storage: {self._event_storage}')
+            self.load_event_to_storage(curr_event)
+            print(f'self._event_storage: {self._event_storage}')
+            print(f'cyc: {cyc}')
+            print(f'cyc1: {cyc1}')
+            print('*---*' * 100)
+
+
         return
 
 
@@ -204,3 +266,12 @@ if __name__ == '__main__':
 
     print(vb)
 
+    c = collections.deque('12345')
+
+    print(c)
+    print(c[0])
+    print(c[-1])
+    print('------')
+
+    while c:
+        print(c.pop())
