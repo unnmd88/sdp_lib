@@ -1,5 +1,6 @@
 import abc
 import pickle
+from collections.abc import Sequence
 from typing import Any
 
 from sdp_lib.management_controllers.snmp import oids, snmp_utils
@@ -74,6 +75,11 @@ class StageEvents(BaseEvent):
                 f')'
         )
 
+    def __sub__(self, other) -> float:
+        if  isinstance(other, StageEvents):
+            return (self._time_ticks - other.time_ticks) / 100
+        return NotImplemented
+
     @property
     def num_stage(self):
         return self._num_stage
@@ -87,13 +93,62 @@ class StageEvents(BaseEvent):
         return self._is_restart_cycle_stage_point
 
 
+class Cycles:
+
+    allowed_type_stages = StageEvents
+
+    def __init__(self, cyc_stages: Sequence[StageEvents]):
+        self._cyc_stages = cyc_stages
+
+    def __iter__(self):
+        return (s for s in self._cyc_stages)
+
+    def _check_cyc_stages(self):
+        if not self._cyc_stages:
+            raise TypeError('cyc_stages пуст. должен содержать минимум одну фазу')
+        if not all(isinstance(s, StageEvents) for s in self._cyc_stages):
+            raise AttributeError(f'В cyc_stages должны содержаться экземпляры класса {self.allowed_type_stages!r}')
+
+    def get_all_stage_events(self):
+        return self._cyc_stages
+
+    def get_num_stages(self):
+        return len(self._cyc_stages)
+
+    def get_first_stage_event(self):
+        return self._cyc_stages[0]
+
+    def get_last_stage_event(self):
+        return self._cyc_stages[-1]
+
+    def get_time_cyc(self):
+        return self._cyc_stages[-1] - self._cyc_stages[0]
+
+    @property
+    def first_stage(self):
+        return self._cyc_stages[0].num_stage
+
+    @property
+    def last_stage(self):
+        return self._cyc_stages[-1].num_stage
+
 
 if __name__ == '__main__':
     with open(f'vb.pkl', 'rb') as f:
         vb = snmp_utils.parse_varbinds_to_dict(pickle.load(f))
-    ob = StageEvents(varbinds=vb, time_ticks=3398636,num_stage=1, val_stage='2', is_restart_cycle_stage_point=False)
-    print(ob)
-    print(ob.dggdasbd())
+    ob = StageEvents(varbinds=vb, time_ticks=3398636, num_stage=1, val_stage='2', is_restart_cycle_stage_point=False)
+    ob1 = StageEvents(varbinds=vb, time_ticks=4398636, num_stage=1, val_stage='2', is_restart_cycle_stage_point=False)
+    print(ob1 - ob)
+
+    cyc = Cycles([ob, ob1])
+    print(cyc.get_time_cyc())
+    print(cyc.get_all_stage_events())
+    print(cyc.get_first_stage_event())
+    print(cyc.get_last_stage_event())
+    print('*' * 100)
+    for obj in cyc:
+        print(obj)
+
 
 
 
