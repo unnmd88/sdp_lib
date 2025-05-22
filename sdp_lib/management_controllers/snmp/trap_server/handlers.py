@@ -141,9 +141,9 @@ class CycleAndStagesHandler(AbstractHandler):
 
     def __init__(
             self,
-            type_controller,
-            name_source,
-            stages_data: dict[int, tuple[int, int]],
+            type_controller: AllowedControllers,
+            name_source: str,
+            prom_tacts: dict[int, int] = None,
             reset_cyc_num_stage=1
     ):
         super().__init__(type_controller, name_source)
@@ -151,7 +151,7 @@ class CycleAndStagesHandler(AbstractHandler):
         self._stage_val_to_num_converter = self._get_method_stage_val_to_num_converter()
         self._stage_oid = self._get_controller_instance_stage_oid()
         self._reset_cyc_num_stage = reset_cyc_num_stage
-        self._stages_data = stages_data
+        self._prom_tacts = prom_tacts or {}
         self._stages_times = {}
 
     def _get_controller_instance_stage_oid(self):

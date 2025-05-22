@@ -1,7 +1,13 @@
-from collections.abc import Sequence, Callable
+from collections.abc import (
+    Sequence,
+    Callable
+)
 from typing import TypeAlias, Any
 
-from pysnmp.entity import engine, config
+from pysnmp.entity import (
+    engine,
+    config
+)
 from pysnmp.carrier.asyncio.dgram import udp
 from pysnmp.entity.rfc3413 import ntfrcv
 
@@ -64,19 +70,3 @@ class TrapReceiver:
         print("Shutting down...")
         self._snmp_engine.close_dispatcher()
 
-
-if __name__ == '__main__':
-    from sdp_lib.management_controllers.snmp.trap_server.handlers import _cbFun
-    server = TrapReceiver(
-        net_interfaces=[('192.168.45.66', 164)],
-        community_data=[("my-area", "public")],
-        cb_func=_cbFun
-    )
-    try:
-        server.run()
-    except KeyboardInterrupt:
-        print(f'Ctrl-C was pressed.')
-    finally:
-        server.shutdown()
-
-    # print(handlers.get_registered_handlers())
