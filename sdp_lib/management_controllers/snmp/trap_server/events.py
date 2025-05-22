@@ -3,7 +3,10 @@ import pickle
 from collections.abc import Sequence
 from typing import Any
 
-from sdp_lib.management_controllers.snmp import oids, snmp_utils
+from sdp_lib.management_controllers.snmp import (
+    oids,
+    snmp_utils
+)
 
 
 class BaseEvent:
@@ -38,9 +41,6 @@ class BaseEvent:
             return int(self._varbinds[oids.Oids.time_ticks])
         except KeyError:
             return int(self._varbinds[oids.Oids.time_ticks][:-2])
-
-    def set_previous_time_ticks(self, time_ticks: int):
-        self._prev_time_ticks = int(time_ticks)
 
 
 class StageEvents(BaseEvent):
@@ -120,7 +120,6 @@ class StageEvents(BaseEvent):
 class Cycles:
 
     allowed_type_stages = StageEvents
-
     msg_header_pattern = f'\n** Cycle info **'
 
     def __init__(self, cyc_stages: Sequence[StageEvents]):

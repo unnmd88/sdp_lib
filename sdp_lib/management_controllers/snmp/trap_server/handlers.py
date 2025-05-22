@@ -3,19 +3,26 @@ import collections
 import ipaddress
 import pickle
 from collections import deque
-from collections.abc import Callable, Sequence
+from collections.abc import (
+    Callable,
+    Sequence
+)
 from functools import cached_property
 from typing import Any
 import logging
-import datetime as dt
 
 from sdp_lib.management_controllers.constants import AllowedControllers
-from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods import get_val_as_str
-from sdp_lib.management_controllers.snmp import oids, snmp_utils
+from sdp_lib.management_controllers.snmp import (
+    oids,
+    snmp_utils
+)
 from sdp_lib.management_controllers.snmp.snmp_utils import parse_varbinds_to_dict
-# from sdp_lib.management_controllers.snmp.trap_recv import Fields
+from sdp_lib.management_controllers.snmp.trap_server.events import (
+    StageEvents,
+    Cycles
+)
 from sdp_lib import logging_config
-from sdp_lib.management_controllers.snmp.trap_server.events import StageEvents, Cycles
+
 
 verbose_trap_logger = logging.getLogger('trap_verbose')
 
@@ -74,16 +81,7 @@ class AbstractHandler:
     def process_event(self, *args, **kwargs):
         """ Основной метод обработки события. """
 
-    # def _get_time_ticks_oid(self):
-    #     if self._type_controller in (AllowedControllers.POTOK_S, AllowedControllers.SWARCO):
-    #         return '1.3.6.1.2.1.1.3.0'
-    #     else:
-    #         raise NotImplementedError()
-
-    def load_processed_varbinds(self, processed_varbinds):
-        self._processed_varbinds = processed_varbinds
-
-    def max_stored_messages(self, val: int):
+    def set_max_stored_messages(self, val: int):
         try:
             val = int(val)
         except ValueError:
@@ -103,6 +101,9 @@ class AbstractHandler:
         if not 1 < val < 4096:
             raise ValueError('Устанавливаемое значение должно быть в диапазоне от 1 до 4096')
         self._max_stored_events = val
+
+    def load_processed_varbinds(self, processed_varbinds):
+        self._processed_varbinds = processed_varbinds
 
     def load_event_to_storage(self, event):
         self._events_storage.append(event)
@@ -136,7 +137,7 @@ class AbstractHandler:
 
 class CycleAndStagesHandler(AbstractHandler):
 
-    stage_oids: {oids.Oids.swarcoUTCTrafftechPhaseStatus, oids.Oids.utcReplyGn}
+    stage_oids = frozenset([oids.Oids.swarcoUTCTrafftechPhaseStatus, oids.Oids.utcReplyGn])
 
     def __init__(
             self,
@@ -146,15 +147,14 @@ class CycleAndStagesHandler(AbstractHandler):
             reset_cyc_num_stage=1
     ):
         super().__init__(type_controller, name_source)
+        self._current_cycle_stage_events = deque(maxlen=128)
+        self._stage_val_to_num_converter = self._get_method_stage_val_to_num_converter()
+        self._stage_oid = self._get_controller_instance_stage_oid()
+        self._reset_cyc_num_stage = reset_cyc_num_stage
         self._stages_data = stages_data
         self._stages_times = {}
-        self._stage_oid = self._get_stage_oid()
-        self._reset_cyc_num_stage = reset_cyc_num_stage
-        self._cyc_counter = 0
-        self._current_cycle_stage_events = deque(maxlen=128)
-        self.stage_val_to_num_converter = self._get_stage_val_to_num_converter()
 
-    def _get_stage_oid(self):
+    def _get_controller_instance_stage_oid(self):
         if self._type_controller in (AllowedControllers.POTOK_S, AllowedControllers.SWARCO):
             return oids.Oids.swarcoUTCTrafftechPhaseStatus
         elif self._type_controller in (AllowedControllers.POTOK_P, AllowedControllers.PEEK):
@@ -165,16 +165,9 @@ class CycleAndStagesHandler(AbstractHandler):
             )
 
     def check_if_process_need_to_run(self) -> bool:
-        if self._stage_oid in self._processed_varbinds:
-            return True
-        return False
+        return bool(self.stage_oids & self._processed_varbinds.keys())
 
-    def create_log_message_for_cycle_info(self, cyc_instance: Cycles):
-        return (
-            f'Cycle info: seconds {cyc_instance.get_cyc_time()}, stage_events={cyc_instance.get_all_stage_events()}'
-        )
-
-    def _get_stage_val_to_num_converter(self) -> Callable:
+    def _get_method_stage_val_to_num_converter(self) -> Callable:
         if self._type_controller in (AllowedControllers.PEEK, AllowedControllers.POTOK_P):
             return snmp_utils.StageConverterMixinUg405.get_num_stage_from_oid_val
         elif self._type_controller == AllowedControllers.POTOK_S:
@@ -186,8 +179,9 @@ class CycleAndStagesHandler(AbstractHandler):
     def process_event(self):
         try:
             stage_oid_val = self._processed_varbinds[self._stage_oid]
-            num_stage = self.stage_val_to_num_converter(stage_oid_val)
+            num_stage = self._stage_val_to_num_converter(stage_oid_val)
         except KeyError:
+            verbose_trap_logger.critical(f'Ошибка извлечения номера фазы из оида')
             return
 
         self._current_event = StageEvents(
@@ -214,95 +208,6 @@ class CycleAndStagesHandler(AbstractHandler):
         print(f'self._events_storage: {self._events_storage}')
         print('-' * 100)
         return
-
-
-
-
-
-        if not num_stage == self._reset_cyc_num_stage:
-            self.load_event_to_storage(curr_event)
-            print(f'curr_event: {curr_event}')
-            print(f'self._event_storage: {self._events_storage}')
-        else:
-            print('*' * 100)
-            # print(f'TT: {self._event_storage[0].time_ticks - curr_event.time_ticks}')
-            for s in self._events_storage:
-                print(f's: {s}')
-            print('*' * 100)
-
-            # for event in self._event_storage:
-            cyc = 0
-            cyc1 = curr_event.time_ticks - self._events_storage[0].time_ticks
-            nw = collections.deque()
-
-            while self._events_storage:
-                event = self._events_storage.popleft()
-                if self._events_storage:
-                    next_event = self._events_storage[0]
-                else:
-                    next_event = curr_event
-
-                nw.append(
-                    f'delta from stage {event.num_stage} to {next_event.num_stage} = {abs(next_event.time_ticks - event.time_ticks)}'
-                )
-                cyc += abs(next_event.time_ticks - event.time_ticks)
-
-
-            for s in nw:
-                print(s)
-            print('*' * 100)
-
-            print(f'self._event_storage: {self._events_storage}')
-            self.load_event_to_storage(curr_event)
-            print(f'self._event_storage: {self._events_storage}')
-            print(f'cyc: {cyc}')
-            print(f'cyc1: {cyc1}')
-            print('*---*' * 100)
-
-
-        return
-
-
-        self.time_ticks_current_event = int(self._processed_varbinds.get(self.time_ticks_oid))
-        self.set_delta_time_ticks()
-        self.time_ticks_delta = self.time_ticks_current_event - self.time_ticks_last_event
-        # td_curr_stage = dt.timedelta(seconds=self.time_ticks_delta / 100)
-        num_stage = snmp_utils.StageConverterMixinPotokS.get_num_stage_from_oid_val(stage_oid_val)
-        td_curr_stage_as_seconds = self.time_ticks_delta / 100
-        self._cyc_counter += td_curr_stage_as_seconds
-
-        num_stg, prom_tact = self._stages_data[num_stage]
-        self._stages_times[num_stg] = (
-            f'\nstage={num_stg}[green={td_curr_stage_as_seconds - prom_tact:.2f} prom={prom_tact} green+prom={td_curr_stage_as_seconds:.2f}]'
-        )
-
-        if num_stage == self._reset_cyc_num_stage:
-            stages_info = ' | '.join(v for v in self._stages_times.values())
-            cyc_data = (
-                f'\nCycle={dt.timedelta(seconds=self._cyc_counter):.2f} | {self._cyc_counter} seconds, Stages info: {stages_info}'
-            )
-            self._cyc_counter = 0
-        else:
-            cyc_data = ''
-
-
-
-        print(f'self.time_ticks_delta: {self.time_ticks_delta}')
-        print(f'td: {td_curr_stage_as_seconds}')
-
-        msg = (
-            f'Source: {self._name_source} | {Fields.stage_num}={num_stage} | '
-            f'{Fields.stage_val}={get_val_as_str(stage_oid_val)} | Time Ticks={self.time_ticks_current_event} | '
-            # f'Last stage was change {td_curr_stage.seconds} seconds {td_curr_stage.microseconds} microseconds ago'
-            f'Last stage was change {td_curr_stage_as_seconds} seconds ago'
-            f'{cyc_data}'
-        )
-        verbose_trap_logger.info(msg)
-        self.time_ticks_last_event = self.time_ticks_current_event
-
-    @property
-    def stage_oid(self):
-        return self._stage_oid
 
 
 
