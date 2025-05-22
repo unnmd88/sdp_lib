@@ -56,8 +56,9 @@ class TrapReceiver:
     def run(self):
         self._setup()
         self._snmp_engine.transport_dispatcher.job_started(1)
-        self._snmp_engine.open_dispatcher()
         print("Started. Press Ctrl-C to stop")
+        self._snmp_engine.open_dispatcher()
+
 
     def shutdown(self):
         print("Shutting down...")
@@ -67,7 +68,7 @@ class TrapReceiver:
 if __name__ == '__main__':
     from sdp_lib.management_controllers.snmp.trap_server.handlers import _cbFun
     server = TrapReceiver(
-        net_interfaces=[('192.168.45.248', 164)],
+        net_interfaces=[('192.168.45.66', 164)],
         community_data=[("my-area", "public")],
         cb_func=_cbFun
     )
