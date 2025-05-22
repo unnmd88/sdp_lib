@@ -8,6 +8,10 @@ class AllowedControllers(StrEnum):
     POTOK_S = 'Поток (S)'
     PEEK = 'Peek'
 
+    @classmethod
+    def get_all_controllers(cls):
+        return {c for c in AllowedControllers}
+
 
 
 class Names(StrEnum):

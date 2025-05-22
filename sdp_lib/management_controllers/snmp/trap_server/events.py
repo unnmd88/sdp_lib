@@ -16,7 +16,6 @@ class BaseEvent:
         self._varbinds = varbinds
         self._time_ticks = time_ticks
 
-
     def __repr__(self):
         return (
             f'{self.__class__.__name__}'
@@ -53,16 +52,14 @@ class StageEvents(BaseEvent):
             time_ticks: int,
             num_stage: int,
             val_stage: str,
-            is_restart_cycle_stage_point: int
+            is_restart_cycle_stage_point: int,
+            prev_event
     ):
         super().__init__(varbinds=varbinds, time_ticks=time_ticks)
         self._num_stage = num_stage
         self._val_stage = val_stage
         self._is_restart_cycle_stage_point = is_restart_cycle_stage_point
-
-        # self._prev_stage_num = 0
-        # self._prev_stage_val = ''
-        # self._prev_time_ticks_change_stage_point = 0
+        self._prev_event = prev_event
 
     def __repr__(self):
         return (f'{self.__class__.__name__}'
@@ -72,6 +69,7 @@ class StageEvents(BaseEvent):
                 f'time_ticks={self._time_ticks}, '
                 f'is_restart_cycle_stage_point={self._is_restart_cycle_stage_point}, '
                 f'varbinds={self._varbinds}'
+                # f'prev_event num_stage: {self._prev_event if self._prev_event is not None else "None"}'
                 f')'
         )
 
@@ -79,6 +77,32 @@ class StageEvents(BaseEvent):
         if  isinstance(other, StageEvents):
             return (self._time_ticks - other.time_ticks) / 100
         return NotImplemented
+
+    def __setattr__(self, key, value):
+        if key == '_prev_event_stage' and (not isinstance(value, StageEvents) or value is not None):
+            raise AttributeError('Аттрибут "prev_event_stage" экземпляром данного класса или None')
+        super().__setattr__(key, value)
+
+    def get_data_from_last_to_curr_event(self, last_event) -> str:
+        return (
+            f'Время от начала фазы {last_event.num_stage} до начала {self._num_stage}: '
+            f'{self - last_event} секунд'
+        )
+
+    def get_time_delta_from_prev_to_curr_event(self) -> float:
+        return self - self._prev_event
+
+    def create_log_message(self):
+        return  (
+            f'Stage info: '
+            f'num_stage={self._num_stage} | '
+            f'val_stage={self._val_stage} | '
+            f'time_ticks={self._time_ticks}'
+        )
+
+    @property
+    def prev_event(self):
+        return self._prev_event
 
     @property
     def num_stage(self):
@@ -97,17 +121,30 @@ class Cycles:
 
     allowed_type_stages = StageEvents
 
+    msg_header_pattern = f'\n** Cycle info **'
+
     def __init__(self, cyc_stages: Sequence[StageEvents]):
-        self._cyc_stages = cyc_stages
+        self._cyc_stages = tuple(cyc_stages)
+
+    def __getitem__(self, item):
+        return self._cyc_stages[item]
 
     def __iter__(self):
-        return (s for s in self._cyc_stages)
+        return (stage for stage in self._cyc_stages)
 
     def _check_cyc_stages(self):
         if not self._cyc_stages:
             raise TypeError('cyc_stages пуст. должен содержать минимум одну фазу')
         if not all(isinstance(s, StageEvents) for s in self._cyc_stages):
             raise AttributeError(f'В cyc_stages должны содержаться экземпляры класса {self.allowed_type_stages!r}')
+
+    @property
+    def first_stage(self):
+        return self._cyc_stages[0].num_stage
+
+    @property
+    def last_stage(self):
+        return self._cyc_stages[-1].num_stage
 
     def get_all_stage_events(self):
         return self._cyc_stages
@@ -121,33 +158,62 @@ class Cycles:
     def get_last_stage_event(self):
         return self._cyc_stages[-1]
 
-    def get_time_cyc(self):
+    def get_cyc_time(self):
         return self._cyc_stages[-1] - self._cyc_stages[0]
 
-    @property
-    def first_stage(self):
-        return self._cyc_stages[0].num_stage
+    def get_stage_sequence(self):
+        return "->".join(str(stg.num_stage) for stg in self)
 
-    @property
-    def last_stage(self):
-        return self._cyc_stages[-1].num_stage
+    def get_stages_data_for_log_as_string(self):
+        data = ''
+        for i, event in enumerate(self[1:]):
+            try:
+                data += (
+                    f'\ntime-delta from start stage {self[i].num_stage}'
+                    f' to start stage {event.num_stage} = {event - self[i]}'
+                )
+            except AttributeError:
+                data += f'\ntime-delta: has not info for stage {event.num_stage}...'
+        return data
+
+    def get_cycle_data_for_log_as_string(self):
+        return (
+            f'{self.msg_header_pattern}\n'
+            f'seconds={self.get_cyc_time()}, '
+            f'stage sequence={self.get_stage_sequence()}'
+        )
+
+    def create_log_message(self):
+        return self.get_cycle_data_for_log_as_string() + self.get_stages_data_for_log_as_string() + '\n' + (f'-' * 120)
 
 
-if __name__ == '__main__':
+
+
+def tsts():
     with open(f'vb.pkl', 'rb') as f:
         vb = snmp_utils.parse_varbinds_to_dict(pickle.load(f))
-    ob = StageEvents(varbinds=vb, time_ticks=3398636, num_stage=1, val_stage='2', is_restart_cycle_stage_point=False)
-    ob1 = StageEvents(varbinds=vb, time_ticks=4398636, num_stage=1, val_stage='2', is_restart_cycle_stage_point=False)
+    ob = StageEvents(varbinds=vb, time_ticks=3398636, num_stage=1, val_stage='2', is_restart_cycle_stage_point=True, prev_event=None)
+    ob1 = StageEvents(varbinds=vb, time_ticks=3498636, num_stage=2, val_stage='3', is_restart_cycle_stage_point=False, prev_event=ob)
+    ob2 = StageEvents(varbinds=vb, time_ticks=3598636, num_stage=3, val_stage='4', is_restart_cycle_stage_point=False, prev_event=ob1)
+    ob3 = StageEvents(varbinds=vb, time_ticks=3598736, num_stage=4, val_stage='4', is_restart_cycle_stage_point=True, prev_event=ob2)
     print(ob1 - ob)
 
-    cyc = Cycles([ob, ob1])
-    print(cyc.get_time_cyc())
+    cyc = Cycles([ob, ob1, ob2, ob3])
+    print(cyc.get_cyc_time())
     print(cyc.get_all_stage_events())
     print(cyc.get_first_stage_event())
     print(cyc.get_last_stage_event())
     print('*' * 100)
     for obj in cyc:
         print(obj)
+    print('*' * 100)
+    print(ob1.get_data_from_last_to_curr_event(ob))
+
+    print(cyc.create_log_message())
+
+if __name__ == '__main__':
+    tsts()
+
 
 
 

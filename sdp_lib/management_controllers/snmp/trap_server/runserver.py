@@ -1,4 +1,6 @@
 import logging
+import time
+
 from dotenv import load_dotenv
 
 from sdp_lib.management_controllers.constants import AllowedControllers
@@ -30,6 +32,7 @@ def _cbFun(snmp_engine, stateReference, contextEngineId, contextName, varBinds, 
     exec_context = snmp_engine.observer.get_execution_context('rfc3412.receiveMessage:request')
     source = exec_context["transportAddress"][TrapTransport.ip_address]
     domain = exec_context["transportDomain"]
+
     print(f'Notification from {source}, Domain {domain}')
     parsed_varbinds = parse_varbinds_to_dict(varbinds=varBinds)
 
@@ -38,7 +41,7 @@ def _cbFun(snmp_engine, stateReference, contextEngineId, contextName, varBinds, 
 
     curr_source_handlers = handlers.get_handlers(source)
     for handler in curr_source_handlers:
-        handler(parsed_varbinds)
+        handler(parsed_varbinds, int(time.time()))
 
 
 server = TrapReceiver(

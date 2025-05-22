@@ -17,19 +17,19 @@ LOGGING_CONFIG = {
         "file": {
             "level": "DEBUG",
             "class": "logging.FileHandler",
-            "filename": "log.log",
+            "filename": "logs/log.log",
             "formatter": "verbose",
         },
         "trap_verbose_file_handler": {
             "level": "DEBUG",
             "class": "logging.FileHandler",
-            "filename": "verbose_traps.log",
+            "filename": "logs/verbose_traps.log",
             "formatter": "verbose_trap",
         },
         "trap_common_file_handler": {
             "level": "DEBUG",
             "class": "logging.FileHandler",
-            "filename": "common_traps.log",
+            "filename": "logs/common_traps.log",
             "formatter": "verbose_trap",
         },
     },

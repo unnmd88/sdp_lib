@@ -1,3 +1,11 @@
-from sdp_lib.management_controllers import api
+# from sdp_lib.management_controllers import api
 
-print(f'stage' in 'currentstage')
+class Iter:
+
+    def __iter__(self):
+        return (x for x in range(10))
+
+a = Iter()
+
+print(list(a))
+print(list(a))
