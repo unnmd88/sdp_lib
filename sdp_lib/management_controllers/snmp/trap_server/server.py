@@ -1,6 +1,8 @@
+import pprint
+import tomllib
 from collections.abc import (
     Sequence,
-    Callable
+    Callable, MutableMapping
 )
 from typing import TypeAlias, Any
 
@@ -70,3 +72,6 @@ class TrapReceiver:
         print("Shutting down...")
         self._snmp_engine.close_dispatcher()
 
+
+if __name__ == '__main__':
+    conf = Config()

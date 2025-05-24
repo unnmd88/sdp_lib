@@ -48,7 +48,7 @@ def _cbFun(snmp_engine, stateReference, contextEngineId, contextName, varBinds, 
 
 
 server = TrapReceiver(
-        net_interfaces=[('192.168.45.248', 164)],
+        net_interfaces=[('0.0.0.0', 164)],
         community_data=[ ("public", "public"), ("UTMC", "UTMC"),],
         cb_func=_cbFun
     )

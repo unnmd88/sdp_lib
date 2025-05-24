@@ -5,7 +5,7 @@ import pickle
 from collections import deque
 from collections.abc import (
     Callable,
-    Sequence
+    Sequence, MutableMapping
 )
 from functools import cached_property
 from typing import Any
@@ -143,7 +143,7 @@ class CycleAndStagesHandler(AbstractHandler):
             self,
             type_controller: AllowedControllers,
             name_source: str,
-            prom_tacts: dict[int, int] = None,
+            prom_tacts: MutableMapping[int | str, float] = None,
             reset_cyc_num_stage=1
     ):
         super().__init__(type_controller, name_source)
