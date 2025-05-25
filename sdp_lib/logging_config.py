@@ -20,6 +20,12 @@ LOGGING_CONFIG = {
             "filename": "logs/log.log",
             "formatter": "verbose",
         },
+        "server": {
+            "level": "DEBUG",
+            "class": "logging.FileHandler",
+            "filename": "server_ntfc.log",
+            "formatter": "simple",
+        },
         "trap_verbose_file_handler": {
             "level": "DEBUG",
             "class": "logging.FileHandler",
@@ -37,6 +43,11 @@ LOGGING_CONFIG = {
         "": {
             "level": "DEBUG",
             "handlers": ["console"],
+            "propagate": True,
+        },
+        "server_ntfc": {
+            "level": "INFO",
+            "handlers": ['server'],
             "propagate": True,
         },
         "full_log": {
@@ -65,7 +76,7 @@ LOGGING_CONFIG = {
             "style": "{",
         },
         "simple": {
-            "format": "{levelname} {message}",
+            "format": "{name} {levelname} {asctime} {message}",
             "style": "{",
         },
     },

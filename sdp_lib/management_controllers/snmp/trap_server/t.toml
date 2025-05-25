@@ -12,11 +12,9 @@ title = "Trap receiver configeration"
 # где индекс 0 -> ip(строка), индекс 1 -> порт(целое число)
 network_interfaces = [ ["192.168.45.248", 1162] ]
 
-[ logs ]
-all_incoming_traps = true
-
 # Обработчики
 [handlers]
+all_incoming_notifications = true
 # Обработчики "cycles" - список вложенных списков,
 # где у вложенного списка:
 # index[0] = ip-addr (строка)
