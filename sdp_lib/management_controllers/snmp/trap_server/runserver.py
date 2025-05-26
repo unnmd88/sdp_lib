@@ -11,7 +11,7 @@ logger = logging.getLogger('server_ntfc')
 load_dotenv()
 
 
-DEBUG = False
+DEBUG = True
 
 config = ConfigParser('config.toml')
 ntfc_processor.handlers.load_server_config(config)
