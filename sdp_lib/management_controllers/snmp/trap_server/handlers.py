@@ -237,21 +237,3 @@ class CycleAndStagesHandler(AbstractHandler):
         return
 
 
-if __name__ == '__main__':
-
-    with open('vb.pkl' , 'rb') as f:
-        obj = pickle.load(f)
-        print(obj)
-    vb = parse_varbinds_to_dict(obj)
-
-    print(vb)
-
-    c = collections.deque('12345')
-
-    print(c)
-    print(c[0])
-    print(c[-1])
-    print('------')
-
-    while c:
-        print(c.pop())

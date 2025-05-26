@@ -126,7 +126,7 @@ class ConfigParser:
         return self._config[Fields.network_interfaces]
 
     @property
-    def community(self) -> Sequence[Sequence[str, str]]:
+    def community(self) -> Sequence[tuple[str, str]]:
         """
         Возвращает последовательность с community.
         """
