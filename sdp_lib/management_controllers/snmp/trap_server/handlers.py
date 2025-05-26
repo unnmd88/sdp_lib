@@ -83,7 +83,6 @@ class AbstractHandler:
         self._max_stored_events = 1024
         self._events_storage = collections.deque(maxlen=self._max_stored_events)
         self._messages_storage = collections.deque(maxlen=self._max_stored_messages)
-        # self.time_ticks_oid = self._get_time_ticks_oid()
         self._processed_varbinds: dict | None = None
         self._snmp_notification_timestamp = 0
         self._current_event = None
