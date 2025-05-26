@@ -24,7 +24,7 @@ LOGGING_CONFIG = {
             "level": "DEBUG",
             "class": "logging.FileHandler",
             "filename": "server_ntfc.log",
-            "formatter": "simple",
+            "formatter": "verbose_trap",
         },
         "trap_verbose_file_handler": {
             "level": "DEBUG",

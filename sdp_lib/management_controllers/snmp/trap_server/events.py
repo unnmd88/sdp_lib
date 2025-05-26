@@ -1,4 +1,3 @@
-import abc
 import pickle
 from collections.abc import Sequence
 from typing import Any

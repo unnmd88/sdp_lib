@@ -6,6 +6,7 @@ from collections.abc import (
     Sequence
 )
 from enum import StrEnum
+from functools import cached_property
 from typing import NamedTuple
 
 from sdp_lib.management_controllers.constants import AllowedControllers
@@ -19,9 +20,11 @@ class Fields(StrEnum):
     handlers = 'handlers'
     cycles = 'cycles'
     network_interfaces = 'network_interfaces'
+    stdout_incoming_notifications = 'stdout_incoming_notifications'
+    all_incoming_notifications = 'all_incoming_notifications'
 
 
-class NetworkInterfaces(NamedTuple):
+class NetworkInterface(NamedTuple):
     ip: str
     port: int
 
@@ -41,21 +44,16 @@ class ConfigParser:
         self.parse_and_create()
 
     def parse_and_create(self):
-
+        logger.info(f'{"*" * 25} Запуск trap сервера {"*" * 25}')
         logger.info(f'Читаю файл конфигурации {self._source}')
         self._read_file()
         logger.info(f'Файл конфигурации прочитан успешно')
         logger.info(f'Устанавливаю сетевые интерфейсы для приёма traps')
         self._set_net_interfaces()
-        logger.info(f'Сетевые интерфейсы успешно зарегистрированы')
-        if self.cycles:
-            # logger.info(f'Регистрирую обработчики циклов и фаз')
+        logger.info(f'Сетевые интерфейсы успешно зарегистрированы: {self.net_interfaces}')
+        if self.has_cycles:
             self._create_cycles_handler_data()
-            # logger.info(f'Обработчики циклов и фаз успешно зарегистрированы')
-
         logger.info(f'Конфигурация для запуска сервера создана успешно')
-
-        # self._create_cycles_handler_data()
         pprint.pprint(self._config)
 
     def _read_file(self):
@@ -73,7 +71,7 @@ class ConfigParser:
     def _set_net_interfaces(self):
         try:
             self._config[Fields.network_interfaces] = [
-                NetworkInterfaces(*net_interface) for net_interface in self._config[Fields.network_interfaces]
+                NetworkInterface(*net_interface) for net_interface in self._config[Fields.network_interfaces]
             ]
         except KeyError as e:
             logger.critical(f'Нет зарегистрированных сетевых интерфейсов для приёма traps: {str(e)}')
@@ -96,12 +94,19 @@ class ConfigParser:
         return self._config.get(Fields.handlers)
 
     @property
-    def net_interfaces(self) -> Sequence[NetworkInterfaces]:
+    def net_interfaces(self) -> Sequence[NetworkInterface]:
         return self._config[Fields.network_interfaces]
 
     @property
     def has_handlers(self):
         return bool(self._config.get(Fields.handlers))
+
+    @property
+    def has_cycles(self) -> bool:
+        try:
+            return any(cyc for cyc in self._config[Fields.handlers][Fields.cycles])
+        except KeyError:
+            return False
 
     @property
     def cycles(self) -> list[CycleConfig]:
@@ -110,6 +115,19 @@ class ConfigParser:
         except KeyError:
             return []
 
+    @cached_property
+    def all_incoming_notifications(self) -> bool:
+        try:
+            return self._config[Fields.handlers][Fields.stdout_incoming_notifications]
+        except (KeyError, AttributeError):
+            return False
+
+    @cached_property
+    def stdout_incoming_notifications(self) -> bool:
+        try:
+            return self._config[Fields.handlers][Fields.stdout_incoming_notifications]
+        except (KeyError, AttributeError):
+            return False
 
 if __name__ == '__main__':
     config = ConfigParser('t.toml')

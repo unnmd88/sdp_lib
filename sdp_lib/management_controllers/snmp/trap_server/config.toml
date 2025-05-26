@@ -25,4 +25,4 @@ stdout_incoming_notifications = true
 # index[0] = ip-addr (строка)
 # index[1] = тип контроллера (строка)
 # index[2] = стартовая фаза смены цикла (целое число)
-cycles = [ [] ]
+cycles = [ ["10.45.154.12", "Поток (P)", 1, { 1 = 2 }] ]

@@ -6,7 +6,8 @@ import time
 from collections import deque
 from collections.abc import (
     Callable,
-    Sequence, MutableMapping
+    Sequence,
+    MutableMapping
 )
 from functools import cached_property
 from typing import Any
@@ -18,13 +19,13 @@ from sdp_lib.management_controllers.snmp import (
     snmp_utils
 )
 from sdp_lib.management_controllers.snmp.snmp_utils import parse_varbinds_to_dict
-from sdp_lib.management_controllers.snmp.gen_default_config.configparser import CycleConfig
-from sdp_lib.management_controllers.snmp.gen_default_config.events import (
+from sdp_lib.management_controllers.snmp.trap_server.configparser import CycleConfig, Fields, ConfigParser
+from sdp_lib.management_controllers.snmp.trap_server.events import (
     StageEvents,
     Cycles
 )
-from sdp_lib import logging_config
 from sdp_lib.management_controllers.structures import TrapTransport
+from sdp_lib import logging_config
 
 
 all_trap_logger = logging.getLogger('trap_common')
@@ -36,6 +37,10 @@ class HandlersManagement:
     def __init__(self):
         self._handlers = {}
         self._max_handlers = 10
+        self._server_config: ConfigParser | None = None
+
+    def load_server_config(self, config):
+        self._server_config = config
 
     def register_handler(self, ip, handler: Callable):
 
@@ -56,6 +61,18 @@ class HandlersManagement:
 
     def get_handlers(self, ip_address: str) -> Sequence[Callable]:
         return self._handlers.get(ip_address, [])
+
+    @property
+    def server_config(self) -> ConfigParser:
+        return self._server_config
+
+    @cached_property
+    def stdout_notifications(self) -> bool:
+        return self._server_config.stdout_incoming_notifications
+
+    @cached_property
+    def logging_all_incoming_notifications(self) -> bool:
+        return self._server_config.all_incoming_notifications
 
 
 class AbstractHandler:
@@ -231,11 +248,13 @@ def callback_func(snmp_engine, stateReference, contextEngineId, contextName, var
     source = exec_context["transportAddress"][TrapTransport.ip_address]
     domain = exec_context["transportDomain"]
 
-    print(f'Notification from {source}, Domain {domain}')
+    if handlers.stdout_notifications:
+        print(f'Notification from {source}, Domain {domain}')
     parsed_varbinds = parse_varbinds_to_dict(varbinds=varBinds)
 
-    varbinds_as_str = " | ".join(f'{oid}={val}' for oid, val in parsed_varbinds.items())
-    all_trap_logger.info( f'Source: {source}\nVarbinds: {varbinds_as_str}')
+    if handlers.logging_all_incoming_notifications:
+        varbinds_as_str = " | ".join(f'{oid}={val}' for oid, val in parsed_varbinds.items())
+        all_trap_logger.info( f'Source: {source}\nVarbinds: {varbinds_as_str}')
 
     curr_source_handlers = handlers.get_handlers(source)
     for handler in curr_source_handlers:
