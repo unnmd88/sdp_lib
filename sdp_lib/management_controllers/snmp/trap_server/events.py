@@ -181,8 +181,15 @@ class Cycles:
             f'stage sequence={self.get_stage_sequence()}'
         )
 
-    def create_log_message(self):
-        return self.get_cycle_data_for_log_as_string() + self.get_stages_data_for_log_as_string() + '\n' + (f'-' * 120)
+    def create_log_message(self, extra_msg: str = ''):
+
+        return (
+                self.get_cycle_data_for_log_as_string()
+                + self.get_stages_data_for_log_as_string()
+                + '\n'
+                + extra_msg
+                + (f'-' * 120)
+        )
 
 
 

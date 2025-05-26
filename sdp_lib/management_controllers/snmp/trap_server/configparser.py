@@ -48,12 +48,12 @@ class ConfigParser:
         logger.info(f'Читаю файл конфигурации {self._source}')
         self._read_file()
         logger.info(f'Файл конфигурации прочитан успешно')
-        logger.info(f'Устанавливаю сетевые интерфейсы для приёма traps')
+        logger.info(f'Проверяю сетевые интерфейсы для приёма traps...')
         self._set_net_interfaces()
-        logger.info(f'Сетевые интерфейсы успешно зарегистрированы: {self.net_interfaces}')
+        logger.info(f'Проверка корректности сетевых интерфейсов выполнена успешно')
         if self.has_cycles:
             self._create_cycles_handler_data()
-        logger.info(f'Конфигурация для запуска сервера создана успешно')
+        logger.info(f'Файл конфигурации {self._source} прочитан успешно')
         pprint.pprint(self._config)
 
     def _read_file(self):

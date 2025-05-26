@@ -11,9 +11,10 @@ logger = logging.getLogger('server_ntfc')
 load_dotenv()
 
 
-DEBUG = True
+DEBUG = False
 
 config = ConfigParser('config.toml')
+ntfc_processor.handlers.load_server_config(config)
 
 if config.has_cycles:
     logger.info('Регистрирую обработчики циклов и фаз')
@@ -36,6 +37,7 @@ if __name__ == '__main__':
         print(config.net_interfaces)
     else:
         try:
+            logger.info('Запускаю сервер')
             server.run()
         except KeyboardInterrupt:
             print(f'Ctrl-C was pressed.')

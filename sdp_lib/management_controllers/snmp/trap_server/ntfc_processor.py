@@ -19,7 +19,10 @@ from sdp_lib.management_controllers.snmp import (
     snmp_utils
 )
 from sdp_lib.management_controllers.snmp.snmp_utils import parse_varbinds_to_dict
-from sdp_lib.management_controllers.snmp.trap_server.configparser import CycleConfig, Fields, ConfigParser
+from sdp_lib.management_controllers.snmp.trap_server.configparser import (
+    CycleConfig,
+    ConfigParser
+)
 from sdp_lib.management_controllers.snmp.trap_server.events import (
     StageEvents,
     Cycles
@@ -149,6 +152,10 @@ class AbstractHandler:
             return int(self._processed_varbinds[oids.Oids.time_ticks][:-2])
 
     @property
+    def num_events(self):
+        return len(self._events_storage)
+
+    @property
     def last_event(self):
         try:
             return self._events_storage[-1]
@@ -229,12 +236,7 @@ class CycleAndStagesHandler(AbstractHandler):
             self._events_storage.append(cyc)
             self._current_cycle_stage_events.clear()
             self._current_cycle_stage_events.append(self._current_event)
-            verbose_trap_logger.info(cyc.create_log_message())
-
-        print(f'self._cyc_stage_events: {self._current_cycle_stage_events}')
-        print('*' * 100)
-        print(f'self._events_storage: {self._events_storage}')
-        print('-' * 100)
+            verbose_trap_logger.info(cyc.create_log_message(f'Общее количество циклов: {self.num_events}\n'))
         return
 
 
