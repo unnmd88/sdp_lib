@@ -127,6 +127,3 @@ class ConfigParser:
         except (KeyError, AttributeError):
             return False
 
-
-if __name__ == '__main__':
-    config = ConfigParser('config.toml')
