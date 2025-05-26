@@ -18,8 +18,8 @@ from sdp_lib.management_controllers.snmp import (
     snmp_utils
 )
 from sdp_lib.management_controllers.snmp.snmp_utils import parse_varbinds_to_dict
-from sdp_lib.management_controllers.snmp.trap_server.configparser import CycleConfig
-from sdp_lib.management_controllers.snmp.trap_server.events import (
+from sdp_lib.management_controllers.snmp.gen_default_config.configparser import CycleConfig
+from sdp_lib.management_controllers.snmp.gen_default_config.events import (
     StageEvents,
     Cycles
 )

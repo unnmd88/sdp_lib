@@ -11,14 +11,14 @@ from dotenv import load_dotenv
 
 from sdp_lib.management_controllers.constants import AllowedControllers
 from sdp_lib.management_controllers.snmp.snmp_utils import parse_varbinds_to_dict
-from sdp_lib.management_controllers.snmp.trap_server.configparser import ConfigParser
-from sdp_lib.management_controllers.snmp.trap_server.server import TrapReceiver
-from sdp_lib.management_controllers.snmp.trap_server.handlers import (
+from sdp_lib.management_controllers.snmp.gen_default_config.configparser import ConfigParser
+from sdp_lib.management_controllers.snmp.gen_default_config.server import TrapReceiver
+from sdp_lib.management_controllers.snmp.gen_default_config.handlers import (
     CycleAndStagesHandler,
     HandlersManagement
 )
 from sdp_lib.management_controllers.structures import TrapTransport
-from sdp_lib.management_controllers.snmp.trap_server import ntfc_processor
+from sdp_lib.management_controllers.snmp.gen_default_config import ntfc_processor
 from sdp_lib import logging_config
 
 logger = logging.getLogger('server_ntfc')
@@ -26,7 +26,7 @@ logger = logging.getLogger('server_ntfc')
 load_dotenv()
 
 
-DEBUG = True
+DEBUG = False
 
 config = ConfigParser('t.toml')
 

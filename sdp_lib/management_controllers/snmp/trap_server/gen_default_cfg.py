@@ -1,4 +1,4 @@
-title = "Trap receiver configeration"
+content = """title = "Trap receiver configuration"
 
 # Доступные типы контроллеров:
 # Поток (S) -> Поток, протокол stcip
@@ -14,13 +14,23 @@ network_interfaces = [ ["192.168.45.248", 164] ]
 
 # Обработчики
 [handlers]
+# Если all_incoming_notifications установлен в true ->
+# будут логгироваться в файл все входящие trap уведомления.
 all_incoming_notifications = true
+# Если stdout_incoming_notifications установлен в true ->
+# в stdout будет выводиться входящее trap уведомление.
+stdout_incoming_notifications = true
 # Обработчики "cycles" - список вложенных списков,
 # где у вложенного списка:
 # index[0] = ip-addr (строка)
 # index[1] = тип контроллера (строка)
 # index[2] = стартовая фаза смены цикла (целое число)
-cycles = [ ["10.45.154.12", "Поток (P)", 1, { 1 = 2 }] ]
+cycles = [ [] ]
+"""
 
+def gen_default_cfg():
+    with open('config.toml', 'w', encoding='utf-8') as f:
+        f.write(content)
 
-
+if __name__ == '__main__':
+    gen_default_cfg()
