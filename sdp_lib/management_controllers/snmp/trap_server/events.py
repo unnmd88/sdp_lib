@@ -12,9 +12,11 @@ class BaseEvent:
     def __init__(
             self,
             *,
+            source: str,
             varbinds: dict[str, Any],
             time_ticks: int,
     ):
+        self._source = source
         self._varbinds = varbinds
         self._time_ticks = time_ticks
 
@@ -26,6 +28,10 @@ class BaseEvent:
             f'varbinds={self._varbinds}'
             f')'
         )
+
+    @property
+    def source(self):
+        return self._source
 
     @property
     def time_ticks(self):
@@ -47,14 +53,15 @@ class StageEvents(BaseEvent):
     def __init__(
             self,
             *,
-            varbinds,
+            source: str,
+            varbinds: dict[str, Any],
             time_ticks: int,
             num_stage: int,
             val_stage: str,
             is_restart_cycle_stage_point: int,
             prev_event
     ):
-        super().__init__(varbinds=varbinds, time_ticks=time_ticks)
+        super().__init__(source=source, varbinds=varbinds, time_ticks=time_ticks)
         self._num_stage = num_stage
         self._val_stage = val_stage
         self._is_restart_cycle_stage_point = is_restart_cycle_stage_point
@@ -93,9 +100,9 @@ class StageEvents(BaseEvent):
 
     def create_log_message(self):
         return  (
-            f'Stage info: '
-            f'num_stage={self._num_stage} | '
-            f'val_stage={self._val_stage} | '
+            f'Хост: {self._source} | '
+            f'Номер фазы={self._num_stage} | '
+            f'Значение фазы в oid={self._val_stage} | '
             f'time_ticks={self._time_ticks}'
         )
 
@@ -119,7 +126,7 @@ class StageEvents(BaseEvent):
 class Cycles:
 
     allowed_type_stages = StageEvents
-    msg_header_pattern = f'\n** Cycle info **'
+    msg_header_pattern = f'\n** Данные цикла **'
 
     def __init__(self, cyc_stages: Sequence[StageEvents]):
         self._cyc_stages = tuple(cyc_stages)
@@ -167,8 +174,8 @@ class Cycles:
         for i, event in enumerate(self[1:]):
             try:
                 data += (
-                    f'\ntime-delta from start stage {self[i].num_stage}'
-                    f' to start stage {event.num_stage} = {event - self[i]}'
+                    f'\nВремя в секундах от старта фазы {self[i].num_stage}'
+                    f' до старта фазы {event.num_stage} = {event - self[i]}'
                 )
             except AttributeError:
                 data += f'\ntime-delta: has not info for stage {event.num_stage}...'
@@ -177,8 +184,8 @@ class Cycles:
     def get_cycle_data_for_log_as_string(self):
         return (
             f'{self.msg_header_pattern}\n'
-            f'seconds={self.get_cyc_time()}, '
-            f'stage sequence={self.get_stage_sequence()}'
+            f'Время цикла в секундах={self.get_cyc_time()}, '
+            f'Чередование фаз в цикле={self.get_stage_sequence()}'
         )
 
     def create_log_message(self, extra_msg: str = ''):

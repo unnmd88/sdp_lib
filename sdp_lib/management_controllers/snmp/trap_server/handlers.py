@@ -52,7 +52,7 @@ class HandlersManagement:
     def register_cycles(self, cycles: Sequence[CycleConfig]):
         cnt = 0
         for cnt, cyc_config in enumerate(cycles, 1):
-            self.register_handler(cyc_config.ip, CycleAndStagesHandler(*cyc_config[1:]))
+            self.register_handler(cyc_config.ip, CycleAndStagesHandler(*cyc_config))
         return cnt
 
     @cached_property
@@ -173,10 +173,10 @@ class CycleAndStagesHandler(AbstractHandler):
 
     def __init__(
             self,
-            type_controller: AllowedControllers,
             name_source: str,
+            type_controller: AllowedControllers,
+            reset_cyc_num_stage=1,
             prom_tacts: MutableMapping[int | str, float] = None,
-            reset_cyc_num_stage=1
     ):
         super().__init__(type_controller, name_source)
         self._current_cycle_stage_events = deque(maxlen=128)
@@ -217,6 +217,7 @@ class CycleAndStagesHandler(AbstractHandler):
             return
 
         self._current_event = StageEvents(
+            source=self._name_source,
             varbinds=self._processed_varbinds,
             time_ticks=self.get_time_ticks_from_processed_varbinds(),
             num_stage=num_stage,
