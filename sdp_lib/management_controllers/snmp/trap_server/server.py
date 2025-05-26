@@ -12,12 +12,13 @@ from pysnmp.entity import (
 from pysnmp.carrier.asyncio.dgram import udp
 from pysnmp.entity.rfc3413 import ntfrcv
 
+from sdp_lib.management_controllers.snmp.trap_server.configparser import NetworkInterface
 from sdp_lib.utils_common.utils_common import check_is_ipv4
 
 
 logger = logging.getLogger('server_ntfc')
 
-T_Interfaces: TypeAlias = Sequence[tuple[str, int]]
+T_Interfaces: TypeAlias = Sequence[NetworkInterface]
 T_CommunityData: TypeAlias = Sequence[tuple[str, str]]
 
 
@@ -80,7 +81,6 @@ class TrapReceiver:
         logger.info(f'Сервер запущен. Для остановки нажмите Ctrl-C')
         print("Started. Press Ctrl-C to stop")
         self._snmp_engine.open_dispatcher()
-
 
     def shutdown(self):
         logger.info(f'Сервер остановлен.')

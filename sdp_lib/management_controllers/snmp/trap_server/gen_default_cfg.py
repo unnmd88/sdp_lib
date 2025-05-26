@@ -12,6 +12,9 @@ content = """title = "Trap receiver configuration"
 # где индекс 0 -> ip(строка), индекс 1 -> порт(целое число)
 network_interfaces = [ ["192.168.45.248", 164] ]
 
+# Community
+community = [ ["public", "public"], ["UTMC", "UTMC"] ]
+
 # Обработчики
 [handlers]
 # Если all_incoming_notifications установлен в true ->
@@ -25,7 +28,7 @@ stdout_incoming_notifications = true
 # index[0] = ip-addr (строка)
 # index[1] = тип контроллера (строка)
 # index[2] = стартовая фаза смены цикла (целое число)
-cycles = [ [] ]
+cycles = [ ]
 """
 
 def gen_default_cfg():

@@ -5,7 +5,8 @@ import pickle
 from collections import deque
 from collections.abc import (
     Callable,
-    Sequence, MutableMapping
+    Sequence,
+    MutableMapping
 )
 from functools import cached_property
 from typing import Any
@@ -17,6 +18,10 @@ from sdp_lib.management_controllers.snmp import (
     snmp_utils
 )
 from sdp_lib.management_controllers.snmp.snmp_utils import parse_varbinds_to_dict
+from sdp_lib.management_controllers.snmp.trap_server.configparser import (
+    CycleConfig,
+    ConfigParser
+)
 from sdp_lib.management_controllers.snmp.trap_server.events import (
     StageEvents,
     Cycles
@@ -28,16 +33,27 @@ verbose_trap_logger = logging.getLogger('trap_verbose')
 
 
 class HandlersManagement:
+
     def __init__(self):
         self._handlers = {}
         self._max_handlers = 10
+        self._server_config: ConfigParser | None = None
 
-    def register_handlers(self, *args: tuple[str, Callable]):
-        for ip, handler in args:
-            ipaddress.IPv4Address(ip)
-            if ip not in self._handlers:
-                self._handlers[ip] = collections.deque(maxlen=self._max_handlers)
-            self._handlers[ip].append(handler)
+    def load_server_config(self, config):
+        self._server_config = config
+
+    def register_handler(self, ip, handler: Callable):
+
+        ipaddress.IPv4Address(ip)
+        if ip not in self._handlers:
+            self._handlers[ip] = collections.deque(maxlen=self._max_handlers)
+        self._handlers[ip].append(handler)
+
+    def register_cycles(self, cycles: Sequence[CycleConfig]):
+        cnt = 0
+        for cnt, cyc_config in enumerate(cycles, 1):
+            self.register_handler(cyc_config.ip, CycleAndStagesHandler(*cyc_config[1:]))
+        return cnt
 
     @cached_property
     def registered_handlers(self) -> dict[str, Sequence[Callable]]:
@@ -45,6 +61,18 @@ class HandlersManagement:
 
     def get_handlers(self, ip_address: str) -> Sequence[Callable]:
         return self._handlers.get(ip_address, [])
+
+    @property
+    def server_config(self) -> ConfigParser:
+        return self._server_config
+
+    @cached_property
+    def stdout_notifications(self) -> bool:
+        return self._server_config.stdout_incoming_notifications
+
+    @cached_property
+    def logging_all_incoming_notifications(self) -> bool:
+        return self._server_config.all_incoming_notifications
 
 
 class AbstractHandler:
@@ -119,6 +147,10 @@ class AbstractHandler:
             return int(self._processed_varbinds[oids.Oids.time_ticks])
         except KeyError:
             return int(self._processed_varbinds[oids.Oids.time_ticks][:-2])
+
+    @property
+    def num_events(self):
+        return len(self._events_storage)
 
     @property
     def last_event(self):
@@ -201,14 +233,8 @@ class CycleAndStagesHandler(AbstractHandler):
             self._events_storage.append(cyc)
             self._current_cycle_stage_events.clear()
             self._current_cycle_stage_events.append(self._current_event)
-            verbose_trap_logger.info(cyc.create_log_message())
-
-        print(f'self._cyc_stage_events: {self._current_cycle_stage_events}')
-        print('*' * 100)
-        print(f'self._events_storage: {self._events_storage}')
-        print('-' * 100)
+            verbose_trap_logger.info(cyc.create_log_message(f'Общее количество циклов: {self.num_events}\n'))
         return
-
 
 
 if __name__ == '__main__':

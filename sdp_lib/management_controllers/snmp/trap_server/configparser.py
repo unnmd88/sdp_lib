@@ -22,6 +22,7 @@ class Fields(StrEnum):
     network_interfaces = 'network_interfaces'
     stdout_incoming_notifications = 'stdout_incoming_notifications'
     all_incoming_notifications = 'all_incoming_notifications'
+    community = 'community'
 
 
 class NetworkInterface(NamedTuple):
@@ -98,6 +99,10 @@ class ConfigParser:
         return self._config[Fields.network_interfaces]
 
     @property
+    def community(self):
+        return self._config[Fields.community]
+
+    @property
     def has_handlers(self):
         return bool(self._config.get(Fields.handlers))
 
@@ -128,6 +133,8 @@ class ConfigParser:
             return self._config[Fields.handlers][Fields.stdout_incoming_notifications]
         except (KeyError, AttributeError):
             return False
+
+
 
 if __name__ == '__main__':
     config = ConfigParser('t.toml')

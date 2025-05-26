@@ -16,17 +16,16 @@ DEBUG = False
 config = ConfigParser('config.toml')
 ntfc_processor.handlers.load_server_config(config)
 
+
 if config.has_cycles:
     logger.info('Регистрирую обработчики циклов и фаз')
     cnt_registered_cycle_handlers = ntfc_processor.handlers.register_cycles(config.cycles)
-    logger.info(
-        f'Зарегистрированные обработчики циклов и фаз: {config.cycles}'
-    )
+    logger.info(f'Зарегистрированные обработчики циклов и фаз: {config.cycles}')
 
 
 server = TrapReceiver(
-        net_interfaces=[*config.net_interfaces],
-        community_data=[("public", "public"), ("UTMC", "UTMC")],
+        net_interfaces=config.net_interfaces,
+        community_data=config.community,
         cb_func=ntfc_processor.callback_func
     )
 
