@@ -192,8 +192,6 @@ class Cycles:
         )
 
 
-
-
 def tsts():
     with open(f'vb.pkl', 'rb') as f:
         vb = snmp_utils.parse_varbinds_to_dict(pickle.load(f))
@@ -215,6 +213,7 @@ def tsts():
     print(ob1.get_data_from_last_to_curr_event(ob))
 
     print(cyc.create_log_message())
+
 
 if __name__ == '__main__':
     tsts()

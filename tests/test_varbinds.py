@@ -3,8 +3,6 @@ from random import randint
 from contextlib import nullcontext as does_not_raise
 import pytest
 
-from pysnmp.smi.rfc1902 import ObjectType
-
 from sdp_lib.management_controllers.snmp.snmp_utils import *
 from sdp_lib.management_controllers.snmp import oids
 

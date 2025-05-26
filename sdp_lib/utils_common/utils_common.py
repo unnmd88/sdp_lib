@@ -2,7 +2,7 @@ import functools
 import ipaddress
 import random
 import time
-from collections.abc import Sequence
+from collections.abc import Sequence, MutableMapping
 from datetime import datetime as dt
 from string import ascii_letters
 from typing import Callable, TypeVar, Any

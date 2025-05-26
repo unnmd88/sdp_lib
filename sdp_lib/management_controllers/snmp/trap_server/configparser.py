@@ -84,13 +84,6 @@ class ConfigParser:
         except KeyError:
             pass
 
-    def convert_key_and_val_to_int(
-            self, m_mapping: MutableMapping,
-            key_type,
-            val_type
-    ):
-        return {key_type(k): val_type(v) for k, v in m_mapping.items()}
-
     def get_handlers(self):
         return self._config.get(Fields.handlers)
 
@@ -135,6 +128,5 @@ class ConfigParser:
             return False
 
 
-
 if __name__ == '__main__':
-    config = ConfigParser('t.toml')
+    config = ConfigParser('config.toml')
