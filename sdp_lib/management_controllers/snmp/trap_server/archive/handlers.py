@@ -12,9 +12,7 @@ from sdp_lib.management_controllers.constants import AllowedControllers
 from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods import get_val_as_str
 from sdp_lib.management_controllers.snmp import oids, snmp_utils
 from sdp_lib.management_controllers.snmp.snmp_utils import parse_varbinds_to_dict
-from sdp_lib.management_controllers.snmp.trap_recv import Fields
-from sdp_lib import logging_config
-
+from sdp_lib.management_controllers.snmp.trap_server.archive.trap_recv import Fields
 
 verbose_trap_logger = logging.getLogger('trap_verbose')
 
