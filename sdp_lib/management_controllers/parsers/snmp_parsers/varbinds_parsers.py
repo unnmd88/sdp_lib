@@ -149,7 +149,7 @@ class ParsersVarbindsSwarco(BaseSnmpParser, StcipMixin):
             ):
                 case [self.CENTRAL_PLAN, self.CONTROL_BLOCK_SOURCE, *rest]:
                     return str(NamesMode.CENTRAL)
-                case [_, _, self.FT_STATUS_FALSE, '00', num_det] if num_det > 0:
+                case [plan, _, self.FT_STATUS_FALSE, '00', num_det] if num_det > 0 and plan != '15':
                     return str(NamesMode.VA)
                 case [_, self.CALENDAR_CLOCK_SOURCE, fixed_status, flag180_181, num_det] if (
                     '1' in flag180_181 or num_det == 0 or fixed_status == self.FT_STATUS_TRUE
