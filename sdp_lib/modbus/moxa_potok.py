@@ -9,10 +9,24 @@ async def polling(
     snmp_host,
     delay: float
 ):
+    cycle_restart_stage = '1'
+    curr_stage_snmp = None
+    prev_stage_snmp = None
+    cyc_timer_modbus = time.perf_counter()
+    cyc_timer_snmp = time.perf_counter()
+    stage_timer_modbus = time.perf_counter()
+    stage_timer_snmp = time.perf_counter()
+
+
     while True:
-        r = await snmp_host.get_current_stage()
-        print(snmp_host)
-        print(r)
+        curr_stage_snmp = await snmp_host.get_current_stage()
+        print(curr_stage_snmp)
+        if prev_stage_snmp is None:
+            prev_stage_snmp = curr_stage_snmp
+        elif curr_stage_snmp != prev_stage_snmp and curr_stage_snmp == cycle_restart_stage:
+            print(f'Время цикла составило {time.perf_counter() - cyc_timer_snmp}')
+            cyc_timer_snmp = time.perf_counter()
+            prev_stage_snmp = curr_stage_snmp
         await asyncio.sleep(delay)
 
 
