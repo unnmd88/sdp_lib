@@ -4,22 +4,7 @@ from sdp_lib.modbus.client import Modbus
 
 
 def polling(modbus: Modbus, delay: float):
-    try:
-        print(
-            f'Начинаю чтение DI по протоколу Modbus\nХост: {modbus.ipv4} Порт: {modbus.port}\n'
-            f'Для завершения нажмите Ctrl-C'
-        )
-        time.sleep(4)
-        while True:
-            recv = modbus.read_discrete_inputs_and_process_as_string()
-            print(recv)
-            time.sleep(delay)
-    except KeyboardInterrupt:
-        print('Останавливаю опрос')
-    finally:
-        print('Закрываю соединение...')
-        modbus.client.close()
-        print('Соединение закрыто')
+    pass
 
 
 if __name__ == '__main__':

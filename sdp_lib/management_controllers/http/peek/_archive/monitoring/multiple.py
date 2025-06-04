@@ -62,7 +62,7 @@ class MultipleData(PeekWeb):
         error, response = None, {}
         for r in results:
             obj = r.result()
-            curr_err, curr_res = obj.response
+            curr_err, curr_res = obj.data
             response |= curr_res
             error = curr_err or error
         return error, response # Fix me
