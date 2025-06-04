@@ -86,7 +86,7 @@ class Modbus:
             self._response.add_errors(f'Ошибка соединения...')
         else:
             recv_as_string = self._recv_formatter.states_as_pretty_string(dig_inputs)
-            self.response_data.set_data(recv_as_string)
+            self._response.set_data(recv_as_string)
 
 
 
