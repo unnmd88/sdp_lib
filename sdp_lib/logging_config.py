@@ -81,6 +81,8 @@ LOGGING_CONFIG = {
         },
     },
 }
-
-logging.config.dictConfig(LOGGING_CONFIG)
+try:
+    logging.config.dictConfig(LOGGING_CONFIG)
+except ValueError:
+    pass
 
