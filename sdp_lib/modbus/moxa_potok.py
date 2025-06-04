@@ -24,5 +24,5 @@ if __name__ == '__main__':
 
     ip_potok_s = '91.227.113.186'
     snmp_client = PotokS(ipv4=ip_potok_s, engine=snmp_engine, host_id='3139')
-    polling(modbus_client, snmp_client, 1)
+    asyncio.run(polling(modbus_client, snmp_client, 1))
 
