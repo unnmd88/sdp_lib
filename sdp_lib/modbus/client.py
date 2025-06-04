@@ -11,6 +11,7 @@ from pyModbusTCP.client import ModbusClient
 
 from sdp_lib.modbus.formatters import Formatter
 
+
 class ResponseEntity:
     def __init__(self):
         self._data = None
