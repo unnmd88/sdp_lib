@@ -19,14 +19,22 @@ async def polling(
 
 
     while True:
-        curr_stage_snmp = await snmp_host.get_current_stage()
-        print(curr_stage_snmp)
-        if prev_stage_snmp is None:
-            prev_stage_snmp = curr_stage_snmp
-        elif curr_stage_snmp != prev_stage_snmp and curr_stage_snmp == cycle_restart_stage:
+        snmp_instance = await snmp_host.get_current_stage()
+        err = snmp_instance.response_errors
+        curr_stage_snmp = snmp_instance.response_data.get('current_stage')
+        curr_stage_snmp = str(curr_stage_snmp) if curr_stage_snmp is not None else curr_stage_snmp
+        if err:
+            print(err)
+        elif prev_stage_snmp is None: # Initial
+            prev_stage_snmp = snmp_instance
+        if not err and curr_stage_snmp != prev_stage_snmp and curr_stage_snmp == cycle_restart_stage:
             print(f'Время цикла составило {time.perf_counter() - cyc_timer_snmp}')
             cyc_timer_snmp = time.perf_counter()
-            prev_stage_snmp = curr_stage_snmp
+
+        prev_stage_snmp = curr_stage_snmp
+        print(f'err: {err}')
+        print(f'stage: {curr_stage_snmp}')
+        print(f'Текущая секунда цикла: {int(time.perf_counter() - cyc_timer_snmp)}')
         await asyncio.sleep(delay)
 
 
