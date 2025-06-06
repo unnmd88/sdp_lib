@@ -15,33 +15,24 @@ class EventNames:
 
 
 class State:
-    def __init__(self, change_cyc_val):
-        self._current_val = None
-        self._prev_val = None
-        self._change_cyc_val = change_cyc_val
+    def __init__(self, change_cyc_num_stage):
+        self._current_stage = None
+        self._prev_stage = None
+        self._change_cyc_num_stage = change_cyc_num_stage
         self._stage_counter: float = 0
         self._cyc_counter: float = 0
-        # self._timestamp_point: float = 0
-        # self.check_if_state_has_changed: Callable = self._get_check_state_func()
 
-    # def _get_check_state_func(self) -> Callable:
-    #     if self._change_cyc_val is None:
-    #         return self._check_is_different_curr_prev
-    #     else:
-    #         return self._check_is_different_curr_expected_value
 
     def __eq__(self, other):
         if isinstance(other, State):
-            return self._current_val == other.current_state
+            return self._current_stage == other.current_state
         return NotImplemented
 
     def set_curr_val(self, val):
-        self._current_val = val
+        self._current_stage = val
 
     def set_prev_val(self, val):
-        self._prev_val = val
-    # def set_timestamp_point(self):
-    #     self._timestamp_point = time.perf_counter()
+        self._prev_stage = val
 
     def get_stage_counter_val(self) -> float:
         return time.perf_counter() - self._stage_counter
@@ -55,34 +46,36 @@ class State:
     def restart_cyc_counter(self):
         self._cyc_counter = time.perf_counter()
 
-    def process(self, val):
-        self._current_val = val
+    def process(self, err, stage):
+        if err:
+            print(f'Ошибка запроса: {err}')
+            return err
+        if stage is None:
+            none_value_stage_from_host = 'None в ответе фазы от ДК...'
+            print(none_value_stage_from_host)
+            return none_value_stage_from_host
+
+        self._current_stage = stage
         stg_cnt = self.get_stage_counter_val()
         cyc_cnt = self.get_cyc_counter_val()
 
-        print(f'prev_val={self._prev_val}')
-        print(f'curr_val={self._current_val}')
+        print(f'prev_val={self._prev_stage}')
+        print(f'curr_val={self._current_stage}')
         print(f'Секунда цикла={cyc_cnt}')
         print(f'Секунда цикла={cyc_cnt}')
 
-        if self._current_val != self._prev_val:
-            print(f'Время фазы {self._prev_val}={stg_cnt}')
+        if self._current_stage != self._prev_stage:
+            print(f'Время фазы {self._prev_stage}={stg_cnt}')
             self.restart_stage_counter()
-            if self._current_val == self._change_cyc_val:
+            if self._current_stage == self._change_cyc_num_stage:
                 print(f'Время цикла={cyc_cnt}')
                 self.restart_cyc_counter()
-            self._prev_val = self._current_val
+            self._prev_stage = self._current_stage
+        return None
 
     @property
     def current_state(self):
-        return self._current_val
-
-    # def _check_is_different_curr_prev(self) -> bool:
-    #     return self._current_val != self._prev_val
-    #
-    # def _check_is_different_curr_expected_value(self) -> bool:
-    #     return self._current_val != self._change_cyc_val
-
+        return self._current_stage
 
 
 
@@ -96,7 +89,13 @@ class Logging:
         self._state = state
 
 
+def process_snmp(host: PotokS | SwarcoStcip | PotokP | PeekUg405, state: State):
 
+    while True:
+        err, stage = host.response_errors, host.current_stage
+        res = state.process(err, stage)
+        print(f'res from gen: {res}')
+        yield res
 
 
 
@@ -116,33 +115,11 @@ async def polling(
     snmp_host,
     delay: float
 ):
-    snmp_state = State(change_cyc_val='1')
+    snmp_state_gen = process_snmp(snmp_host, State(change_cyc_num_stage='1'))
 
     while True:
         await snmp_host.get_current_stage()
-
-        err_snmp = snmp_host.response_errors
-
-        curr_stage_snmp = snmp_host.response_data.get('current_stage')
-        curr_stage_snmp = str(curr_stage_snmp) if curr_stage_snmp is not None else curr_stage_snmp
-
-        if err_snmp:
-            print(err_snmp)
-            await asyncio.sleep(delay)
-            continue
-
-        elif curr_stage_snmp is None: # Initial
-            print('None в ответе фазы от ДК...')
-            await asyncio.sleep(delay)
-            continue
-
-        if snmp_state._prev_val is None:
-            snmp_state.set_prev_val(curr_stage_snmp)
-            await asyncio.sleep(delay)
-            continue
-
-        snmp_state.process(curr_stage_snmp)
-
+        snmp_state_gen.send(None)
         await asyncio.sleep(delay)
 
 
