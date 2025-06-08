@@ -33,7 +33,7 @@ from sdp_lib.management_controllers.snmp import (
 from sdp_lib.management_controllers.structures import SnmpResponseStructure
 from sdp_lib.management_controllers.snmp.set_commands import SnmpEntity
 from sdp_lib.management_controllers.snmp.snmp_utils import ScnConverterMixin
-from sdp_lib.management_controllers.snmp.snmp_requests import SnmpRequests
+from sdp_lib.management_controllers.snmp.snmp_requests import AsyncSnmpRequests
 from sdp_lib.management_controllers.snmp.snmp_utils import (
     swarco_stcip_varbinds,
     potok_stcip_varbinds,
@@ -102,7 +102,7 @@ class SnmpHosts(Host):
     ):
         super().__init__(ipv4=ipv4, host_id=host_id)
         self.set_driver(engine)
-        self._request_sender = SnmpRequests(self)
+        self._request_sender = AsyncSnmpRequests(self)
         self._request_method: Callable | None = None
         self._parse_method_config = None
         self._parser: BaseSnmpParser = self._get_parser()
@@ -126,6 +126,10 @@ class SnmpHosts(Host):
     @classmethod
     def _get_parser(cls, *args, **kwargs):
         return cls.parser_class(*args, **kwargs)
+
+    @property
+    def request_sender(self) -> AsyncSnmpRequests:
+        return self._request_sender
 
     def _set_varbinds_for_request(self, varbinds: T_Varbinds):
         self._varbinds_for_request = varbinds

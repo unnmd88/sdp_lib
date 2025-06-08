@@ -20,6 +20,12 @@ LOGGING_CONFIG = {
             "filename": "logs/log.log",
             "formatter": "verbose",
         },
+        "file2": {
+            "level": "DEBUG",
+            "class": "logging.FileHandler",
+            "filename": "logs/penetrate_stage.log",
+            "formatter": "simple2",
+        },
         "server": {
             "level": "DEBUG",
             "class": "logging.FileHandler",
@@ -50,6 +56,11 @@ LOGGING_CONFIG = {
             "handlers": ['server'],
             "propagate": True,
         },
+        "penetrate_stage_log": {
+            "level": "DEBUG",
+            "handlers": ['file2'],
+            "propagate": True,
+        },
         "full_log": {
             "level": "INFO",
             "handlers": ['file'],
@@ -77,6 +88,10 @@ LOGGING_CONFIG = {
         },
         "simple": {
             "format": "{name} {levelname} {asctime} {message}",
+            "style": "{",
+        },
+        "simple2": {
+            "format": "[{levelname:^11}] {asctime} {message}",
             "style": "{",
         },
     },

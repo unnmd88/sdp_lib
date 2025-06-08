@@ -85,14 +85,22 @@ async def snmp_set(
     return error_indication, error_status, error_index, var_binds
 
 
-class SnmpRequests:
+class AsyncSnmpRequests:
 
     def __init__(self, instance):
         self._instance_host = instance
-        self.ip = instance._ipv4
+        self.ip = instance.ip_v4
         self.community_r = instance.snmp_config.community_r
         self.community_w = instance.snmp_config.community_w
+        self._timeout: float = 1
+        self._retries: int = 0
         # self.engine = instance._driver
+
+    def set_timeout(self, val: float):
+        self._timeout = float(val)
+
+    def set_retries(self, val: int):
+        self._retries = int(val)
 
     async def snmp_get(
             self,
@@ -149,7 +157,7 @@ class SnmpRequests:
         return await set_cmd(
             self._instance_host.driver or snmp_engine,
             CommunityData(self.community_w),
-            await UdpTransportTarget.create((self.ip, 161), timeout=timeout, retries=retries),
+            await UdpTransportTarget.create((self.ip, 161), timeout= timeout, retries=retries),
             ContextData(),
             *varbinds
             # *[ObjectType(ObjectIdentity(oid), val) for oid, val in oids]
@@ -200,3 +208,64 @@ class SnmpRequests:
         #       f'var_binds: {var_binds}')
 
         # return self.check_response_and_add_error_if_has(error_indication, error_status, error_index), var_binds
+
+
+class AsyncSnmpRequestsCustom:
+    def __init__(
+            self, 
+            *, ip: str, 
+            community_read: str, 
+            community_write: str | None, 
+            timeout: float, retries: int, 
+            engine: SnmpEngine = snmp_engine
+    ):
+        self._ip = ip
+        self._community_read = community_read
+        self._community_write = community_write
+        self._timeout: float = timeout or 0.6
+        self._retries = retries or 1
+        self._engine = engine
+
+    async def get_by_varbinds(
+            self,
+            varbinds: list[ObjectType] | tuple[ObjectType],
+
+    ) -> tuple[errind.ErrorIndication, Integer32 | int, Integer32 | int, tuple[ObjectType, ...]]:
+        """
+        Метод get запросов по snmp v2 протоколу.
+        :param oids: список oids, которые будут отправлены в get запросе.
+        :param timeout: таймаут запроса, в секундах.
+        :param retries: количество попыток запроса.
+        :return: tuple вида (error_indication, error_status, error_index, var_binds)
+                 error_indication -> errind.ErrorIndication, если есть ошибка в запросе/ответе,
+                                    иначе None.
+                 error_status -> Статус ошибки, числовое представление
+                 error_index -> Индекс ошибки, числовое представление
+                 var_binds -> кортеж с ответами оидов, где str(var_binds[0]) - это оид,
+                              а str(var_binds[1]) - значение оида.
+
+        Examples
+        --------
+        ip_adress = '192.168.0.1'\n
+        community = 'community'\n
+        oids = [Oids.swarcoUTCTrafftechPhaseStatus,
+               Oids.swarcoUTCTrafftechPlanStatus]
+
+        response: (error_indication, error_status, error_index, var_binds)
+        asyncio.run(set_request(ip_adress, community, oids))
+        ******************************
+        """
+
+        return await get_cmd(
+            self._engine,
+            CommunityData(self._community_read),
+            await UdpTransportTarget.create((self._ip, 161), timeout=self._timeout, retries=self._retries),
+            ContextData(),
+            *varbinds
+        )
+
+    def set_timeout(self, val: float):
+        self._timeout = val
+
+    def set_retries(self, val: int):
+        self._retries = val

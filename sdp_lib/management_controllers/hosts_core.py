@@ -41,6 +41,7 @@ class Host:
     def __getattr__(self, item):
         if 'stage' in item:
             return self._response.data.get(FieldsNames.curr_stage)
+        raise AttributeError()
 
     # def __setattr__(self, key, value):
     #     if key == 'ip_v4':

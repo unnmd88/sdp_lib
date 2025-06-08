@@ -88,5 +88,9 @@ def convert_value_to_string(value: Any) -> str:
     """
     return str(value)
 
-
+def format_time(timestamp) -> str:
+    try:
+        return timestamp.strftime('%Y-%m-%d %H:%M:%S.%f')
+    except ValueError:
+        return timestamp
 
