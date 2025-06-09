@@ -42,7 +42,7 @@ class PeekWeb(HttpHost):
             print(f'response.status == {response.status}')
             return response.status
             print(f'response.status == {response.status}')
-            print(f'response.host == {response.host}')
+            print(f'response.host == {response.host_snmp}')
             print(f'response.ok == {response.ok}')
             print(f'response.ok == {response.history}')
             return await response.text()

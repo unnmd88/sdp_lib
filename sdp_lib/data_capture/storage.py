@@ -1,6 +1,7 @@
 from collections import deque
 from collections.abc import Iterable
 from functools import cached_property
+from logging import Logger
 
 from openpyxl.workbook import Workbook
 
@@ -39,22 +40,34 @@ class RecordsStorage:
 
 
 class LogWriter:
-    def __init__(self, record_storage: RecordsStorage,  _logger, wb: Workbook, wb_filename: str):
+    """ Класс записей логов. """
+    def __init__(
+            self,
+            record_storage: RecordsStorage,
+            logger: Logger,
+            wb: Workbook,
+            excel_filename: str
+    ):
         self._record_storage = record_storage
-        self._logger = _logger
+        self._logger = logger
         self._wb = wb
-        self._wb_filename = wb_filename
+        self._excel_filename = excel_filename
 
     def write_filelog(self):
+        """
+        Осуществляет запись в соответствующий хендлер из настройки логгера(StreamHandler, FileHandler и т.д.)
+        """
         while self._record_storage.filelog_records:
-            self._logger.info(self._record_storage.filelog_records.pop())
+            self._logger.info(self._record_storage.filelog_records.popleft())
 
     def write_excel(self):
+        """ Осуществляет запись в соответствующий эксель файл. """
         while self._record_storage.excel_records:
-            self._wb.active.append(self._record_storage.excel_records.pop())
-        self._wb.save(self._wb_filename)
+            self._wb.active.append(self._record_storage.excel_records.popleft())
+        self._wb.save(self._excel_filename)
 
     def write_all(self):
+        """ Осуществляет все доступные варианты записей. """
         self.write_filelog()
         self.write_excel()
 

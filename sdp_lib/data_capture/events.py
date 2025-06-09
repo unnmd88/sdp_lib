@@ -20,7 +20,8 @@ class Event:
         entity_name: str,
         records_storage: RecordsStorage,
         pattern_if_curr_val_is_none: str = 'Ошибка...',
-        expected_val_data: ExtraDataEvent | None = None
+        expected_val_data: ExtraDataEvent | None = None,
+        protocol: str = ''
     ):
         self._records_storage = records_storage
         self._entity_name = entity_name
@@ -30,6 +31,7 @@ class Event:
         self._current_val_duration: float = 0
         self._expected_val_duration: float = 0
         self._expected_val_data = expected_val_data or ExtraDataEvent(None, '')
+        self._protocol = protocol
 
     def __repr__(self):
         return (
@@ -64,7 +66,7 @@ class Event:
         curr_val_duration = self.get_current_val_duration()
         self._current_val = curr_value
         if self._current_val != self._prev_val:
-            msg = (format_time(timestamp),  "", self._prev_val, curr_val_duration)
+            msg = (format_time(timestamp),  self._protocol, self._prev_val, f'{curr_val_duration:.3f}')
             self._records_storage.put_to_excel_records_storage(msg)
             self._restart_current_val_duration()
             if self._current_val == self._expected_val_data.expected_value:
