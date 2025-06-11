@@ -13,11 +13,11 @@ class ErrorResponseCheckers:
             self.__response[ResponseStructure.ERROR_STATUS] = error_status: Integer32 | int,
             self.__response[ResponseStructure.ERROR_INDEX] = error_index: Integer32 | int
         """
-        if self.host_instance.last_response[SnmpResponseStructure.ERROR_INDICATION] is not None:
-            self.host_instance.add_data_to_data_response_attrs(self.host_instance.last_response[SnmpResponseStructure.ERROR_INDICATION])
+        if self.host_instance._tmp_response[SnmpResponseStructure.ERROR_INDICATION] is not None:
+            self.host_instance.add_data_to_data_response_attrs(self.host_instance._tmp_response[SnmpResponseStructure.ERROR_INDICATION])
         elif (
-            self.host_instance.last_response[SnmpResponseStructure.ERROR_STATUS]
-            or self.host_instance.last_response[SnmpResponseStructure.ERROR_INDEX]
+            self.host_instance._tmp_response[SnmpResponseStructure.ERROR_STATUS]
+            or self.host_instance._tmp_response[SnmpResponseStructure.ERROR_INDEX]
         ):
             self.host_instance.add_data_to_data_response_attrs(BadControllerType())
         return bool(self.host_instance.response_errors)

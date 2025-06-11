@@ -1,8 +1,10 @@
 import logging
 import math
+import os
 from collections.abc import Iterable
-from typing import Type, Any
+from typing import Type, Any, NamedTuple
 
+from dotenv import load_dotenv
 from pysnmp.proto import rfc1905
 from pysnmp.proto.rfc1902 import (
     Unsigned32,
@@ -15,6 +17,7 @@ from pysnmp.smi.rfc1902 import (
 )
 
 from sdp_lib.constants import swarco_itc2, potok
+from sdp_lib.management_controllers.fields_names import FieldsNames
 from sdp_lib.management_controllers.snmp import oids
 from sdp_lib.management_controllers.snmp.user_types import (
     T_Oids,
@@ -31,6 +34,7 @@ from sdp_lib import logging_config
 
 
 logger = logging.getLogger(__name__)
+load_dotenv()
 
 
 def convert_val_to_num_stage_set_req_ug405(
@@ -173,6 +177,30 @@ potok_stcip_set_stage_varbinds = create_stcip_set_stage_varbinds(potok.MAX_STAGE
 
 def parse_varbinds_to_dict(varbinds) -> dict[str, Any]:
     return {str(k): v.prettyPrint() for k, v in varbinds}
+
+
+class HostSnmpConfig(NamedTuple):
+    """ Конфигурация snmp протокола """
+
+    community_r: str
+    community_w: str
+    name_protocol: str
+    has_scn_dependency: bool
+
+
+stcip_config = HostSnmpConfig(
+    community_r=os.getenv('communitySTCIP_r'),
+    community_w=os.getenv('communitySTCIP_r'),
+    name_protocol=FieldsNames.protocol_stcip,
+    has_scn_dependency=False
+)
+
+ug405_config = HostSnmpConfig(
+    community_r=os.getenv('communityUG405_r'),
+    community_w=os.getenv('communityUG405_w'),
+    name_protocol=FieldsNames.protocol_ug405,
+    has_scn_dependency=True
+)
 
 
 class ScnConverterMixin:

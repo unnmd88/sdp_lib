@@ -72,7 +72,7 @@ class SetData(PeekWeb):
         await self.web_page_obj.get_and_parse()
         print(f'self.web_page_obj.response_errors: {self.web_page_obj.response_errors}')
         if self.web_page_obj.response_errors:
-            self.add_data_to_data_response_attrs(*self.web_page_obj.data)
+            self.add_data_to_data_response_attrs(*self.web_page_obj.processed_data_response)
             return False
         return True
 

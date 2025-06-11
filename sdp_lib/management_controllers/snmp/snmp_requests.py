@@ -1,9 +1,11 @@
-from typing import KeysView, Any, TypeVar
+import ipaddress
+from typing import KeysView, Any, TypeVar, NamedTuple
 
 from pysnmp.hlapi.v3arch.asyncio import *
 from pysnmp.proto import errind, rfc1905
 
 from sdp_lib.management_controllers.snmp.oids import Oids
+from sdp_lib.management_controllers.snmp.snmp_utils import  HostSnmpConfig
 
 snmp_engine = SnmpEngine()
 
@@ -87,14 +89,17 @@ async def snmp_set(
 
 class AsyncSnmpRequests:
 
-    def __init__(self, instance):
-        self._instance_host = instance
-        self.ip = instance.ip_v4
-        self.community_r = instance.snmp_config.community_r
-        self.community_w = instance.snmp_config.community_w
-        self._timeout: float = 1
-        self._retries: int = 0
-        # self.engine = instance._driver
+    def __init__(self, engine: SnmpEngine, config: HostSnmpConfig, ipv4: str = ''):
+        self._ipv4 = ipv4
+        self._engine = engine
+        self._config = config
+
+    @property
+    def ipv4(self):
+        return self.ipv4
+
+    def set_ipv4(self, ipv4: str):
+        self._ipv4 = str(ipaddress.IPv4Address(ipv4))
 
     def set_timeout(self, val: float):
         self._timeout = float(val)
@@ -134,9 +139,9 @@ class AsyncSnmpRequests:
         """
         # print(f'oids: {oids}')
         return await get_cmd(
-            self._instance_host.driver or snmp_engine,
-            CommunityData(self.community_r),
-            await UdpTransportTarget.create((self._instance_host.ip_v4, 161), timeout=timeout, retries=retries),
+            self._engine,
+            CommunityData(self._config.community_r),
+            await UdpTransportTarget.create((self._ipv4, 161), timeout=timeout, retries=retries),
             ContextData(),
             *varbinds
         )

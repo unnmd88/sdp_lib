@@ -14,6 +14,7 @@ from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods impo
     get_val_as_str,
     pretty_print
 )
+from sdp_lib.management_controllers.snmp import snmp_utils
 from sdp_lib.management_controllers.snmp.user_types import T_Varbinds
 from sdp_lib.management_controllers.snmp.oids import Oids
 
@@ -38,7 +39,7 @@ default_processing = ConfigsParser(
     val_oid_handler=pretty_print,
 )
 
-pretty_processing_stcip = ConfigsParser(
+pretty_processing_stcip_config = ConfigsParser(
     extras=True,
     oid_handler=get_val_as_str,
     val_oid_handler=pretty_print,
@@ -46,7 +47,7 @@ pretty_processing_stcip = ConfigsParser(
     host_protocol=FieldsNames.protocol_stcip
 )
 
-default_processing_ug405 = ConfigsParser(
+default_processing_ug405_config = ConfigsParser(
     extras=False,
     oid_handler=get_val_as_str,
     val_oid_handler=pretty_print,
@@ -69,6 +70,9 @@ pretty_processing_stcip_without_extras = ConfigsParser(
 )
 
 class BaseSnmpParser(Parsers):
+
+    def __call__(self, varbinds: T_Varbinds, *args, **kwargs):
+        return self.parse(varbinds=varbinds, config=self.config)
 
     @property
     @abc.abstractmethod
@@ -96,6 +100,20 @@ class BaseSnmpParser(Parsers):
     def _add_extras_to_response(self):
         for field_name, cb_fn in self.extras_methods.items():
             self.parsed_content_as_dict[field_name] = cb_fn()
+
+    def load_varbinds(self, varbinds: T_Varbinds):
+        self.content = varbinds
+
+    def load_config_parser(self, config: ConfigsParser):
+        self.config = config
+
+    def load_varbinds_and_configparser(
+            self,
+            varbinds: T_Varbinds,
+            configparser: ConfigsParser
+    ):
+        self.load_varbinds(varbinds)
+        self.load_config_parser(configparser)
 
     def parse(
             self,

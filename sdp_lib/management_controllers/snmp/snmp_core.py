@@ -1,14 +1,16 @@
 import abc
 import asyncio
 import functools
+import json
 import time
-from typing import Self, TypeVar, Any
+from functools import cached_property
+from typing import Self, TypeVar, Any, Type
 from collections.abc import Callable
 
 from pysnmp.entity.engine import SnmpEngine
 
 from sdp_lib.management_controllers.exceptions import BadControllerType
-from sdp_lib.management_controllers.hosts_core import Host
+from sdp_lib.management_controllers.hosts_core import Host, ResponseEntity
 from sdp_lib.management_controllers.fields_names import FieldsNames
 from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods import (
     get_val_as_str,
@@ -16,24 +18,24 @@ from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods impo
     build_func_with_remove_scn
 )
 from sdp_lib.management_controllers.parsers.snmp_parsers.varbinds_parsers import (
-    pretty_processing_stcip,
+    pretty_processing_stcip_config,
     default_processing,
     BaseSnmpParser,
     ConfigsParser,
     ParsersVarbindsSwarco,
     ParsersVarbindsPotokS,
     ParsersVarbindsPotokP,
-    ParsersVarbindsPeek, default_processing_ug405, default_processing_stcip, pretty_processing_stcip_without_extras
+    ParsersVarbindsPeek, default_processing_ug405_config, default_processing_stcip, pretty_processing_stcip_without_extras
 )
-from sdp_lib.management_controllers.snmp.snmp_config import HostSnmpConfig
 from sdp_lib.management_controllers.snmp import (
     snmp_config,
-    oids
+    oids, snmp_utils
 )
 from sdp_lib.management_controllers.structures import SnmpResponseStructure
 from sdp_lib.management_controllers.snmp.set_commands import SnmpEntity
-from sdp_lib.management_controllers.snmp.snmp_utils import ScnConverterMixin
-from sdp_lib.management_controllers.snmp.snmp_requests import AsyncSnmpRequests
+from sdp_lib.management_controllers.snmp.snmp_utils import ScnConverterMixin, HostSnmpConfig
+from sdp_lib.management_controllers.snmp.snmp_requests import AsyncSnmpRequests, snmp_engine
+from sdp_lib.management_controllers.snmp import snmp_requests
 from sdp_lib.management_controllers.snmp.snmp_utils import (
     swarco_stcip_varbinds,
     potok_stcip_varbinds,
@@ -84,14 +86,15 @@ def ug405_dependency(
     return wrapper
 
 
-class SnmpHosts(Host):
+class SnmpHost(Host):
     """
     Класс абстрактного хоста, в котором реализована логика формирования snmp-запросов,
     получение и обработка snmp-ответов.
     """
 
-    parser_class: Any
+    _parser_class: Type[ParsersVarbindsSwarco | ParsersVarbindsPotokS | ParsersVarbindsPotokP | ParsersVarbindsPeek]
     varbinds: Any
+    protocol = FieldsNames.protocol_snmp
 
     def __init__(
             self,
@@ -102,97 +105,188 @@ class SnmpHosts(Host):
     ):
         super().__init__(ipv4=ipv4, host_id=host_id)
         self.set_driver(engine)
-        self._request_sender = AsyncSnmpRequests(self)
-        self._request_method: Callable | None = None
-        self._parse_method_config = None
-        self._parser: BaseSnmpParser = self._get_parser()
+        self._request_sender = AsyncSnmpRequests(self._driver, self.snmp_config, ipv4=self._ipv4)
+        self._request_varbinds: T_Varbinds | None = None
+        self._snmp_method: Callable | None = None
+        self._parser = self._parser_class()
+        self._parser_config: ConfigsParser = default_processing
 
-
-    # def set_driver(self, engine: SnmpEngine):
-    #     if isinstance(engine, SnmpEngine):
-    #         self._engine = engine
-    #     else:
-    #         raise TypeError(f'engine должен быть типа "SnmpEngine", передан: {type(engine)}')
-
-    @property
-    def protocol(self):
-        return FieldsNames.protocol_snmp
-
-    @property
+    @cached_property
     @abc.abstractmethod
     def snmp_config(self) -> HostSnmpConfig:
         """ Возвращает конфигурацию snmp протокола контроллера (ug405 | stcip | ...) """
 
     @classmethod
-    def _get_parser(cls, *args, **kwargs):
-        return cls.parser_class(*args, **kwargs)
+    def _get_parser(cls):
+        return cls._parser_class
 
     @property
     def request_sender(self) -> AsyncSnmpRequests:
         return self._request_sender
 
-    def _set_varbinds_for_request(self, varbinds: T_Varbinds):
-        self._varbinds_for_request = varbinds
-
-    def _reset_varbinds_for_request(self):
-        self._varbinds_for_request = None
-
-    def _set_current_request_method(self, method: Callable):
-        self._request_method = method
-
-    def _reset_current_request_method(self):
-        self._request_method = None
-
-    def _set_varbinds_and_method_for_request(self, varbinds: T_Varbinds, method: Callable):
-        self._varbinds_for_request = varbinds
-        self._request_method = method
-
-    def _reset_varbinds_and_method_for_request(self):
-        self._reset_varbinds_for_request()
-        self._reset_current_request_method()
-
-    def _check_snmp_response_errors_and_add_to_host_data_if_has(self):
+    def _check_response_errors_and_add_to_response_entity_if_has(self) -> bool:
         """
             self.__response[ResponseStructure.ERROR_INDICATION] = error_indication: errind.ErrorIndication,
             self.__response[ResponseStructure.ERROR_STATUS] = error_status: Integer32 | int,
             self.__response[ResponseStructure.ERROR_INDEX] = error_index: Integer32 | int
         """
-        if self.last_response[SnmpResponseStructure.ERROR_INDICATION] is not None:
-            self.add_data_to_data_response_attrs(self.last_response[SnmpResponseStructure.ERROR_INDICATION])
+        if self._tmp_response[SnmpResponseStructure.ERROR_INDICATION]:
+            self._response_storage.add_errors(self._tmp_response[SnmpResponseStructure.ERROR_INDICATION])
         elif (
-            self.last_response[SnmpResponseStructure.ERROR_STATUS]
-            or self.last_response[SnmpResponseStructure.ERROR_INDEX]
+            self._tmp_response[SnmpResponseStructure.ERROR_STATUS]
+            or self._tmp_response[SnmpResponseStructure.ERROR_INDEX]
         ):
-            self.add_data_to_data_response_attrs(BadControllerType())
-        return bool(self.response_errors)
+            self._response_storage.add_errors(BadControllerType())
+        return bool(self._response_storage.errors)
 
-    async def _make_request_and_build_response(self) -> Self:
+    async def _make_request_and_load_response(self, create_response_entity: bool = True) -> Self:
         """
         Осуществляет вызов соответствующего snmp-запроса и передает
         self.__parse_response_all_types_requests полученный ответ для парса response.
         """
-        self.response.clear()
-        self.last_response = await self._request_method(varbinds=self._varbinds_for_request)
+        self._tmp_response = await self._snmp_method(varbinds=self._request_varbinds)
+        self._check_response_errors_and_add_to_response_entity_if_has()
+        if create_response_entity:
+            self._parser.load_config_parser(self._parser_config)
+            self._response_storage.raw_responses.append(
+                ResponseEntity(
+                    raw_data=self._tmp_response[SnmpResponseStructure.VAR_BINDS],
+                    name=FieldsNames.snmp_varbinds,
+                    parse_method=self._parser
+                )
+            )
+        for d in self._response_storage.raw_responses:
+            print(d.parse_method(d.raw_data))
 
-        if self._check_snmp_response_errors_and_add_to_host_data_if_has():
-            return self
-
-        self._parser.parse(
-            varbinds=self.last_response[SnmpResponseStructure.VAR_BINDS],
-            config=self._parse_method_config
-        )
-
-        if not self._parser.data_for_response:
-            self.add_data_to_data_response_attrs(BadControllerType())
-            self._reset_varbinds_and_method_for_request()
-            return self
-
-        self.add_data_to_data_response_attrs(data=self._parser.data_for_response)
-        self._reset_varbinds_and_method_for_request()
         return self
 
 
-class Ug405Hosts(SnmpHosts, ScnConverterMixin):
+class TempSwarco(SnmpHost):
+
+    _parser_class = ParsersVarbindsSwarco
+
+    @cached_property
+    def snmp_config(self) -> HostSnmpConfig:
+        return snmp_utils.stcip_config
+
+    async def get_states_request(self):
+        self._snmp_method = self._request_sender.snmp_get
+        self._request_varbinds = snmp_utils.swarco_stcip_varbinds.states_varbinds
+        self._parser_config = pretty_processing_stcip_config
+        await self._make_request_and_load_response()
+        print(self._response_storage.raw_responses)
+        print(json.dumps(snmp_utils.parse_varbinds_to_dict(self._tmp_response[SnmpResponseStructure.VAR_BINDS]), indent=4))
+
+
+# class SnmpHosts(Host):
+#     """
+#     Класс абстрактного хоста, в котором реализована логика формирования snmp-запросов,
+#     получение и обработка snmp-ответов.
+#     """
+#
+#     parser_class: Any
+#     varbinds: Any
+#
+#     def __init__(
+#             self,
+#             *,
+#             ipv4: str = None,
+#             host_id: str = None,
+#             engine: SnmpEngine = None
+#     ):
+#         super().__init__(ipv4=ipv4, host_id=host_id)
+#         self.set_driver(engine)
+#         self._request_sender = AsyncSnmpRequests(self)
+#         self._request_method: Callable | None = None
+#         self._parse_method_config = None
+#         self._parser: BaseSnmpParser = self._get_parser()
+#
+#
+#     # def set_driver(self, engine: SnmpEngine):
+#     #     if isinstance(engine, SnmpEngine):
+#     #         self._engine = engine
+#     #     else:
+#     #         raise TypeError(f'engine должен быть типа "SnmpEngine", передан: {type(engine)}')
+#
+#     @property
+#     def protocol(self):
+#         return FieldsNames.protocol_snmp
+#
+#     @property
+#     @abc.abstractmethod
+#     def snmp_config(self) -> HostSnmpConfig:
+#         """ Возвращает конфигурацию snmp протокола контроллера (ug405 | stcip | ...) """
+#
+#     @classmethod
+#     def _get_parser(cls, *args, **kwargs):
+#         return cls.parser_class(*args, **kwargs)
+#
+#     @property
+#     def request_sender(self) -> AsyncSnmpRequests:
+#         return self._request_sender
+#
+#     def _set_varbinds_for_request(self, varbinds: T_Varbinds):
+#         self._varbinds_for_request = varbinds
+#
+#     def _reset_varbinds_for_request(self):
+#         self._varbinds_for_request = None
+#
+#     def _set_current_request_method(self, method: Callable):
+#         self._request_method = method
+#
+#     def _reset_current_request_method(self):
+#         self._request_method = None
+#
+#     def _set_varbinds_and_method_for_request(self, varbinds: T_Varbinds, method: Callable):
+#         self._varbinds_for_request = varbinds
+#         self._request_method = method
+#
+#     def _reset_varbinds_and_method_for_request(self):
+#         self._reset_varbinds_for_request()
+#         self._reset_current_request_method()
+#
+#     def _check_snmp_response_errors_and_add_to_host_data_if_has(self):
+#         """
+#             self.__response[ResponseStructure.ERROR_INDICATION] = error_indication: errind.ErrorIndication,
+#             self.__response[ResponseStructure.ERROR_STATUS] = error_status: Integer32 | int,
+#             self.__response[ResponseStructure.ERROR_INDEX] = error_index: Integer32 | int
+#         """
+#         if self.last_response[SnmpResponseStructure.ERROR_INDICATION] is not None:
+#             self.add_data_to_data_response_attrs(self.last_response[SnmpResponseStructure.ERROR_INDICATION])
+#         elif (
+#             self.last_response[SnmpResponseStructure.ERROR_STATUS]
+#             or self.last_response[SnmpResponseStructure.ERROR_INDEX]
+#         ):
+#             self.add_data_to_data_response_attrs(BadControllerType())
+#         return bool(self.response_errors)
+#
+#     async def _make_request_and_build_response(self) -> Self:
+#         """
+#         Осуществляет вызов соответствующего snmp-запроса и передает
+#         self.__parse_response_all_types_requests полученный ответ для парса response.
+#         """
+#         self.response.reset()
+#         self.last_response = await self._request_method(varbinds=self._varbinds_for_request)
+#
+#         if self._check_snmp_response_errors_and_add_to_host_data_if_has():
+#             return self
+#
+#         self._parser.parse(
+#             varbinds=self.last_response[SnmpResponseStructure.VAR_BINDS],
+#             config=self._parse_method_config
+#         )
+#
+#         if not self._parser.data_for_response:
+#             self.add_data_to_data_response_attrs(BadControllerType())
+#             self._reset_varbinds_and_method_for_request()
+#             return self
+#
+#         self.add_data_to_data_response_attrs(data=self._parser.data_for_response)
+#         self._reset_varbinds_and_method_for_request()
+#         return self
+
+
+class Ug405Hosts(SnmpHost, ScnConverterMixin):
 
     def __init__(
             self,
@@ -235,7 +329,7 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
 
         self.last_response = await self._method_for_get_scn(varbinds=[CommonVarbindsUg405.site_id_varbind])
 
-        if self._check_snmp_response_errors_and_add_to_host_data_if_has():
+        if self._check_response_errors_and_add_to_response_entity_if_has():
             return
         try:
             self._set_scn_from_response()
@@ -268,7 +362,7 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
 
             if self._operation_mode_dependency:
                 await self.set_operation_mode3_across_operation_mode2()
-                if self._check_snmp_response_errors_and_add_to_host_data_if_has():
+                if self._check_response_errors_and_add_to_response_entity_if_has():
                     return self
 
             self._set_varbinds_and_method_for_request(
@@ -360,7 +454,7 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
         self.last_response = await self._request_sender.snmp_get(
             varbinds=[CommonVarbindsUg405.operation_mode_varbind]
         )
-        if self._check_snmp_response_errors_and_add_to_host_data_if_has():
+        if self._check_response_errors_and_add_to_response_entity_if_has():
             return False
 
         op_mode = str(self.last_response[SnmpResponseStructure.VAR_BINDS][0][1])
@@ -369,21 +463,21 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
 
         if op_mode == '1':
             await self.set_operation_mode2()
-            if self._check_snmp_response_errors_and_add_to_host_data_if_has():
+            if self._check_response_errors_and_add_to_response_entity_if_has():
                 return False
             await self.set_operation_mode3()
-            if self._check_snmp_response_errors_and_add_to_host_data_if_has():
+            if self._check_response_errors_and_add_to_response_entity_if_has():
                 return False
         elif op_mode == '2':
             await self.set_operation_mode3()
-            if self._check_snmp_response_errors_and_add_to_host_data_if_has():
+            if self._check_response_errors_and_add_to_response_entity_if_has():
                 return False
 
         self.last_response = await self._request_sender.snmp_get(
             varbinds=[CommonVarbindsUg405.operation_mode_varbind]
         )
 
-        if self._check_snmp_response_errors_and_add_to_host_data_if_has():
+        if self._check_response_errors_and_add_to_response_entity_if_has():
             return False
         return str(self.last_response[SnmpResponseStructure.VAR_BINDS][0][1]) == '3'
 
@@ -406,17 +500,17 @@ class Ug405Hosts(SnmpHosts, ScnConverterMixin):
         )
 
     def _get_default_processed_config(self):
-        return default_processing_ug405
+        return default_processing_ug405_config
 
 
-class StcipHosts(SnmpHosts):
+class StcipHosts(SnmpHost):
 
     @property
     def snmp_config(self) -> HostSnmpConfig:
         return snmp_config.stcip
 
     async def get_states(self):
-        self._parse_method_config = pretty_processing_stcip
+        self._parse_method_config = pretty_processing_stcip_config
         self._set_varbinds_and_method_for_request(
             varbinds=self.varbinds.get_varbinds_current_states(),
             method=self._request_sender.snmp_get
@@ -442,19 +536,19 @@ class StcipHosts(SnmpHosts):
 
 class SwarcoStcip(StcipHosts):
 
-    parser_class = ParsersVarbindsSwarco
+    _parser_class = ParsersVarbindsSwarco
     varbinds = swarco_stcip_varbinds
 
 
 class PotokS(StcipHosts):
 
-    parser_class = ParsersVarbindsPotokS
+    _parser_class = ParsersVarbindsPotokS
     varbinds = potok_stcip_varbinds
 
 
 class PotokP(Ug405Hosts):
 
-    parser_class = ParsersVarbindsPotokP
+    _parser_class = ParsersVarbindsPotokP
     varbinds = potok_ug405_varbinds
 
     @property
@@ -476,7 +570,7 @@ class PotokP(Ug405Hosts):
 
 class PeekUg405(Ug405Hosts):
 
-    parser_class = ParsersVarbindsPeek
+    _parser_class = ParsersVarbindsPeek
     varbinds = peek_ug405_varbinds
 
     @property
@@ -516,21 +610,21 @@ async def main():
 
     # obj.ip_v4 = '10.179.20.129'
 
-    obj = PeekUg405(ipv4='10.179.67.73')
+    # obj = PeekUg405(ipv4='10.179.67.73')
 
-    obj.set_driver(SnmpEngine())
-    print(obj.driver)
+    obj = TempSwarco(ipv4='10.179.20.129', engine=snmp_engine)
 
     start_time = time.time()
 
-    # res = await obj.get_states()
+    res = await obj.get_states_request()
+
     # print(obj.response_as_dict)
     # print(json.dumps(obj.response_as_dict, indent=4))
 
 
     """set command test"""
 
-    res = await obj.set_stage(2)
+    # res = await obj.set_stage(2)
 
     # print(res.response_as_dict)
 
