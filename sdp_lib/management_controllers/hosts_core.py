@@ -81,7 +81,7 @@ class Host:
 
     @property
     def response_as_dict(self):
-        return self._response_storage.build_as_dict(self._ipv4)
+        return self._response_storage.build_response_as_dict_from_raw_data_responses(self._ipv4)
 
     # def add_data_to_data_response_attrs(
     #         self,
@@ -118,7 +118,7 @@ class ResponseStorage:
     def raw_responses(self) -> MutableSequence[ResponseEntity]:
         return self._raw_responses
 
-    def build_as_dict(self, ip_v4: str):
+    def build_response_as_dict_from_raw_data_responses(self, ip_v4: str):
         """
         Формирует словарь их self.response.
         После запроса, self.response принимает кортеж из 2 элементов:
@@ -147,10 +147,13 @@ class ResponseStorage:
                      }
 
         """
+        self._processed_data_response = {}
+        for data in self._raw_responses:
+            self._processed_data_response |= data.parse_method(data.raw_data)
         return {
             str(FieldsNames.protocol): self._protocol,
             str(FieldsNames.ipv4_address): ip_v4,
-            str(FieldsNames.errors): [str(e) for e in self._errors],
+            str(FieldsNames.errors): self._errors,
             str(FieldsNames.data): self._processed_data_response
         }
 
