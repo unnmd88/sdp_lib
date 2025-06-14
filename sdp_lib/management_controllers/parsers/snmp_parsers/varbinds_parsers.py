@@ -69,7 +69,7 @@ pretty_processing_stcip_without_extras = ConfigsParser(
     host_protocol=FieldsNames.protocol_stcip
 )
 
-class BaseSnmpParser(Parsers):
+class AbstractSnmpParser(Parsers):
 
     def __call__(self, varbinds: T_Varbinds, *args, **kwargs):
         return self.parse(varbinds=varbinds, config=self.config)
@@ -93,9 +93,6 @@ class BaseSnmpParser(Parsers):
     def add_fields_to_response(self, **kwargs):
         for field_name, val in kwargs.items():
             self.parsed_content_as_dict[field_name] = val
-
-    def add_host_protocol_to_response(self, protocol: str):
-        self.add_fields_to_response(**{FieldsNames.host_protocol: protocol})
 
     def _add_extras_to_response(self):
         for field_name, cb_fn in self.extras_methods.items():
@@ -121,6 +118,7 @@ class BaseSnmpParser(Parsers):
             varbinds: T_Varbinds,
             config: ConfigsParser = default_processing
     ):
+        self.parsed_content_as_dict[FieldsNames.protocol] = config.host_protocol
         for oid, val in varbinds:
             oid, val = config.oid_handler(oid), config.val_oid_handler(val)
             try:
@@ -133,13 +131,10 @@ class BaseSnmpParser(Parsers):
                 self.parsed_content_as_dict[oid] = val
         if config.extras:
             self._add_extras_to_response()
-
-        self.add_host_protocol_to_response(config.host_protocol)
-        self.data_for_response = self.parsed_content_as_dict
-        return self.data_for_response
+        return self.parsed_content_as_dict
 
 
-class ParsersVarbindsSwarco(BaseSnmpParser, StcipMixin):
+class ParsersVarbindsSwarco(AbstractSnmpParser, StcipMixin):
 
     CENTRAL_PLAN              = '16'
     MANUAL_PLAN               = '15'
@@ -201,7 +196,7 @@ class ParsersVarbindsSwarco(BaseSnmpParser, StcipMixin):
         }
 
 
-class ParsersVarbindsPotokS(BaseSnmpParser, StcipMixin):
+class ParsersVarbindsPotokS(AbstractSnmpParser, StcipMixin):
 
     modes = {
         '8': str(NamesMode.VA),
@@ -231,7 +226,7 @@ class ParsersVarbindsPotokS(BaseSnmpParser, StcipMixin):
     }
 
 
-class ParsersVarbindsPotokP(BaseSnmpParser, Ug405Mixin):
+class ParsersVarbindsPotokP(AbstractSnmpParser, Ug405Mixin):
 
     def get_current_mode(self) -> str | None:
         try:
@@ -292,7 +287,7 @@ class ParsersVarbindsPotokP(BaseSnmpParser, Ug405Mixin):
         }
 
 
-class ParsersVarbindsPeek(BaseSnmpParser, Ug405Mixin):
+class ParsersVarbindsPeek(AbstractSnmpParser, Ug405Mixin):
     @property
     def matches(self) -> dict[str | Oids, tuple[FieldsNames, Callable]]:
         return {}

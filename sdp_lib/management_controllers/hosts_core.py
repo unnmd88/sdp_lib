@@ -1,3 +1,4 @@
+import ipaddress
 import json
 from collections import deque
 from collections.abc import MutableMapping, MutableSequence, Iterable, Callable
@@ -15,7 +16,7 @@ from sdp_lib.utils_common.utils_common import check_is_ipv4
 class ResponseEntity(NamedTuple):
     raw_data: Any
     name: str = ''
-    parse_method: Callable = None
+    parser: Callable = None
 
 
 class Host:
@@ -39,16 +40,21 @@ class Host:
         # self._varbinds_for_request = None
 
     def __repr__(self):
-        return (f'Host ipv4: {self._ipv4}\nHost id: {self.host_id}\n'
-                f'Errors: {self._response_storage.errors}\n'
-                f'Data: {self._response_storage.processed_data_response}\n'
-                f'Response data as json:\n'
-                f'{json.dumps(self.response_as_dict, indent=4, ensure_ascii=False)}')
+        return (
+            f'{self.__class__.__name__}('
+            f'ipv4={self._ipv4} host_id={self.host_id} driver={self._driver}'
+            f')'
+        )
 
     def __getattr__(self, item):
         if 'stage' in item:
             return self._response_storage.processed_data_response.get(FieldsNames.curr_stage)
         raise AttributeError()
+
+    def __setattr__(self, key, value):
+        if key == '_ipv4':
+            print(ipaddress.IPv4Address(value))
+        super().__setattr__(key, value)
 
     @property
     def ip_v4(self):
@@ -102,21 +108,43 @@ class ResponseStorage:
         self._protocol = protocol
         self._errors = deque(maxlen=8)
         self._processed_data_response = {}
-        self._raw_response = None
-        self._raw_responses: MutableSequence[ResponseEntity] = deque(maxlen=8)
+        # self.last_raw_response = None
+        self._storage_raw_responses: MutableSequence[ResponseEntity] = deque(maxlen=8)
 
+    def __repr__(self):
+        processed_data_as_json = json.dumps(
+            self.build_response_as_dict_from_raw_data_responses(ip_v4="Any ip_v4"), indent=4, ensure_ascii=False
+            )
+        return (
+            f'{self.__class__.__name__}('
+            f'errors={self._errors} raw_responses={self._storage_raw_responses}\n'
+            f'processed_data_response:\n{processed_data_as_json}'
+            f')'
+        )
+
+        return json.dumps(
+            self.build_response_as_dict_from_raw_data_responses(ip_v4='Any ip_v4'), indent=4, ensure_ascii=False
+        )
 
     @property
     def errors(self) -> MutableSequence[str]:
         return self._errors
 
+    @cached_property
+    def storage_raw_responses(self) -> MutableSequence[ResponseEntity]:
+        return self._storage_raw_responses
+
     @property
     def processed_data_response(self) -> MutableMapping[str, Any]:
         return self._processed_data_response
 
-    @cached_property
-    def raw_responses(self) -> MutableSequence[ResponseEntity]:
-        return self._raw_responses
+    def put_raw_responses(self, *args: ResponseEntity):
+        for response in args:
+            self._storage_raw_responses.append(response)
+
+    def put_errors(self, *errors):
+        for err in errors:
+            self._errors.append(str(err))
 
     def build_response_as_dict_from_raw_data_responses(self, ip_v4: str):
         """
@@ -148,41 +176,34 @@ class ResponseStorage:
 
         """
         self._processed_data_response = {}
-        for data in self._raw_responses:
-            self._processed_data_response |= data.parse_method(data.raw_data)
+        for data in self._storage_raw_responses:
+            self._processed_data_response |= data.parser(data.raw_data)
+        # Проверка, если FieldsNames.curr_mode None, то удаляем из словаря
+        try:
+            current_mode = self._processed_data_response.pop(FieldsNames.curr_mode)
+            if current_mode is not None:
+                self._processed_data_response[FieldsNames.curr_mode] = current_mode
+        except KeyError:
+            pass
         return {
             str(FieldsNames.protocol): self._protocol,
             str(FieldsNames.ipv4_address): ip_v4,
-            str(FieldsNames.errors): self._errors,
+            str(FieldsNames.errors): ', '.join(str(e) for e in self._errors),
             str(FieldsNames.data): self._processed_data_response
         }
 
-    def add_data_to_processed_response_data(self, data: MutableMapping[str, Any] | Iterable[tuple[str, Any]]):
+    def add_data_to_processed_response(self, data: MutableMapping[str, Any] | Iterable[tuple[str, Any]]):
         try:
             self._processed_data_response |= data
         except TypeError:
             for k, v in data:
                 self._processed_data_response[k] = v
 
-    def add_errors(self, *errors):
-        for err in errors:
-            self._errors.append(str(err))
+    # def load_raw_response(self, raw_response):
+    #     self.reset_all_data()
+    #     self.last_raw_response = raw_response
 
-    # def add_data_to_attrs(
-    #         self,
-    #         error: Exception | str = None,
-    #         data: dict[str, Any] = None
-    # ):
-    #     if isinstance(data, MutableMapping):
-    #         self._processed_data_response |= data
-    #     if isinstance(error, (Exception, str)):
-    #         self._errors.append(error)
-
-    def load_raw_response(self, raw_response):
-        self.reset()
-        self._raw_response = raw_response
-
-    def reset(self):
+    def reset_all_data(self):
         self.reset_processed_data_response()
         self.reset_errors()
 
@@ -190,7 +211,7 @@ class ResponseStorage:
         self._processed_data_response = {}
 
     def reset_errors(self):
-        self._errors = []
+        self._errors = deque(maxlen=8)
 
 
 # class Response:

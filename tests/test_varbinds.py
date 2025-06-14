@@ -28,11 +28,11 @@ peek_ug405_varbinds
 
 def test_convert_val_to_num_stage_set_req_ug405():
     # stages = convert_val_to_num_stage_set_req_ug405(128)
-    assert len(ug405_set_stage_values) == 128
-    assert ug405_set_stage_values['1'] == '01'
-    assert ug405_set_stage_values['95'] == '400000000000000000000000'
-    assert ug405_set_stage_values['60'] == '0800000000000000'
-    assert ug405_set_stage_values['4'] == '08'
+    assert len(_ug405_set_stage_values) == 128
+    assert _ug405_set_stage_values['1'] == '01'
+    assert _ug405_set_stage_values['95'] == '400000000000000000000000'
+    assert _ug405_set_stage_values['60'] == '0800000000000000'
+    assert _ug405_set_stage_values['4'] == '08'
 
 def test_wrap_oid_by_object_type():
     for oid in (o for o in oids.Oids):
@@ -60,7 +60,7 @@ def get_random_scn() -> str:
 
 def get_stage_as_int_and_hex(num_stage=None) -> tuple[int, str]:
     num_stage = num_stage or randint(1, 129)
-    val_stage = ug405_set_stage_values.get(str(num_stage))
+    val_stage = _ug405_set_stage_values.get(str(num_stage))
     stg_as_hex = OctetString(hexValue=val_stage).prettyPrint()
     return num_stage, stg_as_hex
 

@@ -96,7 +96,7 @@ class AsyncSnmpRequests:
 
     @property
     def ipv4(self):
-        return self.ipv4
+        return self._ipv4
 
     def set_ipv4(self, ipv4: str):
         self._ipv4 = str(ipaddress.IPv4Address(ipv4))
@@ -160,9 +160,9 @@ class AsyncSnmpRequests:
     ) -> tuple[errind.ErrorIndication, Integer32 | int, Integer32 | int, tuple[ObjectType, ...]]:
 
         return await set_cmd(
-            self._instance_host.driver or snmp_engine,
-            CommunityData(self.community_w),
-            await UdpTransportTarget.create((self.ip, 161), timeout= timeout, retries=retries),
+            self._engine,
+            CommunityData(self._config.community_w),
+            await UdpTransportTarget.create((self._ipv4, 161), timeout= timeout, retries=retries),
             ContextData(),
             *varbinds
             # *[ObjectType(ObjectIdentity(oid), val) for oid, val in oids]
@@ -201,9 +201,9 @@ class AsyncSnmpRequests:
         """
         # print(f'oids: {oids}')
         return await next_cmd(
-            self._instance_host.driver or snmp_engine,
-            CommunityData(self.community_r),
-            await UdpTransportTarget.create((self.ip, 161), timeout=timeout, retries=retries),
+            self._engine,
+            CommunityData(self._config.community_w),
+            await UdpTransportTarget.create((self.ipv4, 161), timeout=timeout, retries=retries),
             ContextData(),
             *varbinds
         )

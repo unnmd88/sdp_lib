@@ -2,6 +2,7 @@ import logging
 import math
 import os
 from collections.abc import Iterable
+from enum import IntEnum
 from typing import Type, Any, NamedTuple
 
 from dotenv import load_dotenv
@@ -30,11 +31,18 @@ from sdp_lib.management_controllers.snmp.oids import (
     Oids,
     oids_scn_required
 )
-from sdp_lib import logging_config
-
+from sdp_lib import logging_config, constants
 
 logger = logging.getLogger(__name__)
 load_dotenv()
+
+
+class MaxStage(IntEnum):
+
+    swarco_itc2  = 8
+    potok_p      = 128
+    potok_s      = 128
+    peek         = 32
 
 
 def convert_val_to_num_stage_set_req_ug405(
@@ -170,9 +178,9 @@ def create_stcip_set_stage_varbinds(
 
     return stages | usr_data
 
-ug405_set_stage_values = convert_val_to_num_stage_set_req_ug405(128)
-swarco_stcip_set_stage_varbinds = create_stcip_set_stage_varbinds(swarco_itc2.MAX_STAGE, user_vals={8: 1})
-potok_stcip_set_stage_varbinds = create_stcip_set_stage_varbinds(potok.MAX_STAGE)
+_ug405_set_stage_values = convert_val_to_num_stage_set_req_ug405(128)
+_swarco_stcip_set_stage_varbinds = create_stcip_set_stage_varbinds(swarco_itc2.MAX_STAGE, user_vals={8: 1})
+_potok_stcip_set_stage_varbinds = create_stcip_set_stage_varbinds(potok.MAX_STAGE)
 
 
 def parse_varbinds_to_dict(varbinds) -> dict[str, Any]:
@@ -296,6 +304,7 @@ class StcipVarbindsMixin:
 
 
 class AbstractVarbinds:
+    max_stage: int
     states_oids: T_Oids
     states_varbinds: T_Varbinds
     set_stage_varbinds: dict[int, T_Varbinds]
@@ -308,15 +317,17 @@ class AbstractVarbinds:
 
 
 class VarbSwarco(AbstractVarbinds, StageConverterMixinSwarco, StcipVarbindsMixin):
+    max_stage = MaxStage.swarco_itc2
     states_oids = oids.oids_state_swarco
     states_varbinds = create_varbinds(oids.oids_state_swarco)
-    set_stage_varbinds = swarco_stcip_set_stage_varbinds
+    set_stage_varbinds = _swarco_stcip_set_stage_varbinds
 
 
 class VarbPotokS(AbstractVarbinds, StageConverterMixinPotokS, StcipVarbindsMixin):
+    max_stage = MaxStage.potok_s
     states_oids = oids.oids_state_potok_s
     states_varbinds = tuple(wrap_oid_by_object_type(oid) for oid in oids.oids_state_potok_s)
-    set_stage_varbinds = potok_stcip_set_stage_varbinds
+    set_stage_varbinds = _potok_stcip_set_stage_varbinds
 
 
 class CommonVarbindsUg405(StageConverterMixinUg405):
@@ -331,7 +342,7 @@ class CommonVarbindsUg405(StageConverterMixinUg405):
 
     site_id_varbind = wrap_oid_by_object_type(Oids.utcReplySiteID)
 
-    hex_vals128 = {i: OctetString(hexValue=ug405_set_stage_values.get(str(i))) for i in range(1, 129)}
+    hex_vals128 = {i: OctetString(hexValue=_ug405_set_stage_values.get(str(i))) for i in range(1, 129)}
 
     integer_vals128 = {i: Integer32(i) for i in range(129)}
     integer32_val1 = Integer32(1)
@@ -368,17 +379,18 @@ class CommonVarbindsUg405(StageConverterMixinUg405):
                 wrap_oid_by_object_type(f'{str(Oids.utcControlTO)}{scn_as_ascii}', self.integer32_val1),
                 wrap_oid_by_object_type(f'{Oids.utcControlFn}{scn_as_ascii}', self.hex_vals128.get(num_stage)),
             )
-        return (self.operation_mode1_varbind,)
+        return (self.operation_mode1_varbind, )
 
 
 class VarbPotokP(CommonVarbindsUg405):
+    max_stage = MaxStage.potok_p
     states_oids = oids.oids_state_potok_p
     states_varbinds = create_varbinds_get_state_with_scn(oids.oids_state_potok_p)
 
 
 class VarbPeek(CommonVarbindsUg405):
     """ Класс для создания синглтона varbinds peek """
-
+    max_stage = MaxStage.peek
 
 # Синглтоны varbinds для каждого типа дк
 swarco_stcip_varbinds = VarbSwarco()
