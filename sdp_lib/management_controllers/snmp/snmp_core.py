@@ -61,8 +61,6 @@ from sdp_lib.management_controllers.snmp.snmp_utils import (
     peek_ug405_varbinds, CommonVarbindsUg405
 )
 
-T_DataHosts = TypeVar('T_DataHosts', bound=HostSnmpConfig)
-
 
 def ug405_dependency(
         type_request_entity: SnmpEntity,
@@ -155,28 +153,8 @@ class SnmpHost(Host):
     def request_sender(self) -> AsyncSnmpRequests:
         return self._request_sender
 
-    # async def _make_request_and_load_response_to_storage(
-    #         self,
-    #         request_config: RequestConfig,
-    #         create_response_entity: bool = True
-    # ) -> Self:
-    #     """
-    #     Осуществляет вызов соответствующего snmp-запроса и передает
-    #     self.__parse_response_all_types_requests полученный ответ для парса response.
-    #     """
-    #     self._tmp_response = await self._snmp_method(varbinds=self._request_varbinds)
-    #     self._check_response_errors_and_add_to_response_entity_if_has()
-    #     if create_response_entity:
-    #         self._parser.load_config_parser(self._parser_config)
-    #         self._response_storage.storage_raw_responses.append(
-    #             ResponseEntity(
-    #                 raw_data=self._tmp_response[SnmpResponseStructure.VAR_BINDS],
-    #                 name=FieldsNames.snmp_varbinds,
-    #                 parser=self._parser
-    #             )
-    #         )
-    #     self._response_storage.build_response_as_dict_from_raw_data_responses(self.ip_v4)
-    #     return self
+    def reset_states_request_config(self):
+        self._get_states_request_config = None
 
     async def _make_request_and_load_response_to_storage(self, request_config: RequestConfig) -> Self:
         """
@@ -557,7 +535,7 @@ async def main():
 
     # obj = SwarcoStcip(ipv4='10.179.20.129', engine=snmp_engine, host_id='2405')
 
-    obj = PeekUg405(ipv4='10.45.154.19', host_id='laba', engine=snmp_engine)
+    # obj = PeekUg405(ipv4='10.45.154.19', host_id='laba', engine=snmp_engine)
 
 
     # start_time = time.time()
@@ -565,8 +543,8 @@ async def main():
 
     while True:
         start_time = time.time()
-        # res = await obj.get_states()
-        res = await obj.set_stage(5)
+        res = await obj.get_states()
+        # res = await obj.set_stage(5)
         print(res.response)
         print(f'время составло: {time.time() - start_time}')
         await asyncio.sleep(2)
