@@ -25,7 +25,7 @@ from sdp_lib.management_controllers.snmp.snmp_utils import(
 )
 
 
-class ConfigsParser(typing.NamedTuple):
+class ParserConfig(typing.NamedTuple):
     extras: bool
     oid_handler: Callable
     val_oid_handler: Callable
@@ -33,13 +33,13 @@ class ConfigsParser(typing.NamedTuple):
     host_protocol: str = None
 
 
-default_processing = ConfigsParser(
+default_processing_parser_config = ParserConfig(
     extras=False,
     oid_handler=get_val_as_str,
     val_oid_handler=pretty_print,
 )
 
-pretty_processing_stcip_config = ConfigsParser(
+pretty_processing_stcip_parser_config = ParserConfig(
     extras=True,
     oid_handler=get_val_as_str,
     val_oid_handler=pretty_print,
@@ -47,21 +47,21 @@ pretty_processing_stcip_config = ConfigsParser(
     host_protocol=FieldsNames.protocol_stcip
 )
 
-default_processing_ug405_config = ConfigsParser(
+default_processing_ug405_parser_config = ParserConfig(
     extras=False,
     oid_handler=get_val_as_str,
     val_oid_handler=pretty_print,
     host_protocol=FieldsNames.protocol_ug405
 )
 
-default_processing_stcip_config = ConfigsParser(
+default_processing_stcip_parser_config = ParserConfig(
     extras=False,
     oid_handler=get_val_as_str,
     val_oid_handler=pretty_print,
     host_protocol=FieldsNames.protocol_stcip
 )
 
-pretty_processing_stcip_config_without_extras = ConfigsParser(
+pretty_processing_stcip_parser_config_without_extras = ParserConfig(
     extras=False,
     oid_handler=get_val_as_str,
     val_oid_handler=pretty_print,
@@ -83,11 +83,12 @@ class AbstractSnmpParser(Parsers):
         значение -> кортеж, где нулевой элемент это строка названия поля, а первый
                     элемент это функция-обработчик.
         """
-
+        ...
 
     @property
     @abc.abstractmethod
     def extras_methods(self) -> dict[str, Callable]:
+        """ Дополнительные методы, которые будут вызваны после обработки оидов метода self.parse """
         ...
 
     def add_fields_to_response(self, **kwargs):
@@ -101,13 +102,13 @@ class AbstractSnmpParser(Parsers):
     def load_varbinds(self, varbinds: T_Varbinds):
         self.content = varbinds
 
-    def load_config_parser(self, config: ConfigsParser):
+    def load_config_parser(self, config: ParserConfig):
         self.config = config
 
     def load_varbinds_and_configparser(
             self,
             varbinds: T_Varbinds,
-            configparser: ConfigsParser
+            configparser: ParserConfig
     ):
         self.load_varbinds(varbinds)
         self.load_config_parser(configparser)
@@ -116,7 +117,7 @@ class AbstractSnmpParser(Parsers):
             self,
             *,
             varbinds: T_Varbinds,
-            config: ConfigsParser = default_processing
+            config: ParserConfig = default_processing_parser_config
     ):
         self.parsed_content_as_dict[FieldsNames.protocol] = config.host_protocol
         for oid, val in varbinds:

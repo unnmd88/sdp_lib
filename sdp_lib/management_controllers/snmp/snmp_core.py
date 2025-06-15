@@ -26,15 +26,15 @@ from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods impo
     build_func_with_remove_scn
 )
 from sdp_lib.management_controllers.parsers.snmp_parsers.varbinds_parsers import (
-    pretty_processing_stcip_config,
-    ConfigsParser,
+    pretty_processing_stcip_parser_config,
+    ParserConfig,
     ParsersVarbindsSwarco,
     ParsersVarbindsPotokS,
     ParsersVarbindsPotokP,
     ParsersVarbindsPeek,
-    default_processing_ug405_config,
-    default_processing_stcip_config,
-    pretty_processing_stcip_config_without_extras
+    default_processing_ug405_parser_config,
+    default_processing_stcip_parser_config,
+    pretty_processing_stcip_parser_config_without_extras
 )
 from sdp_lib.management_controllers.snmp import (
     oids,
@@ -105,7 +105,7 @@ def ug405_dependency(
 class RequestConfig:
     parser: ParsersVarbindsSwarco | ParsersVarbindsPotokS | ParsersVarbindsPotokP | ParsersVarbindsPeek
     snmp_request_coro: Awaitable = None
-    parser_config: ConfigsParser | None = None
+    parser_config: ParserConfig | None = None
     create_response_entity: bool = True
     # snmp_method: Callable | None= None
     # varbinds: T_Varbinds | None= None
@@ -262,7 +262,7 @@ class Ug405Hosts(SnmpHost, ScnConverterMixin):
         return self.get_scn_as_ascii_from_scn_as_chars_attr(self.scn_as_ascii_string)
 
     def _get_config_parser_with_remove_scn_from_oid_and_pretty_parsed_varbinds(self):
-        return ConfigsParser(
+        return ParserConfig(
             extras=True,
             oid_handler=build_func_with_remove_scn(self.scn_as_ascii_string, get_val_as_str),
             val_oid_handler=pretty_print,
@@ -404,7 +404,7 @@ class Ug405Hosts(SnmpHost, ScnConverterMixin):
         self._request_config.load_snmp_request_coro(
             self._request_sender.snmp_set(self._varbinds.get_varbinds_set_stage(self.scn_as_ascii_string, value))
         )
-        self._request_config.parser_config = default_processing_ug405_config
+        self._request_config.parser_config = default_processing_ug405_parser_config
 
         print(self._request_config)
 
@@ -423,7 +423,7 @@ class StcipHosts(SnmpHost):
         super().__init__(ipv4=ipv4, engine=engine, host_id=host_id)
         self._get_states_request_config = RequestConfig(
                 parser=self._parser,
-                parser_config=pretty_processing_stcip_config,
+                parser_config=pretty_processing_stcip_parser_config,
                 create_response_entity=True
             )
 
@@ -438,7 +438,7 @@ class StcipHosts(SnmpHost):
         return await self._make_request_and_load_response_to_storage(self._get_states_request_config)
 
     async def set_stage(self, value: int):
-        self._parse_method_config = default_processing_stcip_config
+        self._parse_method_config = default_processing_stcip_parser_config
         self._request_config.snmp_method = self._request_sender.snmp_set
         self._set_varbinds_and_method_for_request(
             varbinds=self._varbinds.get_varbinds_set_stage(value),
@@ -447,7 +447,7 @@ class StcipHosts(SnmpHost):
         return await self._make_request_and_build_response()
 
     async def get_current_stage(self):
-        self._parse_method_config = pretty_processing_stcip_config_without_extras
+        self._parse_method_config = pretty_processing_stcip_parser_config_without_extras
         self._set_varbinds_and_method_for_request(
             varbinds=self._varbinds.get_stage_varbinds,
             method=self._request_sender.snmp_get
