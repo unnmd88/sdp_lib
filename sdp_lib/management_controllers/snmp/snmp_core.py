@@ -1,15 +1,19 @@
 import abc
 import asyncio
 import functools
-import itertools
-import json
 import time
 from abc import abstractmethod
-from collections import deque
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Self, TypeVar, Any, Type, NamedTuple
-from collections.abc import Callable, Collection, Coroutine, Awaitable, MutableMapping, Sequence
+from typing import (
+    Self,
+    TypeVar,
+    Type,
+)
+from collections.abc import (
+    Callable,
+    Awaitable
+)
 
 from pysnmp.entity.engine import SnmpEngine
 
@@ -23,13 +27,14 @@ from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods impo
 )
 from sdp_lib.management_controllers.parsers.snmp_parsers.varbinds_parsers import (
     pretty_processing_stcip_config,
-    default_processing,
-    AbstractSnmpParser,
     ConfigsParser,
     ParsersVarbindsSwarco,
     ParsersVarbindsPotokS,
     ParsersVarbindsPotokP,
-    ParsersVarbindsPeek, default_processing_ug405_config, default_processing_stcip, pretty_processing_stcip_without_extras
+    ParsersVarbindsPeek,
+    default_processing_ug405_config,
+    default_processing_stcip,
+    pretty_processing_stcip_without_extras
 )
 from sdp_lib.management_controllers.snmp import (
     oids,
@@ -37,18 +42,24 @@ from sdp_lib.management_controllers.snmp import (
 )
 from sdp_lib.management_controllers.structures import SnmpResponseStructure
 from sdp_lib.management_controllers.snmp.set_commands import SnmpEntity
-from sdp_lib.management_controllers.snmp.snmp_utils import ScnConverterMixin, HostSnmpConfig, VarbSwarco, VarbPotokS, \
-    VarbPotokP, VarbPeek
-from sdp_lib.management_controllers.snmp.snmp_requests import AsyncSnmpRequests, snmp_engine
-from sdp_lib.management_controllers.snmp import snmp_requests
+from sdp_lib.management_controllers.snmp.snmp_utils import (
+    ScnConverterMixin,
+    HostSnmpConfig,
+    VarbSwarco,
+    VarbPotokS,
+    VarbPotokP,
+    VarbPeek
+)
+from sdp_lib.management_controllers.snmp.snmp_requests import (
+    AsyncSnmpRequests,
+    snmp_engine
+)
 from sdp_lib.management_controllers.snmp.snmp_utils import (
     swarco_stcip_varbinds,
     potok_stcip_varbinds,
     potok_ug405_varbinds,
     peek_ug405_varbinds, CommonVarbindsUg405
 )
-from sdp_lib.management_controllers.snmp.user_types import T_Varbinds
-from sdp_lib.type_aliases import A_Parsers
 
 T_DataHosts = TypeVar('T_DataHosts', bound=HostSnmpConfig)
 
