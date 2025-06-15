@@ -645,7 +645,7 @@ class InputsPageParser(Parsers):
         # )
 
 
-class Parser:
+class PeekWebPagesParser:
     def __init__(self):
         self._main_page_parser = MainPageParser()
         self._inputs_page_parser = InputsPageParser()
@@ -669,7 +669,7 @@ if __name__ == '__main__':
     s = ':TITLE;##MENU_001a##\n:SUBTITLE;Moscow: Панфиловс пр / Андреевка\n:TFT_NAVBAR;10\n:REFRESH_LOCK;1\n\n:BEGINTABLE\n:W;;200px;\n\n:D;;##T_PLAN##;005 -             \n\n:D;;##T_TIMINGSET##;005\n\n:D;;##T_TIME##;2025-03-01 16:08:41\n:D;;##T_ALARMS##;ISWC\n\n\n:ENDTABLE\n\n<b>##T_STREAM## 1</b>\n:BEGINTABLE\n:W;;200px;\n:D;;##T_STATE##;УПРАВЛЕНИЕ\n:D;;##T_CYCLE##;0 (0)\n:D;;##T_MODE## (##T_STAGE##);FT (3)\n:ENDTABLE\n\n<b>##T_STREAM## 2</b>\n:BEGINTABLE\n:W;;200px;\n:D;;##T_STATE##;УПРАВЛЕНИЕ\n:D;;##T_CYCLE##;0 (0)\n:D;;##T_MODE## (##T_STAGE##);FT (6)\n:ENDTABLE\n\n\n\n\n\n\n\n\n\n\n\n:BEGIN_TFT_ONLY\n<div id="nav_home">\n<br /><br />\n<ul>\n<li><button type=button OnClick=\'top.doDataHref("cell1370.hvi",1)\'>##CELL_1370##</button></li>\n<li><button type=button OnClick=\'top.doDataHref("cell1240.hvi",1)\'>##CELL_1240##</button></li>\n<li><button type=button OnClick=\'top.doHref("detswico.hvi",1)\'>##T_DETSWICO##</button></li>\n</ul>\n</div>\n:END_TFT_ONLY\n'
 
     start_time = time.perf_counter()
-    p = Parser()
+    p = PeekWebPagesParser()
 
 
 

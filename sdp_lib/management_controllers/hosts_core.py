@@ -1,7 +1,11 @@
 import ipaddress
-import json
 from collections import deque
-from collections.abc import MutableMapping, MutableSequence, Iterable, Callable
+from collections.abc import (
+    MutableMapping,
+    MutableSequence,
+    Iterable,
+    Callable
+)
 from functools import cached_property
 from typing import Any, NamedTuple
 
@@ -9,7 +13,6 @@ import aiohttp
 from pysnmp.entity.engine import SnmpEngine
 
 from sdp_lib.management_controllers.fields_names import FieldsNames
-from sdp_lib.management_controllers.structures import HostResponseStructure
 from sdp_lib.utils_common.utils_common import check_is_ipv4
 
 
@@ -104,27 +107,22 @@ class Host:
 
 
 class ResponseStorage:
+
     def __init__(self, protocol: str):
         self._protocol = protocol
-        self._errors = deque(maxlen=8)
+        self._errors = []
         self._processed_data_response = {}
-        # self.last_raw_response = None
-        self._storage_raw_responses: MutableSequence[ResponseEntity] = deque(maxlen=8)
-
-    def __repr__(self):
-        processed_data_as_json = json.dumps(
-            self.build_response_as_dict_from_raw_data_responses(ip_v4="Any ip_v4"), indent=4, ensure_ascii=False
-            )
-        return (
-            f'{self.__class__.__name__}('
-            f'errors={self._errors} raw_responses={self._storage_raw_responses}\n'
-            f'processed_data_response:\n{processed_data_as_json}'
-            f')'
-        )
-
-        return json.dumps(
-            self.build_response_as_dict_from_raw_data_responses(ip_v4='Any ip_v4'), indent=4, ensure_ascii=False
-        )
+        self._storage_raw_responses: deque[ResponseEntity] = deque(maxlen=8)
+    # def __repr__(self):
+    #     processed_data_as_json = json.dumps(
+    #         self.build_response_as_dict_from_raw_data_responses(ip_v4="Any ip_v4"), indent=4, ensure_ascii=False
+    #         )
+    #     return (
+    #         f'{self.__class__.__name__}('
+    #         f'errors={self._errors} raw_responses={self._storage_raw_responses}\n'
+    #         f'processed_data_response:\n{processed_data_as_json}'
+    #         f')'
+    #     )
 
     @property
     def errors(self) -> MutableSequence[str]:
@@ -176,8 +174,10 @@ class ResponseStorage:
 
         """
         self._processed_data_response = {}
-        for data in self._storage_raw_responses:
-            self._processed_data_response |= data.parser(data.raw_data)
+        while self._storage_raw_responses:
+            resp_data: ResponseEntity = self._storage_raw_responses.popleft()
+            self._processed_data_response |= resp_data.parser(resp_data.raw_data)
+
         # Проверка, если FieldsNames.curr_mode None, то удаляем из словаря
         try:
             current_mode = self._processed_data_response.pop(FieldsNames.curr_mode)
@@ -199,10 +199,6 @@ class ResponseStorage:
             for k, v in data:
                 self._processed_data_response[k] = v
 
-    # def load_raw_response(self, raw_response):
-    #     self.reset_all_data()
-    #     self.last_raw_response = raw_response
-
     def reset_all_data(self):
         self.reset_processed_data_response()
         self.reset_errors()
@@ -212,89 +208,4 @@ class ResponseStorage:
 
     def reset_errors(self):
         self._errors = deque(maxlen=8)
-
-
-# class Response:
-#
-#     def __init__(self, protocol: str):
-#         self._protocol = protocol
-#         self._errors = deque(maxlen=8)
-#         self._processed_data_response = {}
-#         self._raw_response = None
-#         self._response: list = [self._errors, self._processed_data_response, self._raw_response]
-#
-#     @property
-#     def protocol(self) -> str:
-#         return self._protocol
-#
-#     @property
-#     def full(self) -> list[Any]:
-#         return self._response
-#
-#     @property
-#     def errors(self) -> MutableSequence[str]:
-#         return self._errors
-#
-#     def load_raw_response(self):
-#         self.clear()
-#
-#     @property
-#     def data(self) -> MutableMapping[str, Any]:
-#         return self._processed_data_response
-#
-#     def build_as_dict(self, ip_v4: str):
-#         """
-#         Формирует словарь их self.response.
-#         После запроса, self.response принимает кортеж из 2 элементов:
-#         i[0] -> Строка с сообщением об ошибке, если в процессе запроса было возбуждено исключение, иначе None
-#         i[1] -> Словарь с распарсенными данными из ответа.
-#         :return: Словарь вида:
-#                  Если self.response[0] -> None(Нет ошибки):
-#                      "response": {
-#                           "protocol": "snmp",
-#                           "ip_address": "10.179.122.113",
-#                           "error": None,
-#                           "fixed_time_status": "0",
-#                           "plan_source": "7",
-#                           "current_status": "3_light",
-#                           "current_stage": 1,
-#                           "current_plan": "2",
-#                           "num_detectors": "5",
-#                           "status_soft_flag180_181": "00",
-#                           "current_mode": "VA"
-#                      }
-#                  Если self.response[0] -> "No SNMP response received before timeout"(Есть ошибка):
-#                      "response": {
-#                           "protocol": "snmp",
-#                           "ip_address": "10.45.154.16",
-#                           "error": "No SNMP response received before timeout"
-#                      }
-#
-#         """
-#         return {
-#             str(FieldsNames.protocol): self._protocol,
-#             str(FieldsNames.ipv4_address): ip_v4,
-#             str(FieldsNames.errors): [str(e) for e in self._errors],
-#             str(FieldsNames.data): self._processed_data_response
-#         }
-#
-#     def add_data_to_attrs(
-#             self,
-#             error: Exception | str = None,
-#             data: dict[str, Any] = None
-#     ):
-#         if isinstance(data, MutableMapping):
-#             self._processed_data_response |= data
-#         if isinstance(error, (Exception, str)):
-#             self._errors.append(error)
-#
-#     def clear(self):
-#         self.clear_processed_data_response()
-#         self.clear_errors()
-#
-#     def clear_processed_data_response(self):
-#         self._processed_data_response = {}
-#
-#     def clear_errors(self):
-#         self._errors = []
 

@@ -13,6 +13,7 @@ from sdp_lib.management_controllers.exceptions import (
     BadControllerType,
     BadValueToSet
 )
+from sdp_lib.management_controllers.hosts_core import ResponseEntity
 from sdp_lib.management_controllers.http.http_core import HttpHosts
 from sdp_lib.management_controllers.http.peek import (
     routes,
@@ -21,7 +22,7 @@ from sdp_lib.management_controllers.http.peek import (
 from sdp_lib.management_controllers.http.peek.varbinds import InputsVarbinds
 from sdp_lib.management_controllers.parsers.parsers_peek_http_new import (
     MainPageParser,
-    InputsPageParser,
+    InputsPageParser, PeekWebPagesParser,
 )
 from sdp_lib.management_controllers.structures import HttpResponseStructure
 
@@ -41,7 +42,7 @@ class PeekWebHosts(HttpHosts):
     @cached_property
     def matches(self) -> dict[DataFromWeb, tuple[str, Callable, Type[T_Parsers]]]:
         return {
-            DataFromWeb.main_page_get: (routes.main_page, self._request_sender.fetch, MainPageParser),
+            DataFromWeb.main_page_get: (routes.main_page, self._request_sender.fetch, PeekWebPagesParser),
             DataFromWeb.inputs_page_get: (routes.get_inputs, self._request_sender.fetch, InputsPageParser),
             DataFromWeb.inputs_page_set: (routes.set_inputs, self._request_sender.post_request, None),
         }
@@ -53,7 +54,7 @@ class PeekWebHosts(HttpHosts):
             parser_class,
             **kwargs
     ):
-        self.last_response = await self._request_sender.http_request_to_host(
+        self._tmp_response = await self._request_sender.http_request_to_host(
             url=url,
             method=method,
             **kwargs
@@ -63,19 +64,22 @@ class PeekWebHosts(HttpHosts):
 
         # print(f'self.last_response: {self.last_response}')
 
-        if parser_class is None:
-            # Вернуть ответ из self._request_sender.http_request_to_host если парсер не задан
-            return self.last_response[HttpResponseStructure.CONTENT]
+        # if parser_class is None:
+        #     # Вернуть ответ из self._request_sender.http_request_to_host если парсер не задан
+        #     return self._tmp_response[HttpResponseStructure.CONTENT]
 
-        parser = parser_class()
-        parser.parse(self.last_response[HttpResponseStructure.CONTENT])
+        parser = PeekWebPagesParser()
+        # parsed_data = parser.main_page_parser.parse()
+
+        # parser = parser_class()
+        # parser.parse(self._tmp_response[HttpResponseStructure.CONTENT])
         # print(f'parser.data_for_response: {parser.data_for_response}')
-        if not parser.data_for_response:
-            self.add_data_to_data_response_attrs(error=BadControllerType())
-        else:
-            self.add_data_to_data_response_attrs(
-                data=parser.data_for_response
-            )
+
+        self._response_storage.put_raw_responses(ResponseEntity(
+            raw_data=self._tmp_response[HttpResponseStructure.CONTENT],
+            name='PeekWeb',
+            parser=parser.main_page_parser.parse
+        ))
 
         return self
 
@@ -91,8 +95,8 @@ class PeekWebHosts(HttpHosts):
                         **kwargs
                     )
                 )
-        if self.response_errors:
-            self.remove_data_from_response()
+        # if self.response_errors:
+        #     self.remove_data_from_response()
         return self
 
     async def get_states(self):

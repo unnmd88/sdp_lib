@@ -39,5 +39,6 @@ class HttpHosts(Host):
 
         """
         if self._tmp_response[HttpResponseStructure.ERROR] is not None:
-            self.add_data_to_data_response_attrs(self._tmp_response[HttpResponseStructure.ERROR])
-        return bool(self.response_errors)
+            self._response_storage.put_errors(self._tmp_response[HttpResponseStructure.ERROR])
+            return True
+        return False
