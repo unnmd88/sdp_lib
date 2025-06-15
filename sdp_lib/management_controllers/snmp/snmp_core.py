@@ -32,8 +32,8 @@ from sdp_lib.management_controllers.parsers.snmp_parsers.varbinds_parsers import
     ParsersVarbindsPeek, default_processing_ug405_config, default_processing_stcip, pretty_processing_stcip_without_extras
 )
 from sdp_lib.management_controllers.snmp import (
-    snmp_config,
-    oids, snmp_utils
+    oids,
+    snmp_utils
 )
 from sdp_lib.management_controllers.structures import SnmpResponseStructure
 from sdp_lib.management_controllers.snmp.set_commands import SnmpEntity
@@ -134,6 +134,7 @@ class SnmpHost(Host):
     @abc.abstractmethod
     def snmp_config(self) -> HostSnmpConfig:
         """ Возвращает конфигурацию snmp протокола контроллера (ug405 | stcip | ...) """
+        ...
 
     @classmethod
     def _get_parser(cls):
@@ -217,12 +218,12 @@ class Ug405Hosts(SnmpHost, ScnConverterMixin):
         self.scn_as_chars = scn
         self.scn_as_ascii_string = self._get_scn_as_ascii_from_scn_as_chars_attr()
 
-    @property
+    @cached_property
     def snmp_config(self) -> HostSnmpConfig:
         """
         Возвращает конфигурацию конкретной реализации snmp(Stcip, Ug405 ...)
         """
-        return snmp_config.ug405
+        return snmp_utils.ug405_config
 
     @property
     @abc.abstractmethod
@@ -436,9 +437,9 @@ class StcipHosts(SnmpHost):
                 create_response_entity=True
             )
 
-    @property
+    @cached_property
     def snmp_config(self) -> HostSnmpConfig:
-        return snmp_config.stcip
+        return snmp_utils.stcip_config
 
     async def get_states(self):
         self._get_states_request_config.load_snmp_request_coro(

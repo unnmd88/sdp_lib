@@ -31,7 +31,7 @@ from sdp_lib.management_controllers.snmp.oids import (
     Oids,
     oids_scn_required
 )
-from sdp_lib import logging_config, constants
+from sdp_lib import logging_config
 
 logger = logging.getLogger(__name__)
 load_dotenv()
