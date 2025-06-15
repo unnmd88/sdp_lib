@@ -7,18 +7,18 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import (
     Self,
-    TypeVar,
-    Type,
+    Type
 )
 from collections.abc import (
     Callable,
     Awaitable
 )
 
-from pysnmp.entity.engine import SnmpEngine
-
 from sdp_lib.management_controllers.exceptions import BadControllerType
-from sdp_lib.management_controllers.hosts_core import Host, ResponseEntity
+from sdp_lib.management_controllers.hosts_core import (
+    Host,
+    ResponseEntity
+)
 from sdp_lib.management_controllers.fields_names import FieldsNames
 from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods import (
     get_val_as_str,
@@ -33,8 +33,8 @@ from sdp_lib.management_controllers.parsers.snmp_parsers.varbinds_parsers import
     ParsersVarbindsPotokP,
     ParsersVarbindsPeek,
     default_processing_ug405_config,
-    default_processing_stcip,
-    pretty_processing_stcip_without_extras
+    default_processing_stcip_config,
+    pretty_processing_stcip_config_without_extras
 )
 from sdp_lib.management_controllers.snmp import (
     oids,
@@ -52,7 +52,8 @@ from sdp_lib.management_controllers.snmp.snmp_utils import (
 )
 from sdp_lib.management_controllers.snmp.snmp_requests import (
     AsyncSnmpRequests,
-    snmp_engine
+    snmp_engine,
+    SnmpEngine
 )
 from sdp_lib.management_controllers.snmp.snmp_utils import (
     swarco_stcip_varbinds,
@@ -215,9 +216,10 @@ class Ug405Hosts(SnmpHost, ScnConverterMixin):
         return snmp_utils.ug405_config
 
     @property
-    @abc.abstractmethod
+    @abstractmethod
     def _method_for_request_scn(self) -> Callable:
         """ Snmp-метод для получения scn """
+        ...
 
     @property
     @abstractmethod
@@ -228,6 +230,11 @@ class Ug405Hosts(SnmpHost, ScnConverterMixin):
         иначе False.
         """
         raise NotImplementedError()
+
+    @abstractmethod
+    def _set_scn_from_response(self):
+        """ Устанавливает scn из snmp-response в соответствующие атрибуты. """
+        ...
 
     async def get_scn_and_add_error_if_has(self) -> bool:
         """
@@ -247,6 +254,25 @@ class Ug405Hosts(SnmpHost, ScnConverterMixin):
             self.reset_scn_attrs()
             self._response_storage.put_errors(e)
         return False
+
+    def _get_scn_as_ascii_from_scn_as_chars_attr(self) -> str | None:
+        return self.get_scn_as_ascii_from_scn_as_chars_attr(self.scn_as_chars)
+
+    def _get_scn_as_chars_from_scn_as_ascii(self) -> str:
+        return self.get_scn_as_ascii_from_scn_as_chars_attr(self.scn_as_ascii_string)
+
+    def _get_config_parser_with_remove_scn_from_oid_and_pretty_parsed_varbinds(self):
+        return ConfigsParser(
+            extras=True,
+            oid_handler=build_func_with_remove_scn(self.scn_as_ascii_string, get_val_as_str),
+            val_oid_handler=pretty_print,
+            oid_name_by_alias=True,
+            host_protocol=FieldsNames.protocol_ug405
+        )
+
+    def reset_scn_attrs(self):
+        self.scn_as_chars = None
+        self.scn_as_ascii_string = None
 
     async def set_operation_mode3_across_operation_mode2_and_add_error_if_has(self) -> bool:
         """
@@ -296,60 +322,6 @@ class Ug405Hosts(SnmpHost, ScnConverterMixin):
             self.set_operation_mode3_across_operation_mode2_and_add_error_if_has()
         )
 
-    async def get_states(self) -> Self:
-        """
-        Отравляет snmp-get запрос и формирует текущее состояние работы
-        дорожного контроллера.
-        :return: Self.
-        """
-        if self._get_states_request_config is not None:
-            self._get_states_request_config.load_snmp_request_coro(
-                self._request_sender.snmp_get(self._varbinds.get_varbinds_current_states(self.scn_as_ascii_string))
-            )
-            return await self._make_request_and_load_response_to_storage(self._get_states_request_config)
-
-        scn_success = await self.get_scn_and_add_error_if_has()
-        if not scn_success:
-            return self
-
-        self._get_states_request_config = RequestConfig(
-            parser=self._parser,
-            snmp_request_coro=self._request_sender.snmp_get(
-                self._varbinds.get_varbinds_current_states(self.scn_as_ascii_string)
-            ),
-            # snmp_method=self._request_sender.snmp_get,
-            parser_config=self._get_parser_config_with_remove_scn_from_oid_and_pretty_parsed_varbinds(),
-            # varbinds=self._varbinds.get_varbinds_current_states(self.scn_as_ascii_string)
-        )
-        return await self._make_request_and_load_response_to_storage(self._get_states_request_config)
-
-    async def set_stage(self, value: int) -> Self:
-        """
-        Отравляет snmp-set запрос на установку фазы дорожного контроллера.
-        :param value: Номер фазы в десятичном представлении.
-        :return:
-        """
-        value = int(value)
-        if not 0 <= value <= self._varbinds.max_stage:
-            raise ValueError(f'Недопустимый номер фазы: {self.value}')
-
-        if value > 0:
-            if self.has_operation_mode_dependency:
-                success = await self.collect_scn_and_operation_mode_dependency_and_add_error_if_has()
-            else:
-                success = await self.collect_scn_dependency_and_add_error_if_has()
-            if not success:
-                return self
-        self._request_config.parser = self._parser
-        self._request_config.load_snmp_request_coro(
-            self._request_sender.snmp_set(self._varbinds.get_varbinds_set_stage(self.scn_as_ascii_string, value))
-        )
-        self._request_config.parser_config = default_processing_ug405_config
-
-        print(self._request_config)
-
-        return await self._make_request_and_load_response_to_storage(self._request_config)
-
     async def set_operation_mode(self, value: int) -> bool:
         """
         Отправляет запрос на установку utcType2OperationMode.
@@ -384,30 +356,59 @@ class Ug405Hosts(SnmpHost, ScnConverterMixin):
         """
         return await self.set_operation_mode(3)
 
-    def _get_scn_as_ascii_from_scn_as_chars_attr(self) -> str | None:
-        return self.get_scn_as_ascii_from_scn_as_chars_attr(self.scn_as_chars)
+    async def get_states(self) -> Self:
+        """
+        Отравляет snmp-get запрос и формирует текущее состояние работы
+        дорожного контроллера.
+        :return: Self.
+        """
+        if self._get_states_request_config is not None:
+            self._get_states_request_config.load_snmp_request_coro(
+                self._request_sender.snmp_get(self._varbinds.get_varbinds_current_states(self.scn_as_ascii_string))
+            )
+            return await self._make_request_and_load_response_to_storage(self._get_states_request_config)
 
-    def _get_scn_as_chars_from_scn_as_ascii(self) -> str:
-        return self.get_scn_as_ascii_from_scn_as_chars_attr(self.scn_as_ascii_string)
+        scn_success = await self.get_scn_and_add_error_if_has()
+        if not scn_success:
+            return self
 
-    def _set_scn_from_response(self):
-        raise NotImplementedError()
-
-    def _get_parser_config_with_remove_scn_from_oid_and_pretty_parsed_varbinds(self):
-        return ConfigsParser(
-            extras=True,
-            oid_handler=build_func_with_remove_scn(self.scn_as_ascii_string, get_val_as_str),
-            val_oid_handler=pretty_print,
-            oid_name_by_alias=True,
-            host_protocol=FieldsNames.protocol_ug405
+        self._get_states_request_config = RequestConfig(
+            parser=self._parser,
+            snmp_request_coro=self._request_sender.snmp_get(
+                self._varbinds.get_varbinds_current_states(self.scn_as_ascii_string)
+            ),
+            # snmp_method=self._request_sender.snmp_get,
+            parser_config=self._get_config_parser_with_remove_scn_from_oid_and_pretty_parsed_varbinds(),
+            # varbinds=self._varbinds.get_varbinds_current_states(self.scn_as_ascii_string)
         )
+        return await self._make_request_and_load_response_to_storage(self._get_states_request_config)
 
-    def _get_default_processed_config(self):
-        return default_processing_ug405_config
+    async def set_stage(self, value: int) -> Self:
+        """
+        Отравляет snmp-set запрос на установку фазы дорожного контроллера.
+        :param value: Номер фазы в десятичном представлении.
+        :return:
+        """
+        value = int(value)
+        if not 0 <= value <= self._varbinds.max_stage:
+            raise ValueError(f'Недопустимый номер фазы: {self.value}')
 
-    def reset_scn_attrs(self):
-        self.scn_as_chars = None
-        self.scn_as_ascii_string = None
+        if value > 0:
+            if self.has_operation_mode_dependency:
+                success = await self.collect_scn_and_operation_mode_dependency_and_add_error_if_has()
+            else:
+                success = await self.collect_scn_dependency_and_add_error_if_has()
+            if not success:
+                return self
+        self._request_config.parser = self._parser
+        self._request_config.load_snmp_request_coro(
+            self._request_sender.snmp_set(self._varbinds.get_varbinds_set_stage(self.scn_as_ascii_string, value))
+        )
+        self._request_config.parser_config = default_processing_ug405_config
+
+        print(self._request_config)
+
+        return await self._make_request_and_load_response_to_storage(self._request_config)
 
 
 class StcipHosts(SnmpHost):
@@ -437,7 +438,7 @@ class StcipHosts(SnmpHost):
         return await self._make_request_and_load_response_to_storage(self._get_states_request_config)
 
     async def set_stage(self, value: int):
-        self._parse_method_config = default_processing_stcip
+        self._parse_method_config = default_processing_stcip_config
         self._request_config.snmp_method = self._request_sender.snmp_set
         self._set_varbinds_and_method_for_request(
             varbinds=self._varbinds.get_varbinds_set_stage(value),
@@ -446,7 +447,7 @@ class StcipHosts(SnmpHost):
         return await self._make_request_and_build_response()
 
     async def get_current_stage(self):
-        self._parse_method_config = pretty_processing_stcip_without_extras
+        self._parse_method_config = pretty_processing_stcip_config_without_extras
         self._set_varbinds_and_method_for_request(
             varbinds=self._varbinds.get_stage_varbinds,
             method=self._request_sender.snmp_get
@@ -471,11 +472,11 @@ class PotokP(Ug405Hosts):
     _parser_class = ParsersVarbindsPotokP
     _varbinds = potok_ug405_varbinds
 
-    @property
+    @cached_property
     def _method_for_request_scn(self) -> Callable:
         return self._request_sender.snmp_get
 
-    @property
+    @cached_property
     def has_operation_mode_dependency(self) -> bool:
         return False
 
@@ -493,11 +494,11 @@ class PeekUg405(Ug405Hosts):
     _parser_class = ParsersVarbindsPeek
     _varbinds = peek_ug405_varbinds
 
-    @property
+    @cached_property
     def _method_for_request_scn(self) -> Callable:
         return self._request_sender.snmp_get_next
 
-    @property
+    @cached_property
     def has_operation_mode_dependency(self) -> bool:
         return True
 
