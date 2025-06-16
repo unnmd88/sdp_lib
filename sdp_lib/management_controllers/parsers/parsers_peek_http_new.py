@@ -265,6 +265,7 @@ class MainPageParser(Parsers):
                                         При True -> формирует атрибут self.parsed_content_as_dict.
         :return: None.
         """
+        print(f'content: {content}')
         content_as_list_lines = content.splitlines()
         common_data_is_extracted = False
         for i, line in enumerate(content_as_list_lines):

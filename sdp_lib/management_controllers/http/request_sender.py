@@ -17,15 +17,19 @@ class AsyncHttpRequests:
         self._client_get_timeout = aiohttp.ClientTimeout(connect=self.default_timeout_get_request)
         self._client_post_timeout = aiohttp.ClientTimeout(connect=self.default_timeout_get_request)
 
+    def load_session(self, session: aiohttp.ClientSession):
+        self._session = session
+
     async def fetch(
             self,
             url: str,
             timeout: aiohttp.ClientTimeout = aiohttp.ClientTimeout(connect=.4)
-    ) -> str:
+    ) -> tuple[int, str]:
+
         async with self._session.get(url, timeout=timeout) as response:
             assert response.status == 200
-            return await response.text()
-
+            r = await response.text()
+            return response.status, r
 
     async def post_request(
             self,
@@ -89,6 +93,8 @@ class AsyncHttpRequests:
         error = None
         try:
             status, content = await request_response.coro
+            print(content)
+            print(status)
             request_response.load_raw_response(content)
             request_response.load_status_response(status)
         except asyncio.TimeoutError:

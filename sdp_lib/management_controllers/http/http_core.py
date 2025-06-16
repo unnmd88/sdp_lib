@@ -19,8 +19,8 @@ class HttpHosts(Host):
     def __init__(self, ipv4: str = None, host_id = None, session: aiohttp.ClientSession = None):
         super().__init__(ipv4=ipv4, host_id=host_id, driver=session)
         self._base_url = f'{Names.http_prefix}{self._ipv4}' if ipv4 is not None else ''
-        self.set_driver(session)
-        self._request_sender = AsyncHttpRequests(self)
+        # self.set_driver(session)
+        self._request_sender = AsyncHttpRequests(session)
         self._request_method: Callable | None = None
         # self._parse_method_config = None
         self._states_config = None

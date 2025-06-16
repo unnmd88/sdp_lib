@@ -3,7 +3,6 @@ from collections.abc import Awaitable, MutableSequence, MutableMapping
 from dataclasses import dataclass, field
 from enum import IntEnum
 from functools import cached_property
-from tkinter.messagebox import RETRY
 from typing import (
     Callable,
     Type,
@@ -235,21 +234,26 @@ class PeekWebHosts(HttpHosts):
             pending.append(asyncio.create_task(self._request_sender.common_request(self._storage.popleft())))
         # pending = [asyncio.create_task(req_resp.coro) for req_resp in self._storage]
         while pending:
-            done, pending = asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
-        for done_task in pending:
-            await done_task
-            req_resp = done_task.result()
-            if req_resp.add_to_response_storage:
-                self._response_storage.put_raw_responses(req_resp)
-        print(self._response_storage.storage_raw_responses)
+            done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+            print(f'done: {done}')
+            print(f'pending: {pending}')
+            for done_task in done:
+                await done_task
+                # print(f'done_task: {done_task!r}')
+                print(f'done_task: {type(done_task.result())}')
+                r= done_task.result()
+                print(f'r.add_to_response_storage: {r.add_to_response_storage}')
+
+
+                if r.add_to_response_storage:
+                    self._response_storage.put_raw_responses(r)
+                    print(r.parser(r.raw_response))
         return self
 
 
     async def get_states(self):
-        self._states_config.coro = self._request_sender.http_request_to_host(
-            self._base_url + routes.main_page,
-            self._request_sender.fetch
-        )
+        # self._states_config.load_coro(self._request_sender.fetch(self._base_url + routes.main_page))
+        self._states_config.coro = self._request_sender.fetch(self._base_url + routes.main_page)
         self._storage.append(self._states_config)
 
         return await self._common_request()
@@ -322,17 +326,20 @@ async def main():
     """
     Тестовая функция.
     """
+    sess = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(1))
     try:
-        sess = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(1))
         obj = PeekWebHosts('10.179.75.113', host_id='3290', session=sess)
-        # await obj.get_states()
+        await obj.get_states()
         # await obj.request_all_types(AvailableDataFromWeb.main_page_get)
-        await obj.set_inputs_to_web(inps_name_and_vals=(('MPP_PH2', '-'),
-                                                        ('MPP_MAN', '-'),
-                                                        ('MPP_PH3', 'ВКЛ'),
-                                                        ('MPP_PH4', '0')))
+        # await obj.set_inputs_to_web(inps_name_and_vals=(('MPP_PH2', '-'),
+        #                                                 ('MPP_MAN', '-'),
+        #                                                 ('MPP_PH3', 'ВКЛ'),
+        #                                                 ('MPP_PH4', '0')))
 
         # await obj.get_states()
+    except RuntimeError:
+        print(sess.closed)
+
     finally:
         await sess.close()
 
