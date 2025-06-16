@@ -1,12 +1,13 @@
 import asyncio
-from collections.abc import Awaitable, MutableSequence
-from dataclasses import dataclass
+from collections.abc import Awaitable, MutableSequence, MutableMapping
+from dataclasses import dataclass, field
 from enum import IntEnum
 from functools import cached_property
+from tkinter.messagebox import RETRY
 from typing import (
     Callable,
     Type,
-    TypeVar
+    TypeVar, TypeAlias, Any, Self
 )
 
 import aiohttp
@@ -15,7 +16,7 @@ from sdp_lib.management_controllers.exceptions import (
     BadControllerType,
     BadValueToSet
 )
-from sdp_lib.management_controllers.hosts_core import ResponseEntity
+from sdp_lib.management_controllers.hosts_core import ResponseEntity, RequestResponse
 from sdp_lib.management_controllers.http.http_core import HttpHosts
 from sdp_lib.management_controllers.http.peek import (
     routes,
@@ -30,10 +31,6 @@ from sdp_lib.management_controllers.structures import HttpResponseStructure
 
 
 T_Parsers = TypeVar('T_Parsers', MainPageParser, InputsPageParser)
-
-@dataclass
-class RequestConfig:
-    coros: MutableSequence[Awaitable] = None
 
 
 
@@ -174,6 +171,17 @@ class DataFromWeb(IntEnum):
 
 class PeekWebHosts(HttpHosts):
 
+    _parser_class = PeekWebPagesParser
+
+    def __init__(self, ipv4: str = None, host_id = None, session: aiohttp.ClientSession = None):
+        super().__init__(ipv4=ipv4, host_id=host_id, session=session)
+        self._parser = self._parser_class()
+        self._states_config = RequestResponse(
+            name='get_state',
+            add_to_response_storage=True,
+            parser=self._parser.main_page_parser.parse
+        )
+
     @cached_property
     def matches(self) -> dict[DataFromWeb, tuple[str, Callable, Type[T_Parsers]]]:
         return {
@@ -213,29 +221,38 @@ class PeekWebHosts(HttpHosts):
         self._response_storage.put_raw_responses(ResponseEntity(
             raw_data=self._tmp_response[HttpResponseStructure.CONTENT],
             name='PeekWeb',
-            parser=parser.main_page_parser.parse
+            parser=parser.main_page_parser.parse,
         ))
 
         return self
 
     """ Monitoring """
 
-    async def fetch_all_pages(self, *args, **kwargs):
-        async with asyncio.TaskGroup() as tg:
-            for page in args:
-                route, method, parser_class = self.matches.get(page)
-                tg.create_task(
-                    self._single_common_request(
-                        self._base_url + route, method, parser_class,
-                        **kwargs
-                    )
-                )
-        # if self.response_errors:
-        #     self.remove_data_from_response()
+    async def _common_request(self) -> Self:
+
+        pending = []
+        while self._storage:
+            pending.append(asyncio.create_task(self._request_sender.common_request(self._storage.popleft())))
+        # pending = [asyncio.create_task(req_resp.coro) for req_resp in self._storage]
+        while pending:
+            done, pending = asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+        for done_task in pending:
+            await done_task
+            req_resp = done_task.result()
+            if req_resp.add_to_response_storage:
+                self._response_storage.put_raw_responses(req_resp)
+        print(self._response_storage.storage_raw_responses)
         return self
 
+
     async def get_states(self):
-        return await self.fetch_all_pages(DataFromWeb.main_page_get)
+        self._states_config.coro = self._request_sender.http_request_to_host(
+            self._base_url + routes.main_page,
+            self._request_sender.fetch
+        )
+        self._storage.append(self._states_config)
+
+        return await self._common_request()
 
     async def get_inputs(self):
         return await self.fetch_all_pages(DataFromWeb.inputs_page_get)

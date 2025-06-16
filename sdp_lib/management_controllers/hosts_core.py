@@ -4,8 +4,9 @@ from collections.abc import (
     MutableMapping,
     MutableSequence,
     Iterable,
-    Callable
+    Callable, Awaitable
 )
+from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Any, NamedTuple
 
@@ -20,6 +21,40 @@ class ResponseEntity(NamedTuple):
     raw_data: Any
     name: str = ''
     parser: Callable = None
+
+
+@dataclass
+class RequestResponse:
+    name: str
+    add_to_response_storage: bool
+    parser: Callable = None
+    coro: Awaitable | None = None
+    method: Callable | None = None
+    raw_response: str | None = None
+    status_response: int | None = None
+    errors: MutableSequence[str] = field(default_factory=list)
+    processed_response: MutableMapping[str, Any] = field(default_factory=dict)
+
+    def load_coro(self, coro: Awaitable):
+        self.reset_data()
+        self.coro = coro
+
+    def load_raw_response(self, response: str):
+        self.raw_response = response
+
+    def load_error(self, error: str):
+        self.errors.append(str(error))
+
+    def load_status_response(self, status_response: int):
+        self.status_response = status_response
+
+    def reset_data(self):
+        self.coro = None
+        self.method = None
+        self.raw_response = None
+        self.status_response = None
+        self.errors = []
+        self.processed_response = {}
 
 
 class Host:
@@ -40,6 +75,7 @@ class Host:
         self.host_id = host_id
         self._tmp_response = None
         self._response_storage = ResponseStorage(self.protocol)
+        self._storage = deque(maxlen=16)
         # self._varbinds_for_request = None
 
     def __repr__(self):
@@ -112,7 +148,8 @@ class ResponseStorage:
         self._protocol = protocol
         self._errors = []
         self._processed_data_response = {}
-        self._storage_raw_responses: deque[ResponseEntity] = deque(maxlen=8)
+        self._storage_raw_responses: deque[ResponseEntity | RequestResponse] = deque(maxlen=8)
+        self._storage = deque(maxlen=16)
     # def __repr__(self):
     #     processed_data_as_json = json.dumps(
     #         self.build_response_as_dict_from_raw_data_responses(ip_v4="Any ip_v4"), indent=4, ensure_ascii=False
@@ -136,7 +173,7 @@ class ResponseStorage:
     def processed_data_response(self) -> MutableMapping[str, Any]:
         return self._processed_data_response
 
-    def put_raw_responses(self, *args: ResponseEntity):
+    def put_raw_responses(self, *args: ResponseEntity | RequestResponse):
         for response in args:
             self._storage_raw_responses.append(response)
 
