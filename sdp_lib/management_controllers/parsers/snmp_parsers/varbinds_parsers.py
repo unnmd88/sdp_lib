@@ -1,6 +1,7 @@
 import abc
 import typing
 from collections.abc import Callable
+from dataclasses import dataclass
 from functools import cached_property
 
 from sdp_lib.management_controllers.controller_modes import NamesMode
@@ -24,13 +25,19 @@ from sdp_lib.management_controllers.snmp.snmp_utils import(
     StageConverterMixinUg405
 )
 
-
-class ParserConfig(typing.NamedTuple):
+@dataclass(slots=True)
+class ParserConfig:
     extras: bool
-    oid_handler: Callable
-    val_oid_handler: Callable
+    oid_handler: Callable = get_val_as_str
+    val_oid_handler: Callable = pretty_print
     oid_name_by_alias: bool = False
     host_protocol: str = None
+
+    def set_oid_handler(self, handler: Callable):
+        self.oid_handler = handler
+
+    def set_val_oid_handler(self, handler: Callable):
+        self.val_oid_handler = handler
 
 
 default_processing_parser_config = ParserConfig(
@@ -99,19 +106,9 @@ class AbstractSnmpParser(Parsers):
         for field_name, cb_fn in self.extras_methods.items():
             self.parsed_content_as_dict[field_name] = cb_fn()
 
-    def load_varbinds(self, varbinds: T_Varbinds):
-        self.content = varbinds
 
-    def load_config_parser(self, config: ParserConfig):
-        self.config = config
 
-    def load_varbinds_and_configparser(
-            self,
-            varbinds: T_Varbinds,
-            configparser: ParserConfig
-    ):
-        self.load_varbinds(varbinds)
-        self.load_config_parser(configparser)
+
 
     def parse(
             self,

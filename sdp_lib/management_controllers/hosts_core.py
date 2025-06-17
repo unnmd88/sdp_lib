@@ -1,19 +1,23 @@
+import asyncio
 import ipaddress
+import itertools
+import json
 from collections import deque
 from collections.abc import (
     MutableMapping,
     MutableSequence,
     Iterable,
-    Callable, Awaitable
+    Callable, Awaitable, Coroutine
 )
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, Self
 
 import aiohttp
 from pysnmp.entity.engine import SnmpEngine
 
 from sdp_lib.management_controllers.fields_names import FieldsNames
+from sdp_lib.management_controllers.parsers.parser_core import Parsers
 from sdp_lib.utils_common.utils_common import check_is_ipv4
 
 
@@ -23,24 +27,24 @@ class ResponseEntity(NamedTuple):
     parser: Callable = None
 
 
-@dataclass
+@dataclass(repr=False)
 class RequestResponse:
+    protocol: str
     name: str
     add_to_response_storage: bool
-    parser: Callable = None
+    parser: Callable | Parsers = None
     coro: Awaitable | None = None
-    method: Callable | None = None
-    raw_response: str | None = None
+    data_to_handling: str | None = None
     status_response: int | None = None
     errors: MutableSequence[str] = field(default_factory=list)
-    processed_response: MutableMapping[str, Any] = field(default_factory=dict)
+    _processed_data: MutableMapping[str, Any] = field(default_factory=dict)
 
     def load_coro(self, coro: Awaitable):
         self.reset_data()
         self.coro = coro
 
     def load_raw_response(self, response: str):
-        self.raw_response = response
+        self.data_to_handling = response
 
     def load_error(self, error: str):
         self.errors.append(str(error))
@@ -50,11 +54,20 @@ class RequestResponse:
 
     def reset_data(self):
         self.coro = None
-        self.method = None
-        self.raw_response = None
+        self.data_to_handling = None
         self.status_response = None
         self.errors = []
-        self.processed_response = {}
+        self._processed_data = {}
+
+    @cached_property
+    def processed_pretty_data(self) -> MutableMapping[str, Any]:
+        if not self._processed_data:
+            self._processed_data = self.parser(self.data_to_handling)
+        return self._processed_data
+
+
+
+
 
 
 class Host:
@@ -74,8 +87,16 @@ class Host:
         self._driver = driver
         self.host_id = host_id
         self._tmp_response = None
-        self._response_storage = ResponseStorage(self.protocol)
-        self._storage = deque(maxlen=16)
+        self._request_storage = deque(maxlen=16)
+        self._data_storage = ResponseStorage()
+        self._processed_data_to_response = {}
+        self._all_errors = []
+        self._pattern_response = {
+            str(FieldsNames.protocol): self.protocol,
+            str(FieldsNames.ipv4_address): self._ipv4,
+            str(FieldsNames.errors): self._all_errors,
+            str(FieldsNames.data): self._processed_data_to_response
+        }
         # self._varbinds_for_request = None
 
     def __repr__(self):
@@ -87,11 +108,11 @@ class Host:
 
     def __getattr__(self, item):
         if 'stage' in item:
-            return self._response_storage.processed_data_response.get(FieldsNames.curr_stage)
+            return self._processed_data_to_response.get(FieldsNames.curr_stage)
         raise AttributeError()
 
     def __setattr__(self, key, value):
-        if key == '_ipv4':
+        if key == '_ipv4' and value:
             print(ipaddress.IPv4Address(value))
         super().__setattr__(key, value)
 
@@ -121,67 +142,14 @@ class Host:
         self._driver = driver
 
     @property
-    def response(self):
-        return self._response_storage
+    def data_storage(self):
+        return self._data_storage.request_response_storage
 
-    @property
-    def response_as_dict(self):
-        return self._response_storage.build_response_as_dict_from_raw_data_responses(self._ipv4)
+    def clear_response_data(self):
+        self._processed_data_to_response.clear()
+        self._all_errors.clear()
 
-    # def add_data_to_data_response_attrs(
-    #         self,
-    #         error: Exception | str = None,
-    #         data: dict[str, Any] = None
-    # ):
-    #     self._response.add_data_to_attrs(error, data)
-
-    def remove_data_from_response(self):
-        self._response_storage.reset_processed_data_response()
-
-    def remove_errors_from_response(self):
-        self._response_storage.reset_errors()
-
-
-class ResponseStorage:
-
-    def __init__(self, protocol: str):
-        self._protocol = protocol
-        self._errors = []
-        self._processed_data_response = {}
-        self._storage_raw_responses: deque[ResponseEntity | RequestResponse] = deque(maxlen=8)
-        self._storage = deque(maxlen=16)
-    # def __repr__(self):
-    #     processed_data_as_json = json.dumps(
-    #         self.build_response_as_dict_from_raw_data_responses(ip_v4="Any ip_v4"), indent=4, ensure_ascii=False
-    #         )
-    #     return (
-    #         f'{self.__class__.__name__}('
-    #         f'errors={self._errors} raw_responses={self._storage_raw_responses}\n'
-    #         f'processed_data_response:\n{processed_data_as_json}'
-    #         f')'
-    #     )
-
-    @property
-    def errors(self) -> MutableSequence[str]:
-        return self._errors
-
-    @cached_property
-    def storage_raw_responses(self) -> MutableSequence[ResponseEntity]:
-        return self._storage_raw_responses
-
-    @property
-    def processed_data_response(self) -> MutableMapping[str, Any]:
-        return self._processed_data_response
-
-    def put_raw_responses(self, *args: ResponseEntity | RequestResponse):
-        for response in args:
-            self._storage_raw_responses.append(response)
-
-    def put_errors(self, *errors):
-        for err in errors:
-            self._errors.append(str(err))
-
-    def build_response_as_dict_from_raw_data_responses(self, ip_v4: str):
+    def build_response_as_dict(self):
         """
         Формирует словарь их self.response.
         После запроса, self.response принимает кортеж из 2 элементов:
@@ -210,39 +178,69 @@ class ResponseStorage:
                      }
 
         """
-        self._processed_data_response = {}
-        while self._storage_raw_responses:
-            resp_data: ResponseEntity = self._storage_raw_responses.popleft()
-            self._processed_data_response |= resp_data.parser(resp_data.raw_data)
+        self.clear_response_data()
+
+        # self._all_errors = [err for err in (obj.errors for obj in self.data_storage)]
+        for err in (obj.errors for obj in self.data_storage):
+            if err:
+                self._all_errors.append(err)
+
+        print(f'self._all_errors: {self._all_errors}')
+        if self._all_errors:
+            self._processed_data_to_response.clear()
+        else:
+            while self.data_storage:
+                resp_data: RequestResponse =self.data_storage.popleft()
+                print(f'resp_data: {resp_data.data_to_handling}')
+                print(f'resp_data: {resp_data.errors}')
+
+                self._processed_data_to_response |= resp_data.processed_pretty_data
 
         # Проверка, если FieldsNames.curr_mode None, то удаляем из словаря
         try:
-            current_mode = self._processed_data_response.pop(FieldsNames.curr_mode)
+            current_mode = self._processed_data_to_response.pop(FieldsNames.curr_mode)
             if current_mode is not None:
-                self._processed_data_response[FieldsNames.curr_mode] = current_mode
+                self._processed_data_to_response[FieldsNames.curr_mode] = current_mode
         except KeyError:
             pass
-        return {
-            str(FieldsNames.protocol): self._protocol,
-            str(FieldsNames.ipv4_address): ip_v4,
-            str(FieldsNames.errors): ', '.join(str(e) for e in self._errors),
-            str(FieldsNames.data): self._processed_data_response
-        }
+        print(f'self._processed_data_to_response: {self._processed_data_to_response}')
+        return self._pattern_response
 
-    def add_data_to_processed_response(self, data: MutableMapping[str, Any] | Iterable[tuple[str, Any]]):
-        try:
-            self._processed_data_response |= data
-        except TypeError:
-            for k, v in data:
-                self._processed_data_response[k] = v
+    async def _common_request(self) -> Self:
+        pending = []
+        while self._request_storage:
+            pending.append(asyncio.create_task(self._request_sender.common_request(self._request_storage.popleft())))
+        # pending = [asyncio.create_task(req_resp.coro) for req_resp in self._storage]
+        while pending:
+            done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+            for done_task in done:
+                await done_task
+                r= done_task.result()
+                if r.add_to_response_storage:
+                    self._data_storage.put(r)
+        return self
 
-    def reset_all_data(self):
-        self.reset_processed_data_response()
-        self.reset_errors()
+class ResponseStorage:
 
-    def reset_processed_data_response(self):
-        self._processed_data_response = {}
+    def __init__(self):
+        self._processed_data_to_response = {}
+        self._storage_request_responses: deque[ResponseEntity | RequestResponse] = deque(maxlen=8)
 
-    def reset_errors(self):
-        self._errors = deque(maxlen=8)
+    def __repr__(self):
+        return (
+            f'{self.__class__.__name__}('
+            f'storage_request_responses:\n{self._storage_request_responses} '
+            f'processed_data_to_response={self._processed_data_to_response}'
+            f')'
+        )
 
+    @cached_property
+    def request_response_storage(self):
+        return self._storage_request_responses
+
+    def put(self, *args: ResponseEntity | RequestResponse):
+        for response in args:
+            self._storage_request_responses.append(response)
+
+    def clear(self):
+        self._storage_request_responses.clear()

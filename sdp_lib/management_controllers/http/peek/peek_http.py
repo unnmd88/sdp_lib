@@ -1,4 +1,5 @@
 import asyncio
+import time
 from collections.abc import Awaitable, MutableSequence, MutableMapping
 from dataclasses import dataclass, field
 from enum import IntEnum
@@ -175,7 +176,8 @@ class PeekWebHosts(HttpHosts):
     def __init__(self, ipv4: str = None, host_id = None, session: aiohttp.ClientSession = None):
         super().__init__(ipv4=ipv4, host_id=host_id, session=session)
         self._parser = self._parser_class()
-        self._states_config = RequestResponse(
+        self._request_response_get_states = RequestResponse(
+            protocol=self.protocol,
             name='get_state',
             add_to_response_storage=True,
             parser=self._parser.main_page_parser.parse
@@ -217,7 +219,7 @@ class PeekWebHosts(HttpHosts):
         # parser.parse(self._tmp_response[HttpResponseStructure.CONTENT])
         # print(f'parser.data_for_response: {parser.data_for_response}')
 
-        self._response_storage.put_raw_responses(ResponseEntity(
+        self._data_storage.put(ResponseEntity(
             raw_data=self._tmp_response[HttpResponseStructure.CONTENT],
             name='PeekWeb',
             parser=parser.main_page_parser.parse,
@@ -227,35 +229,10 @@ class PeekWebHosts(HttpHosts):
 
     """ Monitoring """
 
-    async def _common_request(self) -> Self:
-
-        pending = []
-        while self._storage:
-            pending.append(asyncio.create_task(self._request_sender.common_request(self._storage.popleft())))
-        # pending = [asyncio.create_task(req_resp.coro) for req_resp in self._storage]
-        while pending:
-            done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
-            print(f'done: {done}')
-            print(f'pending: {pending}')
-            for done_task in done:
-                await done_task
-                # print(f'done_task: {done_task!r}')
-                print(f'done_task: {type(done_task.result())}')
-                r= done_task.result()
-                print(f'r.add_to_response_storage: {r.add_to_response_storage}')
-
-
-                if r.add_to_response_storage:
-                    self._response_storage.put_raw_responses(r)
-                    print(r.parser(r.raw_response))
-        return self
-
-
     async def get_states(self):
-        # self._states_config.load_coro(self._request_sender.fetch(self._base_url + routes.main_page))
-        self._states_config.coro = self._request_sender.fetch(self._base_url + routes.main_page)
-        self._storage.append(self._states_config)
 
+        self._request_response_get_states.load_coro(self._request_sender.fetch(self._base_url + routes.main_page))
+        self._request_storage.append(self._request_response_get_states)
         return await self._common_request()
 
     async def get_inputs(self):
@@ -329,7 +306,11 @@ async def main():
     sess = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(1))
     try:
         obj = PeekWebHosts('10.179.75.113', host_id='3290', session=sess)
+        start_time = time.perf_counter()
+
         await obj.get_states()
+        print(obj.build_response_as_dict())
+        print(f'время составило: {time.perf_counter() - start_time}')
         # await obj.request_all_types(AvailableDataFromWeb.main_page_get)
         # await obj.set_inputs_to_web(inps_name_and_vals=(('MPP_PH2', '-'),
         #                                                 ('MPP_MAN', '-'),

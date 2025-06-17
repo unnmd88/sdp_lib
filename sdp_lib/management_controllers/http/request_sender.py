@@ -28,8 +28,8 @@ class AsyncHttpRequests:
 
         async with self._session.get(url, timeout=timeout) as response:
             assert response.status == 200
-            r = await response.text()
-            return response.status, r
+            content = await response.text()
+            return response.status, content
 
     async def post_request(
             self,
@@ -93,8 +93,6 @@ class AsyncHttpRequests:
         error = None
         try:
             status, content = await request_response.coro
-            print(content)
-            print(status)
             request_response.load_raw_response(content)
             request_response.load_status_response(status)
         except asyncio.TimeoutError:

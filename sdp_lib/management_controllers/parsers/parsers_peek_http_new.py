@@ -265,7 +265,6 @@ class MainPageParser(Parsers):
                                         При True -> формирует атрибут self.parsed_content_as_dict.
         :return: None.
         """
-        print(f'content: {content}')
         content_as_list_lines = content.splitlines()
         common_data_is_extracted = False
         for i, line in enumerate(content_as_list_lines):
@@ -286,7 +285,7 @@ class MainPageParser(Parsers):
                 stream_data = content_as_list_lines[i: i + 7]
                 self._page_data.all_xp_data.append(self._parse_xp_data(stream_data))
         # self.parsed_content_as_dict = self._main_page_data.as_dict
-        print(self._page_data.as_dict)
+        # print(self._page_data.as_dict)
         return self._page_data.as_dict
 
     # def _get_xp_data_as_dict(self, xp_data: tuple[str, str, str, str]):

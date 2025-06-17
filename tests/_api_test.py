@@ -1,4 +1,5 @@
 import asyncio
+import json
 import time
 
 import aiohttp
@@ -36,8 +37,8 @@ async def main():
 
     # obj = PeekUg405(ipv4='10.45.154.19', host_id='laba', engine=snmp_engine)
 
-    obj = PeekWebHosts('10.45.154.19', session=sess)
-
+    # obj = PeekWebHosts('10.45.154.19', session=sess)
+    obj = PeekWebHosts('10.179.75.113', host_id='3290', session=sess)
     # start_time = time.time()
     # res = await obj.set_stage(2)
 
@@ -50,8 +51,7 @@ async def main():
             start_time = time.time()
             res = await obj.get_states()
             # res = await obj.set_stage(5)
-            print(res.response)
-            print(res.response.build_response_as_dict_from_raw_data_responses(res.ip_v4))
+            print(json.dumps(res.build_response_as_dict(), indent=4, ensure_ascii=False))
             print(f'время составло: {time.time() - start_time}')
             await asyncio.sleep(2)
     finally:

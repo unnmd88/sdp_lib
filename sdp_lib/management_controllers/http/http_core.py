@@ -23,7 +23,7 @@ class HttpHosts(Host):
         self._request_sender = AsyncHttpRequests(session)
         self._request_method: Callable | None = None
         # self._parse_method_config = None
-        self._states_config = None
+        self._request_response_get_states = None
         self._parser = None
         self._varbinds_for_request = None
 
@@ -42,6 +42,6 @@ class HttpHosts(Host):
 
         """
         if self._tmp_response[HttpResponseStructure.ERROR] is not None:
-            self._response_storage.put_errors(self._tmp_response[HttpResponseStructure.ERROR])
+            self._data_storage.put_errors(self._tmp_response[HttpResponseStructure.ERROR])
             return True
         return False

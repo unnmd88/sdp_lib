@@ -17,7 +17,7 @@ from collections.abc import (
 from sdp_lib.management_controllers.exceptions import BadControllerType
 from sdp_lib.management_controllers.hosts_core import (
     Host,
-    ResponseEntity
+    ResponseEntity, RequestResponse
 )
 from sdp_lib.management_controllers.fields_names import FieldsNames
 from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods import (
@@ -136,9 +136,20 @@ class SnmpHost(Host):
         super().__init__(ipv4=ipv4, host_id=host_id)
         self.set_driver(engine)
         self._request_sender = AsyncSnmpRequests(self._driver, self.snmp_config, ipv4=self._ipv4)
-        self._parser = self._parser_class()
-        self._request_config: RequestConfig = RequestConfig(parser=self._parser)
-        self._get_states_request_config: RequestConfig | None = None
+        # self._parser = self._parser_class()
+        self._request_response_get_states = RequestResponse(
+            protocol=self.protocol,
+            name='get_state',
+            add_to_response_storage=True,
+            parser=self._parser_class()
+        )
+        self._get_states_parser_config: ParserConfig = None
+        # self._request_response = RequestResponse(
+        #     protocol=self.protocol,
+        #     name='get_state',
+        #     add_to_response_storage=True,
+        #     parser=self._parser_class()
+        # )
 
     @cached_property
     @abc.abstractmethod
@@ -157,28 +168,25 @@ class SnmpHost(Host):
     def reset_states_request_config(self):
         self._get_states_request_config = None
 
-    async def _make_request_and_load_response_to_storage(self, request_config: RequestConfig) -> Self:
+    async def _make_request(self, request_response: RequestResponse) -> Self:
         """
         Осуществляет вызов соответствующего snmp-запроса и передает
         self.__parse_response_all_types_requests полученный ответ для парса response.
         """
         # self._tmp_response = await request_config.snmp_method(varbinds=request_config.varbinds)
-        self._tmp_response = await request_config.snmp_request_coro
-        self._check_response_errors_and_add_to_response_entity_if_has()
-        if request_config.create_response_entity:
-            self._parser.load_config_parser(request_config.parser_config)
-            self._response_storage.storage_raw_responses.append(
-                ResponseEntity(
-                    raw_data=self._tmp_response[SnmpResponseStructure.VAR_BINDS],
-                    name=FieldsNames.snmp_varbinds,
-                    parser=self._parser
-                )
-            )
+        self._tmp_response = await request_response.coro
+        request_response = self._check_response_errors_and_add_to_response_entity_if_has(request_response)
+        if request_response.errors:
+            return request_response
+
+        request_response.load_raw_response(self._tmp_response[SnmpResponseStructure.VAR_BINDS])
+        if request_response.add_to_response_storage:
+            self._data_storage.put(request_response)
             # DEBUG
-            self._response_storage.build_response_as_dict_from_raw_data_responses(self.ip_v4)
+            self.build_response_as_dict()
         return self
 
-    def _check_response_errors_and_add_to_response_entity_if_has(self) -> bool:
+    def _check_response_errors_and_add_to_response_entity_if_has(self, request_response: RequestResponse) -> RequestResponse:
         """
         self._response[ResponseStructure.ERROR_INDICATION] = error_indication: errind.ErrorIndication,
         self._response[ResponseStructure.ERROR_STATUS] = error_status: Integer32 | int,
@@ -186,12 +194,12 @@ class SnmpHost(Host):
         :return True, при наличии ошибки запроса(error_indication | error_status | error_index):
         """
         if self._tmp_response[SnmpResponseStructure.VAR_BINDS]:
-            return False
-        self._response_storage.put_errors(
+            return request_response
+        request_response.load_error(
             self._tmp_response[SnmpResponseStructure.ERROR_INDICATION]
             or BadControllerType()
         )
-        return True
+        return request_response
 
 
 class Ug405Hosts(SnmpHost, ScnConverterMixin):
@@ -207,6 +215,14 @@ class Ug405Hosts(SnmpHost, ScnConverterMixin):
         super().__init__(ipv4=ipv4, engine=engine, host_id=host_id)
         self.scn_as_chars = scn
         self.scn_as_ascii_string = self._get_scn_as_ascii_from_scn_as_chars_attr()
+        self._get_states_parser_config = ParserConfig(
+            extras=True,
+            # oid_handler=build_func_with_remove_scn(self.scn_as_ascii_string, get_val_as_str),
+            val_oid_handler=pretty_print,
+            oid_name_by_alias=True,
+            host_protocol=FieldsNames.protocol_ug405
+        )
+
 
     @cached_property
     def snmp_config(self) -> HostSnmpConfig:
@@ -236,24 +252,25 @@ class Ug405Hosts(SnmpHost, ScnConverterMixin):
         """ Устанавливает scn из snmp-response в соответствующие атрибуты. """
         ...
 
-    async def get_scn_and_add_error_if_has(self) -> bool:
+    async def get_scn_and_add_error_if_has(self, request_response: RequestResponse) -> RequestResponse:
         """
         Получает и обрабатывает зависимость для snmp-запросов.
         В данной реализации получение scn и установка в соответствующие атрибуты.
         """
-        if self.scn_as_ascii_string:
-            return True
+        # if self.scn_as_ascii_string:
+        #     return True
 
-        self._tmp_response = await self._method_for_request_scn(varbinds=[CommonVarbindsUg405.site_id_varbind])
-        if self._check_response_errors_and_add_to_response_entity_if_has():
-            return False
+        self._tmp_response = await self._method_for_request_scn(varbinds=[self._varbinds.site_id_varbind])
+        request_response = self._check_response_errors_and_add_to_response_entity_if_has(request_response)
+        if request_response.errors:
+            return request_response
         try:
             self._set_scn_from_response()
-            return True
+            return request_response
         except BadControllerType as e:
             self.reset_scn_attrs()
-            self._response_storage.put_errors(e)
-        return False
+            request_response.load_error(e)
+        return request_response
 
     def _get_scn_as_ascii_from_scn_as_chars_attr(self) -> str | None:
         return self.get_scn_as_ascii_from_scn_as_chars_attr(self.scn_as_chars)
@@ -362,26 +379,19 @@ class Ug405Hosts(SnmpHost, ScnConverterMixin):
         дорожного контроллера.
         :return: Self.
         """
-        if self._get_states_request_config is not None:
-            self._get_states_request_config.load_snmp_request_coro(
-                self._request_sender.snmp_get(self._varbinds.get_varbinds_current_states(self.scn_as_ascii_string))
-            )
-            return await self._make_request_and_load_response_to_storage(self._get_states_request_config)
+        self._request_response_get_states.reset_data()
 
-        scn_success = await self.get_scn_and_add_error_if_has()
-        if not scn_success:
+        await self.get_scn_and_add_error_if_has(self._request_response_get_states)
+        if self._request_response_get_states.errors:
             return self
-
-        self._get_states_request_config = RequestConfig(
-            parser=self._parser,
-            snmp_request_coro=self._request_sender.snmp_get(
-                self._varbinds.get_varbinds_current_states(self.scn_as_ascii_string)
-            ),
-            # snmp_method=self._request_sender.snmp_get,
-            parser_config=self._get_config_parser_with_remove_scn_from_oid_and_pretty_parsed_varbinds(),
-            # varbinds=self._varbinds.get_varbinds_current_states(self.scn_as_ascii_string)
+        self._get_states_parser_config.set_oid_handler(
+            build_func_with_remove_scn(self.scn_as_ascii_string, get_val_as_str)
         )
-        return await self._make_request_and_load_response_to_storage(self._get_states_request_config)
+        self._request_response_get_states.parser.load_config_parser(self._get_states_parser_config)
+        self._request_response_get_states.load_coro(
+            self._request_sender.snmp_get(self._varbinds.get_varbinds_current_states(self.scn_as_ascii_string))
+        )
+        return await self._make_request(self._request_response_get_states)
 
     async def set_stage(self, value: int) -> Self:
         """
@@ -408,7 +418,7 @@ class Ug405Hosts(SnmpHost, ScnConverterMixin):
 
         print(self._request_config)
 
-        return await self._make_request_and_load_response_to_storage(self._request_config)
+        return await self._make_request(self._request_config)
 
 
 class StcipHosts(SnmpHost):
@@ -421,11 +431,12 @@ class StcipHosts(SnmpHost):
             host_id=None,
     ):
         super().__init__(ipv4=ipv4, engine=engine, host_id=host_id)
-        self._get_states_request_config = RequestConfig(
-                parser=self._parser,
-                parser_config=pretty_processing_stcip_parser_config,
-                create_response_entity=True
-            )
+        # self._get_states_request_config = RequestConfig(
+        #         parser=self._parser,
+        #         parser_config=pretty_processing_stcip_parser_config,
+        #         create_response_entity=True
+        #     )
+        self._get_states_parser_config = pretty_processing_stcip_parser_config
 
     @cached_property
     def snmp_config(self) -> HostSnmpConfig:
@@ -435,7 +446,7 @@ class StcipHosts(SnmpHost):
         self._get_states_request_config.load_snmp_request_coro(
             self._request_sender.snmp_get(self._varbinds.get_varbinds_current_states())
         )
-        return await self._make_request_and_load_response_to_storage(self._get_states_request_config)
+        return await self._make_request(self._get_states_request_config)
 
     async def set_stage(self, value: int):
         self._parse_method_config = default_processing_stcip_parser_config
@@ -546,7 +557,7 @@ async def main():
         start_time = time.time()
         res = await obj.get_states()
         # res = await obj.set_stage(5)
-        print(res.response)
+        print(res.build_response_as_dict())
         print(f'время составло: {time.time() - start_time}')
         await asyncio.sleep(2)
 
