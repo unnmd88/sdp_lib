@@ -30,8 +30,8 @@ class ResponseEntity(NamedTuple):
 @dataclass(repr=False)
 class RequestResponse:
     protocol: str
-    name: str
     add_to_response_storage: bool
+    name: str = ''
     parser: Callable | Parsers = None
     coro: Awaitable | None = None
     data_to_handling: str | None = None
@@ -183,11 +183,12 @@ class Host:
         # self._all_errors = [err for err in (obj.errors for obj in self.data_storage)]
         for err in (obj.errors for obj in self.data_storage):
             if err:
-                self._all_errors.append(err)
+                self._all_errors.append(*err)
 
         print(f'self._all_errors: {self._all_errors}')
         if self._all_errors:
             self._processed_data_to_response.clear()
+            self._data_storage.clear()
         else:
             while self.data_storage:
                 resp_data: RequestResponse =self.data_storage.popleft()
