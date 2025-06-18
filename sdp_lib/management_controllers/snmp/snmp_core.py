@@ -48,7 +48,7 @@ from sdp_lib.management_controllers.snmp.snmp_utils import (
     VarbSwarco,
     VarbPotokS,
     VarbPotokP,
-    VarbPeek
+    VarbPeek, ScnUg405
 )
 from sdp_lib.management_controllers.snmp.snmp_requests import (
     AsyncSnmpRequests,
@@ -71,7 +71,7 @@ def ug405_dependency(
         @functools.wraps(func)
         async def wrapped(instance, value=None, *args, **kwargs):
             # print(f'dependency_varbinds: {dependency_varbinds}')
-            await instance.get_scn_and_add_error_if_has()
+            await instance.get_scn_from_host_and_set_to_attr()
             if instance.response_errors:
                 return instance
 
@@ -136,7 +136,6 @@ class SnmpHost(Host):
         super().__init__(ipv4=ipv4, host_id=host_id)
         self.set_driver(engine)
         self._request_sender = AsyncSnmpRequests(self._driver, self.snmp_config, ipv4=self._ipv4)
-        # self._parser = self._parser_class()
         self._request_response_get_states = RequestResponse(
             protocol=self.protocol,
             name='get_state',
@@ -144,12 +143,6 @@ class SnmpHost(Host):
             parser=self._parser_class()
         )
         self._get_states_parser_config: ParserConfig = None
-        # self._request_response = RequestResponse(
-        #     protocol=self.protocol,
-        #     name='get_state',
-        #     add_to_response_storage=True,
-        #     parser=self._parser_class()
-        # )
 
     @cached_property
     @abc.abstractmethod
@@ -175,34 +168,30 @@ class SnmpHost(Host):
         """
         # self._tmp_response = await request_config.snmp_method(varbinds=request_config.varbinds)
         self._tmp_response = await request_response.coro
-        request_response = self._check_response_errors_and_add_to_response_entity_if_has(request_response)
-        if request_response.errors:
-            return request_response
-
+        error = self._check_tmp_response_errors()
+        if error:
+            request_response.load_error(error)
+            return self
         request_response.load_raw_response(self._tmp_response[SnmpResponseStructure.VAR_BINDS])
-        if request_response.add_to_response_storage:
-            self._data_storage.put(request_response)
-            # DEBUG
-            self.build_response_as_dict()
+        self._data_storage.put(request_response)
         return self
 
-    def _check_response_errors_and_add_to_response_entity_if_has(self, request_response: RequestResponse) -> RequestResponse:
+    def _check_tmp_response_errors(self) -> None | str | Exception:
         """
         self._response[ResponseStructure.ERROR_INDICATION] = error_indication: errind.ErrorIndication,
         self._response[ResponseStructure.ERROR_STATUS] = error_status: Integer32 | int,
         self._response[ResponseStructure.ERROR_INDEX] = error_index: Integer32 | int
-        :return True, при наличии ошибки запроса(error_indication | error_status | error_index):
+        :return None если нет ошибок в response.
+                При наличии ошибки запроса(error_indication | error_status | error_index):
+                Экземпляр Exception или текст ошибки в строковом представлении.
         """
         if self._tmp_response[SnmpResponseStructure.VAR_BINDS]:
-            return request_response
-        request_response.load_error(
-            self._tmp_response[SnmpResponseStructure.ERROR_INDICATION]
-            or BadControllerType()
-        )
-        return request_response
+            return None
+        return self._tmp_response[SnmpResponseStructure.ERROR_INDICATION] or BadControllerType()
 
 
-class Ug405Hosts(SnmpHost, ScnConverterMixin):
+
+class Ug405Hosts(SnmpHost):
 
     def __init__(
             self,
@@ -213,8 +202,9 @@ class Ug405Hosts(SnmpHost, ScnConverterMixin):
             scn=None
     ):
         super().__init__(ipv4=ipv4, engine=engine, host_id=host_id)
-        self.scn_as_chars = scn
-        self.scn_as_ascii_string = self._get_scn_as_ascii_from_scn_as_chars_attr()
+        self._seconds_freshness_scn: float = 60
+        self._timestamp_set_scn: float = 0
+        self._scn = ScnUg405()
         self._get_states_parser_config = ParserConfig(
             extras=True,
             # oid_handler=build_func_with_remove_scn(self.scn_as_ascii_string, get_val_as_str),
@@ -248,48 +238,30 @@ class Ug405Hosts(SnmpHost, ScnConverterMixin):
         raise NotImplementedError()
 
     @abstractmethod
-    def _set_scn_from_response(self):
+    def _get_scn_as_chars_from_tmp_response(self):
         """ Устанавливает scn из snmp-response в соответствующие атрибуты. """
         ...
 
-    async def get_scn_and_add_error_if_has(self, request_response: RequestResponse) -> RequestResponse:
+    def reset_scn(self):
+        self._scn.reset_scn_to_empty_string()
+
+    async def get_scn_from_host_and_set_to_attr(self) -> None | str | Exception:
         """
-        Получает и обрабатывает зависимость для snmp-запросов.
-        В данной реализации получение scn и установка в соответствующие атрибуты.
+        Получает scn из соответствующего oid и устанавливает в соответствующий атрибут.
+        :return : При успешной установке scn возвращает None, иначе возвращает текст ошибки.
         """
-        # if self.scn_as_ascii_string:
-        #     return True
+        scn_is_fresh = time.time() - self._timestamp_set_scn < self._seconds_freshness_scn
+        if self._scn.scn_as_ascii and scn_is_fresh:
+            return None
 
         self._tmp_response = await self._method_for_request_scn(varbinds=[self._varbinds.site_id_varbind])
-        request_response = self._check_response_errors_and_add_to_response_entity_if_has(request_response)
-        if request_response.errors:
-            return request_response
-        try:
-            self._set_scn_from_response()
-            return request_response
-        except BadControllerType as e:
-            self.reset_scn_attrs()
-            request_response.load_error(e)
-        return request_response
-
-    def _get_scn_as_ascii_from_scn_as_chars_attr(self) -> str | None:
-        return self.get_scn_as_ascii_from_scn_as_chars_attr(self.scn_as_chars)
-
-    def _get_scn_as_chars_from_scn_as_ascii(self) -> str:
-        return self.get_scn_as_ascii_from_scn_as_chars_attr(self.scn_as_ascii_string)
-
-    def _get_config_parser_with_remove_scn_from_oid_and_pretty_parsed_varbinds(self):
-        return ParserConfig(
-            extras=True,
-            oid_handler=build_func_with_remove_scn(self.scn_as_ascii_string, get_val_as_str),
-            val_oid_handler=pretty_print,
-            oid_name_by_alias=True,
-            host_protocol=FieldsNames.protocol_ug405
-        )
-
-    def reset_scn_attrs(self):
-        self.scn_as_chars = None
-        self.scn_as_ascii_string = None
+        response_error = self._check_tmp_response_errors()
+        if response_error is None:
+            self._scn.refresh(self._get_scn_as_chars_from_tmp_response())
+            self._timestamp_set_scn = time.time()
+        else:
+            self.reset_scn()
+        return response_error
 
     async def set_operation_mode3_across_operation_mode2_and_add_error_if_has(self) -> bool:
         """
@@ -307,7 +279,7 @@ class Ug405Hosts(SnmpHost, ScnConverterMixin):
 
         op_mode_varbind = (self._varbinds.operation_mode_varbind, )
         self._tmp_response = await self._request_sender.snmp_get(varbinds=op_mode_varbind)
-        if self._check_response_errors_and_add_to_response_entity_if_has():
+        if self._check_tmp_response_errors():
             return False
         op_mode = int(self._tmp_response[SnmpResponseStructure.VAR_BINDS][0][1].prettyPrint())
         if op_mode == 3:
@@ -317,11 +289,11 @@ class Ug405Hosts(SnmpHost, ScnConverterMixin):
             self._tmp_response = await self._request_sender.snmp_set(
                 varbinds=[self._varbinds.get_operation_mode_varbinds(op_mode + 1)]
             )
-            if self._check_response_errors_and_add_to_response_entity_if_has():
+            if self._check_tmp_response_errors():
                 return False
 
         self._tmp_response = await self._request_sender.snmp_get(varbinds=op_mode_varbind)
-        if self._check_response_errors_and_add_to_response_entity_if_has():
+        if self._check_tmp_response_errors():
             return False
         return self._tmp_response[SnmpResponseStructure.VAR_BINDS][0][1].prettyPrint() == '3'
 
@@ -331,11 +303,11 @@ class Ug405Hosts(SnmpHost, ScnConverterMixin):
         return all(t.result() for t in response)
 
     async def collect_scn_dependency_and_add_error_if_has(self) -> bool:
-        return await self.collect_dependency_and_add_error_if_has(self.get_scn_and_add_error_if_has())
+        return await self.collect_dependency_and_add_error_if_has(self.get_scn_from_host_and_set_to_attr())
 
     async def collect_scn_and_operation_mode_dependency_and_add_error_if_has(self) -> bool:
         return await self.collect_dependency_and_add_error_if_has(
-            self.get_scn_and_add_error_if_has(),
+            self.get_scn_from_host_and_set_to_attr(),
             self.set_operation_mode3_across_operation_mode2_and_add_error_if_has()
         )
 
@@ -381,15 +353,17 @@ class Ug405Hosts(SnmpHost, ScnConverterMixin):
         """
         self._request_response_get_states.reset_data()
 
-        await self.get_scn_and_add_error_if_has(self._request_response_get_states)
-        if self._request_response_get_states.errors:
+        error = await self.get_scn_from_host_and_set_to_attr()
+        if error is not None:
+            self._request_response_get_states.load_error(error)
             return self
+
         self._get_states_parser_config.set_oid_handler(
-            build_func_with_remove_scn(self.scn_as_ascii_string, get_val_as_str)
+            build_func_with_remove_scn(self._scn.scn_as_ascii, get_val_as_str)
         )
         self._request_response_get_states.parser.load_config_parser(self._get_states_parser_config)
         self._request_response_get_states.load_coro(
-            self._request_sender.snmp_get(self._varbinds.get_varbinds_current_states(self.scn_as_ascii_string))
+            self._request_sender.snmp_get(self._varbinds.get_varbinds_current_states(self._scn.scn_as_ascii))
         )
         return await self._make_request(self._request_response_get_states)
 
@@ -491,13 +465,8 @@ class PotokP(Ug405Hosts):
     def has_operation_mode_dependency(self) -> bool:
         return False
 
-    def _set_scn_from_response(self) -> None | BadControllerType:
-        try:
-            self.scn_as_chars = str(self._tmp_response[SnmpResponseStructure.VAR_BINDS][0][1])
-            self.scn_as_ascii_string = self._get_scn_as_ascii_from_scn_as_chars_attr()
-        except IndexError:
-            raise BadControllerType()
-        return None
+    def _get_scn_as_chars_from_tmp_response(self) -> str:
+        return str(self._tmp_response[SnmpResponseStructure.VAR_BINDS][0][1])
 
 
 class PeekUg405(Ug405Hosts):
@@ -513,14 +482,17 @@ class PeekUg405(Ug405Hosts):
     def has_operation_mode_dependency(self) -> bool:
         return True
 
-    def _set_scn_from_response(self) -> None | BadControllerType:
-        try:
-            oid = str(self._tmp_response[SnmpResponseStructure.VAR_BINDS][0][0])
-            self.scn_as_ascii_string = oid.replace(oids.Oids.utcReplyGn , '')
-            self.scn_as_chars = self.get_scn_as_chars_from_scn_as_ascii(self.scn_as_ascii_string)
-        except IndexError:
-            raise  BadControllerType()
-        return None
+    def _get_scn_as_chars_from_tmp_response(self) -> str:
+        oid = str(self._tmp_response[SnmpResponseStructure.VAR_BINDS][0][0])
+        return oid.replace(oids.Oids.utcReplyGn , '')
+
+        # try:
+        #     oid = str(self._tmp_response[SnmpResponseStructure.VAR_BINDS][0][0])
+        #     self.scn_as_ascii_string = oid.replace(oids.Oids.utcReplyGn , '')
+        #     self.scn_as_chars = self.get_scn_as_chars_from_scn_as_ascii(self.scn_as_ascii_string)
+        # except IndexError:
+        #     raise  BadControllerType()
+        # return None
 
 
 async def main():

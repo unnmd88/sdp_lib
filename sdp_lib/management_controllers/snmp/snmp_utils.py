@@ -3,7 +3,7 @@ import math
 import os
 from collections.abc import Iterable
 from enum import IntEnum
-from typing import Type, Any, NamedTuple
+from typing import Type, Any, NamedTuple, Sequence
 
 from dotenv import load_dotenv
 from pysnmp.proto import rfc1905
@@ -232,21 +232,6 @@ ug405_config = HostSnmpConfig(
 )
 
 
-def convert_ascii_string_to_chars(scn_as_ascii: str):
-    """
-    Генерирует SCN в виде символов из строки вида ascii.
-    :param scn_as_ascii -> строка кодов ascii, которая будет сконвертирова в строку символов.
-                           Пример: ".1.6.67.79.50.48.56.48", ".1.6.67.79.50.48.56.56" и т.д.
-    :return -> возвращает scn в виде символов. Например: "CO111", "CO3131" и т.д.
-    """
-    splitted = scn_as_ascii.split('.')
-    num_chars = int(splitted[2])
-    scn_as_chars = ''.join([chr(int(c)) for c in splitted[3:]])
-    logger.debug(f'scn_as_chars: {scn_as_chars}')
-    assert num_chars == len(scn_as_chars)
-    return scn_as_chars
-
-
 class ScnConverterMixin:
 
     @classmethod
@@ -298,9 +283,10 @@ class ScnUg405:
 
     __slots__ = ('_scn_as_chars', '_scn_as_ascii')
 
-    def __init__(self, scn_as_chars: str):
-        self._scn_as_chars = scn_as_chars
-        self._scn_as_ascii = convert_chars_string_to_ascii_string(scn_as_chars)
+    def __init__(self, scn_as_chars: Sequence[str] | str = ''):
+        self._scn_as_chars = ''
+        self._scn_as_ascii = ''
+        self.refresh(scn_as_chars)
 
     @property
     def scn_as_chars(self):
@@ -310,9 +296,15 @@ class ScnUg405:
     def scn_as_ascii(self):
         return self._scn_as_ascii
 
-    def refresh(self, scn_as_chars: str):
-        self._scn_as_chars = scn_as_chars
-        self._scn_as_ascii = convert_chars_string_to_ascii_string(scn_as_chars)
+    def refresh(self, scn_as_chars: Sequence[str] | str):
+        self._scn_as_chars = ''.join(scn_as_chars)
+        if self._scn_as_chars:
+            self._scn_as_ascii = convert_chars_string_to_ascii_string(self._scn_as_chars)
+        else:
+            self._scn_as_ascii = ''
+
+    def reset_scn_to_empty_string(self):
+        self.refresh('')
 
 
 class HexValueToIntegerStageConverter:
