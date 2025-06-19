@@ -302,6 +302,10 @@ class ScnUg405:
             self._scn_as_ascii = convert_chars_string_to_ascii_string(self._scn_as_chars)
         else:
             self._scn_as_ascii = ''
+        print(f'-----')
+        print(f'self._scn_as_chars: {self._scn_as_chars}')
+        print(f'self._scn_as_ascii: {self._scn_as_ascii}')
+        print(f'-----')
 
     def reset_scn_to_empty_string(self):
         self.refresh('')
