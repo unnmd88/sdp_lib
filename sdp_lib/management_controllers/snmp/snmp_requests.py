@@ -1,4 +1,5 @@
 import ipaddress
+from collections.abc import Sequence
 from typing import KeysView, Any, TypeVar, NamedTuple
 
 from pysnmp.hlapi.v3arch.asyncio import *
@@ -6,6 +7,7 @@ from pysnmp.proto import errind, rfc1905
 
 from sdp_lib.management_controllers.snmp.oids import Oids
 from sdp_lib.management_controllers.snmp.snmp_utils import  HostSnmpConfig
+from sdp_lib.type_aliases import T_Varbinds
 
 snmp_engine = SnmpEngine()
 
@@ -109,13 +111,13 @@ class AsyncSnmpRequests:
 
     async def snmp_get(
             self,
-            varbinds: list[ObjectType] | tuple[ObjectType],
+            varbinds: T_Varbinds,
             timeout: float = 1,
             retries: int = 0
     ) -> tuple[errind.ErrorIndication, Integer32 | int, Integer32 | int, tuple[ObjectType, ...]]:
         """
         Метод get запросов по snmp v2 протоколу.
-        :param oids: список oids, которые будут отправлены в get запросе.
+        :param varbinds: Коллекция с ObjectType для отправки запроса.
         :param timeout: таймаут запроса, в секундах.
         :param retries: количество попыток запроса.
         :return: tuple вида (error_indication, error_status, error_index, var_binds)

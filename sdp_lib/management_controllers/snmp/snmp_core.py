@@ -166,9 +166,6 @@ class SnmpHost(Host):
     def request_sender(self) -> AsyncSnmpRequests:
         return self._request_sender
 
-    def reset_states_request_config(self):
-        self._get_states_request_config = None
-
     async def _make_request(self, request_response: RequestResponse) -> Self:
         """
         Осуществляет вызов соответствующего snmp-запроса и передает
@@ -198,7 +195,6 @@ class SnmpHost(Host):
         if self._tmp_response[SnmpResponseStructure.VAR_BINDS]:
             return None
         return self._tmp_response[SnmpResponseStructure.ERROR_INDICATION] or BadControllerType()
-
 
 
 class Ug405Hosts(SnmpHost):
@@ -245,7 +241,7 @@ class Ug405Hosts(SnmpHost):
         предварительная проверка и установка utcType2OperationMode,
         иначе False.
         """
-        raise NotImplementedError()
+        ...
 
     @abstractmethod
     def _get_scn_as_chars_from_tmp_response(self):
@@ -255,8 +251,11 @@ class Ug405Hosts(SnmpHost):
     @abstractmethod
     def get_management_coroutines_dependency(self) -> MutableSequence[Coroutine]:
         """
-        Возвращает MutableSequence с корутинами,
-        которые необходимо выполнить перед началом управления контроллером
+        Возвращает коллекцию с корутинами,
+        которые необходимо выполнить перед началом управления контроллером.
+        Если перед началом управления контроллером не требуется зависимых запросов,
+        например utcType2OperationMode=3 для управления Peek, то вернуть
+        пустой итерируемый объект.
         """
         ...
 
@@ -451,7 +450,6 @@ class StcipHosts(SnmpHost):
         return await self._make_request(self._request_response_data_default)
 
     async def get_current_stage(self):
-        # self._parse_method_config = pretty_processing_stcip_parser_config_without_extras
         self._request_response_data_default.reset_data()
         self._request_response_data_default.load_coro(
             self._request_sender.snmp_get(self._varbinds.get_stage_varbinds)
@@ -460,11 +458,6 @@ class StcipHosts(SnmpHost):
             pretty_processing_stcip_parser_config_without_extras
         )
         return await self._make_request(self._request_response_data_default)
-        # self._set_varbinds_and_method_for_request(
-        #     varbinds=self._varbinds.get_stage_varbinds,
-        #     method=self._request_sender.snmp_get
-        # )
-        # return await self._make_request_and_build_response()
 
 
 class SwarcoStcip(StcipHosts):
@@ -497,10 +490,11 @@ class PotokP(Ug405Hosts):
 
     def get_management_coroutines_dependency(self) -> MutableSequence[Coroutine]:
         """
-        Возвращает MutableSequence с корутинами,
-        которые необходимо выполнить перед началом управления контроллером
+        Возвращает коллекцию с корутинами,
+        которые необходимо выполнить перед началом управления контроллером.
         """
         return []
+
 
 class PeekUg405(Ug405Hosts):
 
@@ -521,8 +515,8 @@ class PeekUg405(Ug405Hosts):
 
     def get_management_coroutines_dependency(self) -> MutableSequence[Coroutine]:
         """
-        Возвращает MutableSequence с корутинами,
-        которые необходимо выполнить перед началом управления контроллером
+        Возвращает коллекцию с корутинами,
+        которые необходимо выполнить перед началом управления контроллером.
         """
         return [self.set_operation_mode3_across_operation_mode2_and_add_error_if_has()]
 
