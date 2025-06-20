@@ -69,6 +69,7 @@ def convert_chars_string_to_ascii_string(scn_as_chars: str) -> str:
     """
     return f'.1.{str(len(scn_as_chars))}.{".".join([str(ord(c)) for c in scn_as_chars])}'
 
+
 def convert_ascii_string_to_chars(scn_as_ascii: str):
     """
     Конвертирует scn строку кодов ascii в строку символов.
@@ -91,6 +92,7 @@ def convert_ascii_string_to_chars(scn_as_ascii: str):
     scn_as_chars = ''.join([chr(int(c)) for c in separated_chars[3:]])
     assert num_chars == len(scn_as_chars)
     return scn_as_chars
+
 
 def create_varbinds(
         oids: Iterable[T_Oid],
@@ -357,7 +359,7 @@ class StcipVarbindsMixin:
 
 
 class AbstractVarbinds:
-    max_stage: int
+    MAX_STAGE: int
     states_oids: T_Oids
     states_varbinds: T_Varbinds
     set_stage_varbinds: dict[int, T_Varbinds]
@@ -370,14 +372,14 @@ class AbstractVarbinds:
 
 
 class VarbSwarco(AbstractVarbinds, StageConverterMixinSwarco, StcipVarbindsMixin):
-    max_stage = MaxStage.swarco_itc2
+    MAX_STAGE = MaxStage.swarco_itc2
     states_oids = oids.oids_state_swarco
     states_varbinds = create_varbinds(oids.oids_state_swarco)
     set_stage_varbinds = _swarco_stcip_set_stage_varbinds
 
 
 class VarbPotokS(AbstractVarbinds, StageConverterMixinPotokS, StcipVarbindsMixin):
-    max_stage = MaxStage.potok_s
+    MAX_STAGE = MaxStage.potok_s
     states_oids = oids.oids_state_potok_s
     states_varbinds = tuple(wrap_oid_by_object_type(oid) for oid in oids.oids_state_potok_s)
     set_stage_varbinds = _potok_stcip_set_stage_varbinds
