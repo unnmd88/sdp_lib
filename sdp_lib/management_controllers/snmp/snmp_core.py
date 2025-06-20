@@ -451,12 +451,20 @@ class StcipHosts(SnmpHost):
         return await self._make_request(self._request_response_data_default)
 
     async def get_current_stage(self):
-        self._parse_method_config = pretty_processing_stcip_parser_config_without_extras
-        self._set_varbinds_and_method_for_request(
-            varbinds=self._varbinds.get_stage_varbinds,
-            method=self._request_sender.snmp_get
+        # self._parse_method_config = pretty_processing_stcip_parser_config_without_extras
+        self._request_response_data_default.reset_data()
+        self._request_response_data_default.load_coro(
+            self._request_sender.snmp_get(self._varbinds.get_stage_varbinds)
         )
-        return await self._make_request_and_build_response()
+        self._request_response_data_default.parser.load_config_parser(
+            pretty_processing_stcip_parser_config_without_extras
+        )
+        return await self._make_request(self._request_response_data_default)
+        # self._set_varbinds_and_method_for_request(
+        #     varbinds=self._varbinds.get_stage_varbinds,
+        #     method=self._request_sender.snmp_get
+        # )
+        # return await self._make_request_and_build_response()
 
 
 class SwarcoStcip(StcipHosts):
@@ -552,7 +560,8 @@ async def main():
     while True:
         start_time = time.time()
         # res = await obj.get_states()
-        res = await obj.set_stage(0)
+        res = await obj.get_current_stage()
+        # res = await obj.set_stage(0)
         print(json.dumps(res.build_response_as_dict(), indent=4, ensure_ascii=False))
         print(f'время составло: {time.time() - start_time}')
         await asyncio.sleep(2)
