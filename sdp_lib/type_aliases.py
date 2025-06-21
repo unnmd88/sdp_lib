@@ -17,6 +17,7 @@ from pysnmp.proto.api.v2c import (
 from pysnmp.smi.rfc1902 import ObjectType
 
 from sdp_lib.management_controllers.constants import AllowedControllers
+from sdp_lib.management_controllers.parsers.parser_core import Parsers
 from sdp_lib.management_controllers.parsers.snmp_parsers.varbinds_parsers import ParsersVarbindsSwarco, \
     ParsersVarbindsPotokS, ParsersVarbindsPotokP, ParsersVarbindsPeek
 from sdp_lib.management_controllers.snmp.oids import Oids
@@ -34,7 +35,7 @@ T_Oids: TypeAlias = Collection[Oids | str]
 T_Oid: TypeAlias = Oids | str
 T_Varbinds: TypeAlias = Collection[ObjectType]
 T_Varbind: TypeAlias = ObjectType
-T_Parsers = TypeVar('T_Parsers')
+T_Parsers = TypeVar('T_Parsers', bound=Parsers)
 A_Parsers: TypeAlias = Type[ParsersVarbindsSwarco | ParsersVarbindsPotokS | ParsersVarbindsPotokP | ParsersVarbindsPeek]
 Oid_Value = TypeVar('Oid_Value', Unsigned32, Integer, OctetString, rfc1905.unSpecified)
 

@@ -23,13 +23,15 @@ class AsyncHttpRequests:
     async def fetch(
             self,
             url: str,
+            semaphore: asyncio.Semaphore,
             timeout: aiohttp.ClientTimeout = aiohttp.ClientTimeout(connect=.4)
     ) -> tuple[int, str]:
 
-        async with self._session.get(url, timeout=timeout) as response:
-            assert response.status == 200
-            content = await response.text()
-            return response.status, content
+        async with semaphore:
+            async with self._session.get(url, timeout=timeout) as response:
+                assert response.status == 200
+                content = await response.text()
+                return response.status, content
 
     async def post_request(
             self,

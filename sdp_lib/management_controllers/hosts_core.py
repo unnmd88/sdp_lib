@@ -11,13 +11,14 @@ from collections.abc import (
 )
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Any, NamedTuple, Self
+from typing import Any, NamedTuple, Self, Type
 
 import aiohttp
 from pysnmp.entity.engine import SnmpEngine
 
 from sdp_lib.management_controllers.fields_names import FieldsNames
 from sdp_lib.management_controllers.parsers.parser_core import Parsers
+from sdp_lib.type_aliases import T_Parsers
 from sdp_lib.utils_common.utils_common import check_is_ipv4
 
 
@@ -32,12 +33,23 @@ class RequestResponse:
     protocol: str
     add_to_response_storage: bool
     name: str = ''
-    parser: Callable | Parsers = None
+    parser_obj: Any = None
+    parser: Callable | T_Parsers = None
     coro: Awaitable | None = None
     data_to_handling: str | None = None
     status_response: int | None = None
     errors: MutableSequence[str] = field(default_factory=list)
     _processed_data: MutableMapping[str, Any] = field(default_factory=dict)
+
+    def set_parser_obj(self, parser_obj: Callable):
+        if not callable(parser_obj):
+            raise ValueError(f'"parser_obj" должен быть вызываемым объектом')
+        self.parser_obj = parser_obj
+
+    def set_parse_method(self, method: Callable):
+        if not callable(method):
+            raise ValueError(f'"method" должен быть вызываемым объектом')
+        self.parser = method
 
     def load_coro(self, coro: Awaitable):
         self.reset_data()
@@ -66,15 +78,12 @@ class RequestResponse:
         return self._processed_data
 
 
-
-
-
-
 class Host:
     """
     Базовый класс хоста.
     """
     protocol: str
+    _parser_class: Type[T_Parsers]
 
     def __init__(
             self,
@@ -97,7 +106,19 @@ class Host:
             str(FieldsNames.errors): self._all_errors,
             str(FieldsNames.data): self._processed_data_to_response
         }
-        # self._varbinds_for_request = None
+
+        self._request_response_data_get_states = RequestResponse(
+            protocol=self.protocol,
+            name='get_state',
+            add_to_response_storage=True,
+            parser_obj=self._parser_class()
+            # parser=self._parser_class()
+        )
+        self._request_response_data_default = RequestResponse(
+            protocol=self.protocol,
+            parser_obj=self._parser_class(),
+            add_to_response_storage=True
+        )
 
     def __repr__(self):
         return (
@@ -209,6 +230,7 @@ class Host:
 
     async def _common_request(self) -> Self:
         pending = []
+        print(self._request_storage)
         while self._request_storage:
             pending.append(asyncio.create_task(self._request_sender.common_request(self._request_storage.popleft())))
         # pending = [asyncio.create_task(req_resp.coro) for req_resp in self._storage]
@@ -216,9 +238,9 @@ class Host:
             done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
             for done_task in done:
                 await done_task
-                r= done_task.result()
-                if r.add_to_response_storage:
-                    self._data_storage.put(r)
+                request_response = done_task.result()
+                if request_response.add_to_response_storage:
+                    self._data_storage.put(request_response)
         return self
 
 class ResponseStorage:

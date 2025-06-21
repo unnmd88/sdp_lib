@@ -139,17 +139,20 @@ class SnmpHost(Host):
         super().__init__(ipv4=ipv4, host_id=host_id)
         self.set_driver(engine)
         self._request_sender = AsyncSnmpRequests(self._driver, self.snmp_config, ipv4=self._ipv4)
-        self._request_response_data_default = RequestResponse(
-            protocol=self.protocol,
-            parser=self._parser_class(),
-            add_to_response_storage=True
+        self._request_response_data_get_states.set_parse_method(
+            self._request_response_data_get_states.parser_obj
         )
-        self._request_response_data_get_states = RequestResponse(
-            protocol=self.protocol,
-            name='get_state',
-            add_to_response_storage=True,
-            parser=self._parser_class()
-        )
+        # self._request_response_data_default = RequestResponse(
+        #     protocol=self.protocol,
+        #     parser=self._parser_class(),
+        #     add_to_response_storage=True
+        # )
+        # self._request_response_data_get_states = RequestResponse(
+        #     protocol=self.protocol,
+        #     name='get_state',
+        #     add_to_response_storage=True,
+        #     parser=self._parser_class()
+        # )
         self._get_states_parser_config: ParserConfig = None
 
     @cached_property
@@ -538,6 +541,7 @@ async def main():
     obj = PotokS(ipv4='10.179.107.177', host_id='2508', engine=snmp_engine)
     # obj.set_driver()
     # obj = SwarcoStcip(ipv4='10.179.89.225', host_id='3584')
+    # obj = PotokP(ipv4='10.45.154.12', host_id='laba', engine=snmp_engine)
 
     # obj.ip_v4 = '10.179.20.129'
 
@@ -545,7 +549,7 @@ async def main():
 
     # obj = SwarcoStcip(ipv4='10.179.20.129', engine=snmp_engine, host_id='2405')
 
-    # obj = PeekUg405(ipv4='10.45.154.19', host_id='laba', engine=snmp_engine)
+    obj = PeekUg405(ipv4='10.45.154.19', host_id='laba', engine=snmp_engine)
 
 
     # start_time = time.time()
@@ -554,8 +558,8 @@ async def main():
     while True:
         start_time = time.time()
         # res = await obj.get_states()
-        res = await obj.get_current_stage()
-        # res = await obj.set_stage(0)
+        # res = await obj.get_current_stage()
+        res = await obj.set_stage(2)
         print(json.dumps(res.build_response_as_dict(), indent=4, ensure_ascii=False))
         print(f'время составло: {time.time() - start_time}')
         await asyncio.sleep(2)
