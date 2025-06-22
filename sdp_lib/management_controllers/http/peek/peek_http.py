@@ -341,8 +341,8 @@ async def main():
 
         # await obj.get_states()
         # await obj.generate_data_and_send_http_request(DataFromWeb.main_page_get, DataFromWeb.inputs_page_get)
-        # await obj.get_inputs()
-        await obj.set_stage(0)
+        await obj.get_inputs()
+        # await obj.set_stage(0)
         print(json.dumps(obj.build_response_as_dict(), indent=4, ensure_ascii=False))
         print(f'время составило: {time.perf_counter() - start_time}')
         # await obj.request_all_types(AvailableDataFromWeb.main_page_get)

@@ -1,6 +1,10 @@
+
 import os
 from collections import deque
 from collections.abc import MutableMapping, Sequence
+from abc import abstractmethod
+
+from dotenv import load_dotenv
 
 from sdp_lib.management_controllers.http.peek.static_data import (
     ActuatorAsChar,
@@ -9,10 +13,14 @@ from sdp_lib.management_controllers.http.peek.static_data import (
 from sdp_lib.management_controllers.structures import InputsStructure
 
 
+load_dotenv()
+
 all_mpp_inputs = set(os.getenv('ALL_MPP_INPUTS').split())
-mpp_stages_inputs = set(os.getenv('MPP_STAGES_INPUTS').split())
+# mpp_stages_inputs = set(os.getenv('MPP_STAGES_INPUTS').split())
+mpp_stages_inputs = {INP_NAME: int(INP_NAME[-1]) for INP_NAME in os.getenv('MPP_STAGES_INPUTS').split()}
 MPP_MAN = os.getenv('MPP_MANUAL')
 PREFIX_MAN_STAGE_PEEK = os.getenv('PREFIX_MAN_STAGE_PEEK')
+MPP_PH = os.getenv('PREFIX_MAN_STAGE_PEEK')
 START_NAME_MAN = os.getenv('START_NAME_MAN')
 
 key_payload = 'par_name'
@@ -126,14 +134,51 @@ class InputsVarbinds:
         )
 
 
-class Inputs:
+class AbtrsctEntity:
+    _prefix: str
+    _index: int
+    _num:int
+    _name:int
+    _state:int
+    _state_time:int
+    _actuator:int
 
-    def __init__(self, inputs_from_web: dict[str, T_inp_props] = None):
-        self._inputs_from_web = None
-        self._mpp_man_index = None
-        self._mpp_man_state = None
-        self._mpp_man_actuator = None
-        self.set_inputs_from_web_data(inputs_from_web)
+    def __init__(self, processed_data: MutableMapping | None = None):
+        self._processed_data = processed_data
+        self._storage_to_send = deque()
+        if self._processed_data is not None:
+            pass # инициализировать доп атрибуты
+    
+    @property
+    def storage_to_send(self):
+        return self._storage_to_send
+    
+    def _add_payloads_to_send(self, *payloads):
+        for payload in payloads:
+            self._storage_to_send.append(payload)
+    
+    def clear_storage_to_send(self):
+        self._storage_to_send.clear()
+    
+    def load_processed_data(self, data):
+        self._processed_data = data
+
+    def create_payload(self, index: str,  actuator_val: ActuatorAsChar | str) -> tuple:
+        return (
+            (key_payload, f'{self._prefix}{index}'),
+            (val_payload, get_actuator_val_for_payload(actuator_val))
+        )
+
+    @abstractmethod
+    def create_payloads(self, value: str | int):
+        """ Создает коллекцию с payloads для отправки команды хосту. """
+        ...
+
+
+
+
+class Inputs(AbtrsctEntity):
+    _prefix = inputs_prefix
 
     def set_inputs_from_web_data(self, inputs_from_web) -> None:
         self._inputs_from_web = inputs_from_web
@@ -210,21 +255,33 @@ class Inputs:
                     self.create_payload(self._inputs_from_web[mpp_inp][InputsStructure.INDEX], ActuatorAsValue.VF)
                 )
         return payloads
+    
+    def _add_to_send_if_actuator_not_on(self, *inp_names):
+        for inp_name in inp_names:
+            index, num, name, state, state_time, actuator = self._processed_data[inp_name]
+            if state == '0' or actuator != ActuatorAsChar.ON:
+                self._add_payloads_to_send(create_payload(index, self._prefix, ActuatorAsValue.ON))
+    
+    def create_payloads(self, stage: int):
+        
+        self.clear_storage_to_send()
+        stage_as_str = str(stage)
+        self._add_to_send_if_actuator_not_on(MPP_MAN, f'{MPP_PH}{stage_as_str}')
+        stack = {v: k for k, v in mpp_stages_inputs}
+        while stack:
+            index, num, name, state, state_time, actuator = self._processed_data.pop()
+            pass
 
-    def create_payload(self, inp_index: str, actuator_val: ActuatorAsValue | str) -> tuple:
+def create_payload(
+    index: str, 
+    prefix: str, 
+    val: str
+) -> tuple:
 
-        return (
-            (key_payload, f'{inputs_prefix}{inp_index}'),
-            (val_payload, get_actuator_val_for_payload(actuator_val))
-        )
-
-
-def create_payload(inp_index: str, prefix: str, actuator_val: ActuatorAsValue | str) -> tuple:
-
-    return (
-        (key_payload, f'{prefix}{inp_index}'),
-        (val_payload, get_actuator_val_for_payload(actuator_val))
-    )
+    return (key_payload, f'{prefix}{index}'), (val_payload, val)
+        
+        
+    
 
     # return (
     #     (key_payload, f'{inputs_prefix}{inp_index}'),
@@ -248,3 +305,8 @@ def create_request_payloads_set_stage_man(
 
     while stack:
         index, num, name, state, state_time, actuator = inputs_from_web[stack.popleft()]
+
+
+if __name__ == '__main__':
+    print({int(_MPP_PH[-1]): _MPP_PH for _MPP_PH in mpp_stages_inputs})
+    print(set(mpp_stages_inputs))
