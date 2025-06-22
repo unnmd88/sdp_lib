@@ -36,17 +36,20 @@ class AsyncHttpRequests:
     async def post_request(
             self,
             url: str,
-            timeout: float = .8,
+            semaphore: asyncio.Semaphore,
+            timeout: aiohttp.ClientTimeout = aiohttp.ClientTimeout(connect=1),
             **kwargs
-    ) -> int:
-        async with self._session.driver.post(
-                url,
-                timeout=aiohttp.ClientTimeout(connect=timeout),
-                **kwargs
-        ) as response:
-            assert response.status == 200
-            # print(f'response.status == {response.status}')
-            return response.status
+    ):
+        async with semaphore:
+            async with self._session.post(
+                    url,
+                    timeout=timeout,
+                    **kwargs
+            ) as response:
+                assert response.status == 200
+                content = await response.text()
+                print(f'response.status == {response.status}')
+                return response.status, content
 
     # async def http_request_to_host(
     #         self,

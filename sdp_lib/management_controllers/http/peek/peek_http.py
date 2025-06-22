@@ -23,7 +23,7 @@ from sdp_lib.management_controllers.http.peek import (
     routes,
     static_data
 )
-from sdp_lib.management_controllers.http.peek.varbinds import InputsVarbinds
+from sdp_lib.management_controllers.http.peek.varbinds import InputsVarbinds, Inputs
 from sdp_lib.management_controllers.parsers.parsers_peek_http_new import (
     MainPageParser,
     InputsPageParser, PeekWebPagesParser,
@@ -258,7 +258,20 @@ class PeekWebHosts(HttpHosts):
         request_response_inputs = await self._request_sender.common_request(
             self.build_request_response(DataFromWeb.inputs_page_get)
         )
-
+        if request_response_inputs.errors:
+            return self
+        inps_data = Inputs(request_response_inputs.processed_pretty_data['inputs'])
+        for payload in inps_data.create_payloads(stage):
+            coro = self._request_sender.post_request(
+                    url=self._base_url + routes.set_inputs,
+                    semaphore=self._semaphore,
+                    cookies=static_data.cookies,
+                    data=payload
+            )
+            self._request_storage.append(
+                RequestResponse(protocol=self.protocol, coro=coro, add_to_response_storage=False)
+            )
+        return await self._common_request()
 
 
         await self.get_inputs()
@@ -309,23 +322,28 @@ class PeekWebHosts(HttpHosts):
         if not 0 <= stage <= 8:
             self._request_response_data_default.load_error(str(BadValueToSet(value=stage, expected=(0, 8))))
             return self
+
         request_response_inputs = await self._request_sender.common_request(
             self.build_request_response(DataFromWeb.inputs_page_get)
         )
 
         print(f'request_response_inputs: {request_response_inputs.processed_pretty_data}')
-        if stage == 0:
-            pass # reset man
-        elif 1 <= stage <= 8:
-            pass # make inps to set
-        return
 
+        if request_response_inputs.errors:
+            return self
+        inps_data = Inputs(request_response_inputs.processed_pretty_data['inputs'])
+        for payload in inps_data.create_payloads(stage):
+            coro = self._request_sender.post_request(
+                    url=self._base_url + routes.set_inputs,
+                    semaphore=self._semaphore,
+                    cookies=static_data.cookies,
+                    data=payload
+            )
+            self._request_storage.append(
+                RequestResponse(protocol=self.protocol, coro=coro, add_to_response_storage=False)
+            )
+        return await self._common_request()
 
-
-
-
-
-        return await self.set_inputs_to_web(stage=stage)
 
 
 """ Tests """
@@ -336,13 +354,14 @@ async def main():
     """
     sess = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(1))
     try:
-        obj = PeekWebHosts('10.179.75.113', host_id='3290', session=sess)
+        # obj = PeekWebHosts('10.179.75.113', host_id='3290', session=sess)
+        obj = PeekWebHosts('10.179.107.129', host_id='2406', session=sess)
         start_time = time.perf_counter()
 
         # await obj.get_states()
         # await obj.generate_data_and_send_http_request(DataFromWeb.main_page_get, DataFromWeb.inputs_page_get)
-        await obj.get_inputs()
-        # await obj.set_stage(0)
+        # await obj.get_inputs()
+        await obj.set_stage(0)
         print(json.dumps(obj.build_response_as_dict(), indent=4, ensure_ascii=False))
         print(f'время составило: {time.perf_counter() - start_time}')
         # await obj.request_all_types(AvailableDataFromWeb.main_page_get)

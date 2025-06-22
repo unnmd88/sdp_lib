@@ -1,4 +1,4 @@
-
+import itertools
 import os
 from collections import deque
 from collections.abc import MutableMapping, Sequence
@@ -163,7 +163,7 @@ class AbtrsctEntity:
     def load_processed_data(self, data):
         self._processed_data = data
 
-    def create_payload(self, index: str,  actuator_val: ActuatorAsChar | str) -> tuple:
+    def get_payload(self, index: str, actuator_val: ActuatorAsChar | str) -> tuple:
         return (
             (key_payload, f'{self._prefix}{index}'),
             (val_payload, get_actuator_val_for_payload(actuator_val))
@@ -175,102 +175,111 @@ class AbtrsctEntity:
         ...
 
 
-
-
 class Inputs(AbtrsctEntity):
     _prefix = inputs_prefix
 
-    def set_inputs_from_web_data(self, inputs_from_web) -> None:
-        self._inputs_from_web = inputs_from_web
-        if self._inputs_from_web is not None:
-            self._mpp_man_index = self._inputs_from_web[MPP_MAN][InputsStructure.INDEX]
-            self._mpp_man_state = self._inputs_from_web[MPP_MAN][InputsStructure.STATE]
-            self._mpp_man_actuator = self._inputs_from_web[MPP_MAN][InputsStructure.ACTUATOR]
-
-    def refresh_inputs_from_web_data(self, inputs_from_web):
-        self.set_inputs_from_web_data(inputs_from_web)
-
-    def get_varbinds_as_from_name(self, data: T_inps_container) -> list:
-
-        payloads = []
-
-        if isinstance(data, dict):
-            data = data.items()
-
-        for inp_name, actuator_val in data:
-            if (inp_name in self._inputs_from_web
-                and self._inputs_from_web[inp_name][InputsStructure.ACTUATOR] != actuator_val
-            ):
-                payloads.append(
-                    self.create_payload(self._inputs_from_web[inp_name][InputsStructure.INDEX], actuator_val)
-                )
-        return payloads
-
-    def get_varbinds_set_stage(self, stage: int = 0) -> list:
-
-        if stage == 0:
-            return self.get_varbinds_reset_man()
-        elif stage in range(1, 9):
-            return self._get_varbinds_set_stage(stage)
-
-    def _get_varbinds_set_stage(self, stage: int) -> list:
-        payloads = []
-        if self._mpp_man_state == '0' or self._mpp_man_actuator in (ActuatorAsChar.VF, ActuatorAsChar.OFF):
-            payloads.append(
-                self.create_payload(self._mpp_man_index, ActuatorAsValue.ON)
-            )
-
-        # stage = str(stage)
-        mpp_ph_to_set = f'{PREFIX_MAN_STAGE_PEEK}{stage}'
-        for mpp in mpp_stages_inputs:
-
-            if (mpp != mpp_ph_to_set
-                and self._inputs_from_web[mpp][InputsStructure.STATE] != '0'
-                and self._inputs_from_web[mpp][InputsStructure.ACTUATOR] != ActuatorAsChar.OFF
-            ):
-                payloads.append(
-                    self.create_payload(self._inputs_from_web[mpp][InputsStructure.INDEX], ActuatorAsValue.OFF)
-                )
-        if self._inputs_from_web[mpp_ph_to_set][InputsStructure.ACTUATOR] != ActuatorAsChar.ON:
-            payloads.append(
-                self.create_payload(self._inputs_from_web[mpp_ph_to_set][InputsStructure.INDEX], ActuatorAsValue.ON)
-            )
-        return payloads
-
-    def get_varbinds_reset_man(self) -> list:
-        payloads = []
-        if (self._inputs_from_web[MPP_MAN][InputsStructure.STATE] == '1'
-            or self._inputs_from_web[MPP_MAN][InputsStructure.ACTUATOR] == ActuatorAsChar.ON
-        ):
-            payloads.append(
-                self.create_payload(self._inputs_from_web[MPP_MAN][InputsStructure.INDEX], ActuatorAsValue.OFF)
-            )
-
-        for mpp_inp in mpp_stages_inputs:
-            # if (self._inputs_from_web[mpp_inp][InputsStructure.STATE] == '1'
-            #    or self._inputs_from_web[mpp_inp][InputsStructure.ACTUATOR] != ActuatorAsChar.VF
-            # ):
-            if self._inputs_from_web[mpp_inp][InputsStructure.ACTUATOR] != ActuatorAsChar.VF:
-                payloads.append(
-                    self.create_payload(self._inputs_from_web[mpp_inp][InputsStructure.INDEX], ActuatorAsValue.VF)
-                )
-        return payloads
+    # def set_inputs_from_web_data(self, inputs_from_web) -> None:
+    #     self._inputs_from_web = inputs_from_web
+    #     if self._inputs_from_web is not None:
+    #         self._mpp_man_index = self._inputs_from_web[MPP_MAN][InputsStructure.INDEX]
+    #         self._mpp_man_state = self._inputs_from_web[MPP_MAN][InputsStructure.STATE]
+    #         self._mpp_man_actuator = self._inputs_from_web[MPP_MAN][InputsStructure.ACTUATOR]
+    #
+    # def refresh_inputs_from_web_data(self, inputs_from_web):
+    #     self.set_inputs_from_web_data(inputs_from_web)
+    #
+    # def get_varbinds_as_from_name(self, data: T_inps_container) -> list:
+    #
+    #     payloads = []
+    #
+    #     if isinstance(data, dict):
+    #         data = data.items()
+    #
+    #     for inp_name, actuator_val in data:
+    #         if (inp_name in self._inputs_from_web
+    #             and self._inputs_from_web[inp_name][InputsStructure.ACTUATOR] != actuator_val
+    #         ):
+    #             payloads.append(
+    #                 self.create_payload(self._inputs_from_web[inp_name][InputsStructure.INDEX], actuator_val)
+    #             )
+    #     return payloads
+    #
+    # def get_varbinds_set_stage(self, stage: int = 0) -> list:
+    #
+    #     if stage == 0:
+    #         return self.get_varbinds_reset_man()
+    #     elif stage in range(1, 9):
+    #         return self._get_varbinds_set_stage(stage)
+    #
+    # def _get_varbinds_set_stage(self, stage: int) -> list:
+    #     payloads = []
+    #     if self._mpp_man_state == '0' or self._mpp_man_actuator in (ActuatorAsChar.VF, ActuatorAsChar.OFF):
+    #         payloads.append(
+    #             self.create_payload(self._mpp_man_index, ActuatorAsValue.ON)
+    #         )
+    #
+    #     # stage = str(stage)
+    #     mpp_ph_to_set = f'{PREFIX_MAN_STAGE_PEEK}{stage}'
+    #     for mpp in mpp_stages_inputs:
+    #
+    #         if (mpp != mpp_ph_to_set
+    #             and self._inputs_from_web[mpp][InputsStructure.STATE] != '0'
+    #             and self._inputs_from_web[mpp][InputsStructure.ACTUATOR] != ActuatorAsChar.OFF
+    #         ):
+    #             payloads.append(
+    #                 self.create_payload(self._inputs_from_web[mpp][InputsStructure.INDEX], ActuatorAsValue.OFF)
+    #             )
+    #     if self._inputs_from_web[mpp_ph_to_set][InputsStructure.ACTUATOR] != ActuatorAsChar.ON:
+    #         payloads.append(
+    #             self.create_payload(self._inputs_from_web[mpp_ph_to_set][InputsStructure.INDEX], ActuatorAsValue.ON)
+    #         )
+    #     return payloads
+    #
+    # def get_varbinds_reset_man(self) -> list:
+    #     payloads = []
+    #     if (self._inputs_from_web[MPP_MAN][InputsStructure.STATE] == '1'
+    #         or self._inputs_from_web[MPP_MAN][InputsStructure.ACTUATOR] == ActuatorAsChar.ON
+    #     ):
+    #         payloads.append(
+    #             self.create_payload(self._inputs_from_web[MPP_MAN][InputsStructure.INDEX], ActuatorAsValue.OFF)
+    #         )
+    #
+    #     for mpp_inp in mpp_stages_inputs:
+    #         # if (self._inputs_from_web[mpp_inp][InputsStructure.STATE] == '1'
+    #         #    or self._inputs_from_web[mpp_inp][InputsStructure.ACTUATOR] != ActuatorAsChar.VF
+    #         # ):
+    #         if self._inputs_from_web[mpp_inp][InputsStructure.ACTUATOR] != ActuatorAsChar.VF:
+    #             payloads.append(
+    #                 self.create_payload(self._inputs_from_web[mpp_inp][InputsStructure.INDEX], ActuatorAsValue.VF)
+    #             )
+    #     return payloads
     
     def _add_to_send_if_actuator_not_on(self, *inp_names):
         for inp_name in inp_names:
             index, num, name, state, state_time, actuator = self._processed_data[inp_name]
             if state == '0' or actuator != ActuatorAsChar.ON:
                 self._add_payloads_to_send(create_payload(index, self._prefix, ActuatorAsValue.ON))
-    
+
+    def create_reset_man_payloads(self):
+        for inp_name in itertools.chain(mpp_stages_inputs, (MPP_MAN, )):
+            index, num, name, state, state_time, actuator = self._processed_data[inp_name]
+            if state != '0' or actuator != ActuatorAsChar.VF:
+                self._storage_to_send.append(create_payload(index, self._prefix, ActuatorAsValue.VF))
+        return self._storage_to_send
+
     def create_payloads(self, stage: int):
         
         self.clear_storage_to_send()
-        stage_as_str = str(stage)
+        stage_as_str = str(int(stage))
+        if stage_as_str == '0':
+            return self.create_reset_man_payloads()
         self._add_to_send_if_actuator_not_on(MPP_MAN, f'{MPP_PH}{stage_as_str}')
-        stack = {v: k for k, v in mpp_stages_inputs}
+        stack = {k for k in mpp_stages_inputs if k != f'{MPP_PH}{stage_as_str}'}
         while stack:
-            index, num, name, state, state_time, actuator = self._processed_data.pop()
-            pass
+            index, num, name, state, state_time, actuator = self._processed_data[stack.pop()]
+            if state != '0' or actuator == ActuatorAsChar.ON:
+                self._add_payloads_to_send(create_payload(index, self._prefix, ActuatorAsValue.OFF))
+        return self._storage_to_send
 
 def create_payload(
     index: str, 
@@ -310,3 +319,6 @@ def create_request_payloads_set_stage_man(
 if __name__ == '__main__':
     print({int(_MPP_PH[-1]): _MPP_PH for _MPP_PH in mpp_stages_inputs})
     print(set(mpp_stages_inputs))
+    inps = {'MKEY1': ('0', '1', 'MKEY1', '0', '2345563', '-'), 'MKEY2': ('1', '2', 'MKEY2', '0', '2345563', '-'), 'MKEY3': ('2', '3', 'MKEY3', '0', '2345563', '-'), 'MKEY4': ('3', '4', 'MKEY4', '0', '2345563', '-'), 'MKEY5': ('4', '5', 'MKEY5', '0', '2345563', '-'), 'KEY10': ('5', '6', 'KEY10', '0', '2345563', '-'), 'KEY11': ('6', '7', 'KEY11', '0', '2345563', '-'), 'KEY12': ('7', '8', 'KEY12', '0', '2345563', '-'), 'MPP_MAN': ('8', '9', 'MPP_MAN', '0', '2345563', '-'), 'MPP_FL': ('9', '10', 'MPP_FL', '0', '2345563', '-'), 'MPP_OFF': ('10', '11', 'MPP_OFF', '0', '2345563', '-'), 'MPP_PH1': ('11', '12', 'MPP_PH1', '0', '2345563', '-'), 'MPP_PH2': ('12', '13', 'MPP_PH2', '0', '2345563', '-'), 'MPP_PH3': ('13', '14', 'MPP_PH3', '0', '2345563', '-'), 'MPP_PH4': ('14', '15', 'MPP_PH4', '0', '2345563', '-'), 'MPP_PH5': ('15', '16', 'MPP_PH5', '0', '2345563', '-'), 'MPP_PH6': ('16', '17', 'MPP_PH6', '0', '2345563', '-'), 'MPP_PH7': ('17', '18', 'MPP_PH7', '0', '2345563', '-'), 'MPP_PH8': ('18', '19', 'MPP_PH8', '0', '2345563', '-'), 'MPP_QPH': ('19', '20', 'MPP_QPH', '0', '2345563', '-'), 'MPP_GL1': ('20', '21', 'MPP_GL1', '0', '2345563', '-'), 'MPP_GL2': ('21', '22', 'MPP_GL2', '0', '2345563', '-'), 'MPP_GL3': ('22', '23', 'MPP_GL3', '0', '2345563', '-'), 'MPP_GL4': ('23', '24', 'MPP_GL4', '0', '2345563', '-'), 'MPP_AUT': ('24', '25', 'MPP_AUT', '1', '2345558', '-'), 'CP_OFF': ('25', '26', 'CP_OFF', '0', '2345563', '-'), 'CP_FLASH': ('26', '27', 'CP_FLASH', '0', '2345563', '-'), 'CP_RED': ('27', '28', 'CP_RED', '0', '2345563', '-'), 'CP_AUTO': ('28', '29', 'CP_AUTO', '0', '2345563', '-'), 'CP_FIX': ('29', '30', 'CP_FIX', '0', '2345563', '-'), 'MIMIC': ('30', '31', 'MIMIC', '0', '2345563', '-')}
+    obj = Inputs(inps)
+    print(obj.create_payloads(0))
