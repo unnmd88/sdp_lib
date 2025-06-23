@@ -31,6 +31,8 @@ class AsyncHttpRequests:
             async with self._session.get(url, timeout=timeout) as response:
                 assert response.status == 200
                 content = await response.text()
+                print([content])
+
                 return response.status, content
 
     async def post_request(
@@ -49,6 +51,7 @@ class AsyncHttpRequests:
                 assert response.status == 200
                 content = await response.text()
                 print(f'response.status == {response.status}')
+                print(f'response.content == {[content]}')
                 return response.status, content
 
     # async def http_request_to_host(

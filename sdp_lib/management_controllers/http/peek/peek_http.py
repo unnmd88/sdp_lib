@@ -1,6 +1,7 @@
 import asyncio
 import json
 import time
+from collections import deque
 from collections.abc import Awaitable, MutableSequence, MutableMapping, Iterable
 from dataclasses import dataclass, field
 from enum import IntEnum
@@ -23,7 +24,7 @@ from sdp_lib.management_controllers.http.peek import (
     routes,
     static_data
 )
-from sdp_lib.management_controllers.http.peek.varbinds import InputsVarbinds, Inputs
+from sdp_lib.management_controllers.http.peek.varbinds import InputsPayloads
 from sdp_lib.management_controllers.parsers.parsers_peek_http_new import (
     MainPageParser,
     InputsPageParser, PeekWebPagesParser,
@@ -173,6 +174,7 @@ class DataFromWeb(IntEnum):
 class PeekWebHosts(HttpHosts):
 
     _parser_class = PeekWebPagesParser
+    _ok_alert = 'alert_msg = "";'
 
     def __init__(self, ipv4: str = None, host_id = None, session: aiohttp.ClientSession = None):
         super().__init__(ipv4=ipv4, host_id=host_id, session=session)
@@ -260,7 +262,8 @@ class PeekWebHosts(HttpHosts):
         )
         if request_response_inputs.errors:
             return self
-        inps_data = Inputs(request_response_inputs.processed_pretty_data['inputs'])
+
+        inps_data = InputsPayloads(request_response_inputs.processed_pretty_data['inputs'])
         for payload in inps_data.create_payloads(stage):
             coro = self._request_sender.post_request(
                     url=self._base_url + routes.set_inputs,
@@ -317,33 +320,80 @@ class PeekWebHosts(HttpHosts):
     #     await self.get_inputs()
     #     return self
 
+    # async def set_stage(self, stage: int):
+    #     stage = int(stage)
+    #     if not 0 <= stage <= 8:
+    #         self._request_response_data_default.load_error(str(BadValueToSet(value=stage, expected=(0, 8))))
+    #         return self
+    #
+    #     request_response_inputs = await self._request_sender.common_request(
+    #         self.build_request_response(DataFromWeb.inputs_page_get)
+    #     )
+    #     if request_response_inputs.errors:
+    #         return self
+    #     inps_data = InputsPayloads(request_response_inputs.processed_pretty_data['inputs'])
+    #     for payload in inps_data.create_payloads(stage):
+    #         coro = self._request_sender.post_request(
+    #                 url=self._base_url + routes.set_inputs,
+    #                 semaphore=self._semaphore,
+    #                 cookies=static_data.cookies,
+    #                 data=payload
+    #         )
+    #         self._request_storage.append(
+    #             RequestResponse(protocol=self.protocol, coro=coro, add_to_response_storage=False)
+    #         )
+    #     return await self._common_request()
+
     async def set_stage(self, stage: int):
         stage = int(stage)
         if not 0 <= stage <= 8:
             self._request_response_data_default.load_error(str(BadValueToSet(value=stage, expected=(0, 8))))
+            self._data_storage.put(self._request_response_data_default)
             return self
 
         request_response_inputs = await self._request_sender.common_request(
             self.build_request_response(DataFromWeb.inputs_page_get)
         )
-
-        print(f'request_response_inputs: {request_response_inputs.processed_pretty_data}')
-
         if request_response_inputs.errors:
             return self
-        inps_data = Inputs(request_response_inputs.processed_pretty_data['inputs'])
+        inps_data = InputsPayloads(request_response_inputs.processed_pretty_data['inputs'])
+        success_sent, faults_sent, pending = [], [], []
         for payload in inps_data.create_payloads(stage):
-            coro = self._request_sender.post_request(
-                    url=self._base_url + routes.set_inputs,
-                    semaphore=self._semaphore,
-                    cookies=static_data.cookies,
-                    data=payload
+            pending.append(
+                asyncio.create_task(
+                    self._request_sender.post_request(
+                        url=self._base_url + routes.set_inputs,
+                        semaphore=self._semaphore,
+                        cookies=static_data.cookies,
+                        data=payload.data
+                    ),
+                    name=payload.name
+                )
             )
-            self._request_storage.append(
-                RequestResponse(protocol=self.protocol, coro=coro, add_to_response_storage=False)
-            )
-        return await self._common_request()
+        while pending:
+            done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+            for done_task in done:
+                await done_task
+                status, content = done_task.result()
+                if status == 200 and self._ok_alert in content:
+                    success_sent.append(done_task.get_name())
+                else:
+                    faults_sent.append(done_task.get_name())
 
+        print(f'success: {success_sent}')
+        print(f'faults_sent: {faults_sent}')
+
+        # for payload in inps_data.create_payloads(stage):
+        #     coro = self._request_sender.post_request(
+        #             url=self._base_url + routes.set_inputs,
+        #             semaphore=self._semaphore,
+        #             cookies=static_data.cookies,
+        #             data=payload.data
+        #     )
+        #     self._request_storage.append(
+        #         RequestResponse(protocol=self.protocol, coro=coro, add_to_response_storage=False)
+        #     )
+        return await self._common_request()
 
 
 """ Tests """
@@ -383,4 +433,6 @@ async def main():
 
 
 if __name__ == '__main__':
+    msg_alert_example = ['<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Frameset//EN">\n<html>\n<head>\n<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>\n<link href="style.css" rel="stylesheet" type="text/css">\n<!--[if IE]>\n<link href="style_ie.css" rel="stylesheet" type="text/css">\n<![endif]-->\n<script type=\'text/javascript\' language=\'javascript\' SRC=\'browser_detect.js\'></script>\n<script type=\'text/javascript\' language=\'javascript\' SRC=\'/hvi?file=localization.js\'></script>\n<script type=\'text/javascript\' language=\'javascript\' SRC=\'javascript.js\'></script>\n\n<SCRIPT type="text/javascript" language=\'javascript\'>\n<!--\ndatapage = "cell1020.hvi";\n\nalert_msg = "Внутренняя ошибка: Неизвестный параметр";\n\n-->\n</SCRIPT>\n\n</head>\n\n<body onload="init()">\n\n<h1 id="title"></h1>\n<h2 id="title2"></h2>\n<div id="data"></div>\n\n<div id="comment" style="display: none;"></div>\n\n<div id="nav"></div>\n\n<div id="edit"></div>\n\n<div id="tijd"></div>\n\n<form name=\'settingstable\' method=\'POST\'>\n<input type=\'hidden\' name=\'edit_caption\' value=\'\'>\n<input type=\'hidden\' name=\'edit_line\' value=\'\'>\n<input type=\'hidden\' name=\'edit_label\' value=\'\'>\n<input type=\'hidden\' name=\'edit_par\' value=\'\'>\n<input type=\'hidden\' name=\'edit_format\' value=\'\'>\n<input type=\'hidden\' name=\'edit_file\' value=\'\'>\n<input type=\'hidden\' name=\'edit_mask\' value=\'\'>\n<input type=\'hidden\' name=\'edit_value\' value=\'\'>\n</form>\n\n</body>\n</html>\n']
+    ok_alert = 'alert_msg = "";'
     res = asyncio.run(main())
