@@ -379,20 +379,9 @@ class PeekWebHosts(HttpHosts):
                     success_sent.append(done_task.get_name())
                 else:
                     faults_sent.append(done_task.get_name())
-
         print(f'success: {success_sent}')
         print(f'faults_sent: {faults_sent}')
 
-        # for payload in inps_data.create_payloads(stage):
-        #     coro = self._request_sender.post_request(
-        #             url=self._base_url + routes.set_inputs,
-        #             semaphore=self._semaphore,
-        #             cookies=static_data.cookies,
-        #             data=payload.data
-        #     )
-        #     self._request_storage.append(
-        #         RequestResponse(protocol=self.protocol, coro=coro, add_to_response_storage=False)
-        #     )
         return await self._common_request()
 
 
@@ -411,7 +400,7 @@ async def main():
         # await obj.get_states()
         # await obj.generate_data_and_send_http_request(DataFromWeb.main_page_get, DataFromWeb.inputs_page_get)
         # await obj.get_inputs()
-        await obj.set_stage(0)
+        await obj.set_stage(2)
         print(json.dumps(obj.build_response_as_dict(), indent=4, ensure_ascii=False))
         print(f'время составило: {time.perf_counter() - start_time}')
         # await obj.request_all_types(AvailableDataFromWeb.main_page_get)
