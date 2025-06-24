@@ -2,7 +2,7 @@ import asyncio
 import json
 import time
 from collections import deque
-from collections.abc import Awaitable, MutableSequence, MutableMapping, Iterable
+from collections.abc import Awaitable, MutableSequence, MutableMapping, Iterable, Sequence
 from dataclasses import dataclass, field
 from enum import IntEnum
 from functools import cached_property
@@ -24,7 +24,7 @@ from sdp_lib.management_controllers.http.peek import (
     routes,
     static_data
 )
-from sdp_lib.management_controllers.http.peek.varbinds import InputsPayloads
+from sdp_lib.management_controllers.http.peek.varbinds import InputsPayloads, T_storage_to_send, Payload
 from sdp_lib.management_controllers.parsers.parsers_peek_http_new import (
     MainPageParser,
     InputsPageParser, PeekWebPagesParser,
@@ -344,6 +344,39 @@ class PeekWebHosts(HttpHosts):
     #         )
     #     return await self._common_request()
 
+    async def _make_request_and_process_response(
+            self,
+            payloads: Sequence[Payload],
+            retries: int = 1
+    ) -> tuple[MutableSequence[str], MutableSequence[str]]:
+        success, faults,  pending = [], [], []
+        for retry in range(retries):
+            for payload in payloads:
+                pending.append(
+                    asyncio.create_task(
+                        self._request_sender.post_request(
+                            url=self._base_url + routes.set_inputs,
+                            semaphore=self._semaphore,
+                            cookies=static_data.cookies,
+                            data=payload.data
+                        ),
+                        name=payload.name
+                    )
+                )
+            while pending:
+                done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+                for done_task in done:
+                    await done_task
+                    status, content = done_task.result()
+                    if status == 200 and self._ok_alert in content:
+                        success.append(done_task.get_name())
+                    else:
+                        faults.append(done_task.get_name())
+            if not faults:
+                break
+        return success, faults
+
+
     async def set_stage(self, stage: int):
         stage = int(stage)
         if not 0 <= stage <= 8:
@@ -356,31 +389,23 @@ class PeekWebHosts(HttpHosts):
         )
         if request_response_inputs.errors:
             return self
+
         inps_data = InputsPayloads(request_response_inputs.processed_pretty_data['inputs'])
-        success_sent, faults_sent, pending = [], [], []
-        for payload in inps_data.create_payloads(stage):
-            pending.append(
-                asyncio.create_task(
-                    self._request_sender.post_request(
-                        url=self._base_url + routes.set_inputs,
-                        semaphore=self._semaphore,
-                        cookies=static_data.cookies,
-                        data=payload.data
-                    ),
-                    name=payload.name
-                )
-            )
-        while pending:
-            done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
-            for done_task in done:
-                await done_task
-                status, content = done_task.result()
-                if status == 200 and self._ok_alert in content:
-                    success_sent.append(done_task.get_name())
-                else:
-                    faults_sent.append(done_task.get_name())
-        print(f'success: {success_sent}')
-        print(f'faults_sent: {faults_sent}')
+        success_sent, faults_sent = [], []
+        for payloads in inps_data.create_payloads(stage):
+            print(f'payloads: {payloads}')
+            ok, faults = await self._make_request_and_process_response(payloads)
+            faults_sent += faults
+            if faults:
+                faults_sent += faults
+                self._request_response_data_default.load_error(f'Ошибка установки ВВОДОВ: {faults_sent}')
+                self._data_storage.put(self._request_response_data_default)
+                return self
+            success_sent += ok
+            print(f'success: {success_sent}')
+            print(f'faults_sent: {faults_sent}')
+            await asyncio.sleep(4)
+
 
         return await self._common_request()
 
@@ -400,7 +425,7 @@ async def main():
         # await obj.get_states()
         # await obj.generate_data_and_send_http_request(DataFromWeb.main_page_get, DataFromWeb.inputs_page_get)
         # await obj.get_inputs()
-        await obj.set_stage(2)
+        await obj.set_stage(0)
         print(json.dumps(obj.build_response_as_dict(), indent=4, ensure_ascii=False))
         print(f'время составило: {time.perf_counter() - start_time}')
         # await obj.request_all_types(AvailableDataFromWeb.main_page_get)
