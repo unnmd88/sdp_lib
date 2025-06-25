@@ -55,7 +55,7 @@ class RequestResponse:
         self.reset_data()
         self.coro = coro
 
-    def load_raw_response(self, response: str):
+    def load_raw_response(self, response):
         self.data_to_handling = response
 
     def load_error(self, error: str):

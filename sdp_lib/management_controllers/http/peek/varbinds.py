@@ -1,25 +1,21 @@
 import itertools
 import os
 from collections import deque
-from collections.abc import MutableMapping, Sequence, MutableSequence, Iterable
+from collections.abc import (
+    MutableMapping,
+    MutableSequence
+)
 from abc import abstractmethod
 from typing import NamedTuple, TypeAlias
 
 from dotenv import load_dotenv
 
-from sdp_lib.management_controllers.http.peek.static_data import (
-    # ActuatorAsChar,
-    # ActuatorAsValue,
-    # matches_actuators,
-    Actuator
-)
-from sdp_lib.management_controllers.structures import InputsStructure
+from sdp_lib.management_controllers.http.peek.static_data import Actuator
 
 
 load_dotenv()
 
 all_mpp_inputs = set(os.getenv('ALL_MPP_INPUTS').split())
-# mpp_stages_inputs = set(os.getenv('MPP_STAGES_INPUTS').split())
 mpp_stages_inputs = {INP_NAME: int(INP_NAME[-1]) for INP_NAME in os.getenv('MPP_STAGES_INPUTS').split()}
 MPP_MAN = os.getenv('MPP_MANUAL')
 PREFIX_MAN_STAGE_PEEK = os.getenv('PREFIX_MAN_STAGE_PEEK')
@@ -31,22 +27,9 @@ val_payload = 'par_value'
 inputs_prefix = os.getenv('INPUT_PREFIX_FOR_SET_VAL')
 
 
-# def get_actuator_val_for_payload(value):
-#     if value in [el for el in ActuatorAsValue]:
-#         return value
-#     elif value in [el for el in ActuatorAsChar]:
-#         return matches_actuators.get(value)
-#     else:
-#         raise ValueError(f'Некорректное значение актуатора: {value!r}')
-
-class PayloadData(NamedTuple):
-    key: tuple[str, str]
-    value: tuple[str, str]
-
-
 class Payload(NamedTuple):
     name: str
-    data: PayloadData | tuple[tuple[str, str], tuple[str, str]]
+    data: tuple[tuple[str, str], tuple[str, str]]
 
 
 def create_payload(
@@ -59,13 +42,6 @@ def create_payload(
         actuator = Actuator.get_reverse_value(actuator)
     name = Actuator.pretty_print(name, actuator)
     return Payload(name=name, data=((key_payload, f'{prefix}{index}'), (val_payload, actuator)))
-
-# def create_payload(
-#     index: str,
-#     prefix: str,
-#     val: str
-# ) -> tuple:
-#     return (key_payload, f'{prefix}{index}'), (val_payload, val)
 
 
 T_inp_props = tuple[str, str, str, str, str]
@@ -112,40 +88,33 @@ class InputsPayloads(AbstractPayloads):
 
     _prefix = inputs_prefix
 
-    def _add_to_send_if_actuator_not_on(self, *inp_names):
+    def _add_payloads_to_container_if_actuator_not_on(self, *inp_names):
         for inp_name in inp_names:
             index, num, name, state, state_time, actuator = self._processed_data[inp_name]
             if state == '0' or actuator != Actuator.ON_as_chars:
-                self._add_payloads_to_send(
-                    create_payload(index, self._prefix, Actuator.ON_as_value, name)
-                )
+                yield create_payload(index, self._prefix, Actuator.ON_as_value, name)
 
-    def _create_payload_reset_man_and_add_to_container(
-            self,
-            *,
-            inp_names: Iterable[str],
-            container: MutableSequence
-    ) -> MutableSequence[Payload]:
+    def _create_payload_reset_man_and_add_to_container(self, *inp_names):
         for inp_name in inp_names:
             index, num, name, state, state_time, actuator = self._processed_data[inp_name]
-            if state != '0' or actuator != Actuator.VF_as_chars:
-                container.append(create_payload(index, self._prefix, Actuator.VF_as_value, name))
-        return container
-
-    def _create_payload_reset_MPP_MAN(self, ):
-        pass
+            actuator_val = None
+            match (state, actuator):
+                case('1', Actuator.VF_as_chars) if inp_name == MPP_MAN:
+                    actuator_val = Actuator.OFF_as_value
+                case ('1', Actuator.ON_as_chars):
+                    actuator_val = Actuator.VF_as_value
+                case('0', Actuator.OFF_as_chars):
+                    actuator_val = Actuator.VF_as_value
+            if actuator_val:
+                yield create_payload(index, self._prefix, actuator_val, name)
+                # container.append(create_payload(index, self._prefix, actuator_val, name))
 
     def create_reset_man_payloads(self):
         self.clear_storage_to_send()
-        first_prio_to_send, second_prio_to_send = [], []
-        first_prio_to_send = self._create_payload_reset_man_and_add_to_container(
-            inp_names=(MPP_MAN, ), container=first_prio_to_send
-        )
-        self._storage_to_send.appendleft(first_prio_to_send)
-        second_prio_to_send = self._create_payload_reset_man_and_add_to_container(
-            inp_names=mpp_stages_inputs, container=second_prio_to_send
-        )
-        self._storage_to_send.append(second_prio_to_send)
+        first_group_to_send, second_group_to_send = [], []
+        self._add_payloads_to_send(first_group_to_send, second_group_to_send)
+        first_group_to_send += self._create_payload_reset_man_and_add_to_container(MPP_MAN)
+        second_group_to_send += self._create_payload_reset_man_and_add_to_container(*mpp_stages_inputs)
         print(self._storage_to_send)
         return self._storage_to_send
 
@@ -155,14 +124,19 @@ class InputsPayloads(AbstractPayloads):
         if stage_as_str == '0':
             return self.create_reset_man_payloads()
         self.clear_storage_to_send()
-        self._add_to_send_if_actuator_not_on(MPP_MAN, f'{MPP_PH}{stage_as_str}')
+        first_group_to_send, second_group_to_send = [], []
+        self._add_payloads_to_send(first_group_to_send, second_group_to_send)
+        first_group_to_send += self._add_payloads_to_container_if_actuator_not_on(f'{MPP_PH}{stage_as_str}')
+        second_group_to_send += self._add_payloads_to_container_if_actuator_not_on(MPP_MAN)
         stack = {k for k in mpp_stages_inputs if k != f'{MPP_PH}{stage_as_str}'}
         while stack:
             index, num, name, state, state_time, actuator = self._processed_data[stack.pop()]
             if state != '0' or actuator == Actuator.ON_as_chars:
-                self._add_payloads_to_send(
-                    create_payload(index, self._prefix, Actuator.OFF_as_value, name)
-                )
+                first_group_to_send.append(create_payload(index, self._prefix, Actuator.OFF_as_value, name))
+                # self._add_payloads_to_send(
+                #     create_payload(index, self._prefix, Actuator.OFF_as_value, name)
+                # )
+        print(f'self._storage_to_send: {self._storage_to_send}')
         return self._storage_to_send
 
 

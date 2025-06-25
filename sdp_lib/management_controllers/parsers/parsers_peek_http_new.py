@@ -645,6 +645,12 @@ class InputsPageParser(Parsers):
         # )
 
 
+class SetInputsPageParser(Parsers):
+
+    def parse(self, content):
+        return content
+
+
 class PeekWebPagesParser:
     def __init__(self):
         self._main_page_parser = MainPageParser()
@@ -659,10 +665,7 @@ class PeekWebPagesParser:
         return self._inputs_page_parser
 
 
-class SetInputsPageParser(Parsers):
 
-    def parse(self, content):
-        return content
 
 
 if __name__ == '__main__':

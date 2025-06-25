@@ -1,40 +1,41 @@
 import asyncio
 import json
 import time
-from collections import deque
-from collections.abc import Awaitable, MutableSequence, MutableMapping, Iterable, Sequence
-from dataclasses import dataclass, field
+from collections.abc import (
+    MutableSequence,
+    Sequence
+)
 from enum import IntEnum
 from functools import cached_property
 from typing import (
     Callable,
     Type,
-    TypeVar, TypeAlias, Any, Self
+    TypeVar
 )
 
 import aiohttp
 
-from sdp_lib.management_controllers.exceptions import (
-    BadControllerType,
-    BadValueToSet
-)
-from sdp_lib.management_controllers.hosts_core import ResponseEntity, RequestResponse
+from sdp_lib.management_controllers.exceptions import BadValueToSet
+from sdp_lib.management_controllers.fields_names import FieldsNames
+from sdp_lib.management_controllers.hosts_core import RequestResponse
 from sdp_lib.management_controllers.http.http_core import HttpHosts
 from sdp_lib.management_controllers.http.peek import (
     routes,
     static_data
 )
-from sdp_lib.management_controllers.http.peek.varbinds import InputsPayloads, T_storage_to_send, Payload
+from sdp_lib.management_controllers.http.peek.varbinds import (
+    InputsPayloads,
+    Payload
+)
 from sdp_lib.management_controllers.parsers.parsers_peek_http_new import (
     MainPageParser,
-    InputsPageParser, PeekWebPagesParser,
+    InputsPageParser,
+    PeekWebPagesParser,
+    SetInputsPageParser,
 )
-from sdp_lib.management_controllers.structures import HttpResponseStructure
 
 
 T_Parsers = TypeVar('T_Parsers', MainPageParser, InputsPageParser)
-
-
 
 
 class DataFromWeb(IntEnum):
@@ -42,133 +43,6 @@ class DataFromWeb(IntEnum):
     main_page_get     = 1
     inputs_page_get   = 2
     inputs_page_set   = 3
-
-
-# class PeekWebHosts(HttpHosts):
-#
-#     @cached_property
-#     def matches(self) -> dict[DataFromWeb, tuple[str, Callable, Type[T_Parsers]]]:
-#         return {
-#             DataFromWeb.main_page_get: (routes.main_page, self._request_sender.fetch, PeekWebPagesParser),
-#             DataFromWeb.inputs_page_get: (routes.get_inputs, self._request_sender.fetch, InputsPageParser),
-#             DataFromWeb.inputs_page_set: (routes.set_inputs, self._request_sender.post_request, None),
-#         }
-#
-#     async def _single_common_request(
-#             self,
-#             url,
-#             method: Callable,
-#             parser_class,
-#             **kwargs
-#     ):
-#         self._tmp_response = await self._request_sender.http_request_to_host(
-#             url=url,
-#             method=method,
-#             **kwargs
-#         )
-#         if self.check_http_response_errors_and_add_to_host_data_if_has():
-#             return self
-#
-#         # print(f'self.last_response: {self.last_response}')
-#
-#         # if parser_class is None:
-#         #     # Вернуть ответ из self._request_sender.http_request_to_host если парсер не задан
-#         #     return self._tmp_response[HttpResponseStructure.CONTENT]
-#
-#         parser = PeekWebPagesParser()
-#         # parsed_data = parser.main_page_parser.parse()
-#
-#         # parser = parser_class()
-#         # parser.parse(self._tmp_response[HttpResponseStructure.CONTENT])
-#         # print(f'parser.data_for_response: {parser.data_for_response}')
-#
-#         self._response_storage.put_raw_responses(ResponseEntity(
-#             raw_data=self._tmp_response[HttpResponseStructure.CONTENT],
-#             name='PeekWeb',
-#             parser=parser.main_page_parser.parse
-#         ))
-#
-#         return self
-#
-#     """ Monitoring """
-#
-#     async def fetch_all_pages(self, *args, **kwargs):
-#         async with asyncio.TaskGroup() as tg:
-#             for page in args:
-#                 route, method, parser_class = self.matches.get(page)
-#                 tg.create_task(
-#                     self._single_common_request(
-#                         self._base_url + route, method, parser_class,
-#                         **kwargs
-#                     )
-#                 )
-#         # if self.response_errors:
-#         #     self.remove_data_from_response()
-#         return self
-#
-#     async def get_states(self):
-#         return await self.fetch_all_pages(DataFromWeb.main_page_get)
-#
-#     async def get_inputs(self):
-#         return await self.fetch_all_pages(DataFromWeb.inputs_page_get)
-#
-#     """ Management """
-#
-#     async def post_all_pages(self, page, payload_data: list[tuple]):
-#         async with asyncio.TaskGroup() as tg:
-#             results = []
-#             print(f'page: {page}\npayload: {payload_data}')
-#             route, method, parser_class = self.matches.get(page)
-#             max_concurrent_tasks = 5
-#             for num_task, payload in enumerate(payload_data, 1):
-#                 if num_task % max_concurrent_tasks == 0:
-#                     print(f'DEBUG len(payload_data) : {len(payload_data)}')
-#                     await asyncio.sleep(1) # Peek сбрасывает при коннект при большом количестве запросов
-#                 results.append(
-#                     tg.create_task(
-#                         self._single_common_request(
-#                             self._base_url + route, method, parser_class,
-#                             cookies=static_data.cookies,
-#                             data=payload
-#                         )
-#                     )
-#                 )
-#
-#         # print(f'results_results: + {results}')
-#         if self.response_errors:
-#             self.remove_data_from_response()
-#         return self
-#
-#     async def set_inputs_to_web(
-#             self,
-#             *,
-#             inps_name_and_vals: dict | tuple = None,
-#             stage: int = None,
-#     ):
-#         await self.get_inputs()
-#         if self.response_errors:
-#             return self
-#         _inputs = self.response_as_dict['data']['inputs']
-#
-#         if stage is not None:
-#             payloads = InputsVarbinds(_inputs).get_varbinds_set_stage(stage)
-#         else:
-#             payloads = InputsVarbinds(_inputs).get_varbinds_as_from_name(inps_name_and_vals)
-#
-#         print(f'payloads: {payloads}')
-#         await self.post_all_pages(
-#             DataFromWeb.inputs_page_set,
-#             payload_data=payloads
-#         )
-#         await self.get_inputs()
-#         return self
-#
-#     async def set_stage(self, stage: int):
-#
-#         if stage not in range(9):
-#             self.add_data_to_data_response_attrs(BadValueToSet(value=stage, expected=(0, 8)))
-#             return self
-#         return await self.set_inputs_to_web(stage=stage)
 
 
 class PeekWebHosts(HttpHosts):
@@ -207,7 +81,9 @@ class PeekWebHosts(HttpHosts):
 
     async def get_states(self, *extras: DataFromWeb):
         self._request_storage.clear()
-        self._request_response_data_get_states.load_coro(self._request_sender.fetch(self._base_url + routes.main_page))
+        self._request_response_data_get_states.load_coro(
+            self._request_sender.fetch(self._base_url + routes.main_page, self._semaphore)
+        )
         self._request_storage.append(self._request_response_data_get_states)
         for data_from_web in extras:
             DataFromWeb(data_from_web)
@@ -225,124 +101,6 @@ class PeekWebHosts(HttpHosts):
         return await self.generate_data_and_send_http_request(DataFromWeb.inputs_page_get, clear_storage=True)
 
     """ Management """
-
-    async def post_all_pages(self, page, payload_data: list[tuple]):
-        async with asyncio.TaskGroup() as tg:
-            results = []
-            print(f'page: {page}\npayload: {payload_data}')
-            route, method, parser_class = self.matches.get(page)
-            max_concurrent_tasks = 5
-            for num_task, payload in enumerate(payload_data, 1):
-                if num_task % max_concurrent_tasks == 0:
-                    print(f'DEBUG len(payload_data) : {len(payload_data)}')
-                    await asyncio.sleep(1) # Peek сбрасывает при коннект при большом количестве запросов
-                results.append(
-                    tg.create_task(
-                        self._single_common_request(
-                            self._base_url + route, method, parser_class,
-                            cookies=static_data.cookies,
-                            data=payload
-                        )
-                    )
-                )
-
-        # print(f'results_results: + {results}')
-        if self.response_errors:
-            self.remove_data_from_response()
-        return self
-
-    async def set_inputs_to_web(
-            self,
-            *,
-            inps_name_and_vals: dict | tuple = None,
-            stage: int = None,
-    ):
-        request_response_inputs = await self._request_sender.common_request(
-            self.build_request_response(DataFromWeb.inputs_page_get)
-        )
-        if request_response_inputs.errors:
-            return self
-
-        inps_data = InputsPayloads(request_response_inputs.processed_pretty_data['inputs'])
-        for payload in inps_data.create_payloads(stage):
-            coro = self._request_sender.post_request(
-                    url=self._base_url + routes.set_inputs,
-                    semaphore=self._semaphore,
-                    cookies=static_data.cookies,
-                    data=payload
-            )
-            self._request_storage.append(
-                RequestResponse(protocol=self.protocol, coro=coro, add_to_response_storage=False)
-            )
-        return await self._common_request()
-
-
-        await self.get_inputs()
-        if self.response_errors:
-            return self
-        _inputs = self.response_as_dict['data']['inputs']
-
-        if stage is not None:
-            payloads = InputsVarbinds(_inputs).get_varbinds_set_stage(stage)
-        else:
-            payloads = InputsVarbinds(_inputs).get_varbinds_as_from_name(inps_name_and_vals)
-
-        print(f'payloads: {payloads}')
-        await self.post_all_pages(
-            DataFromWeb.inputs_page_set,
-            payload_data=payloads
-        )
-        await self.get_inputs()
-        return self
-
-    # async def set_inputs_to_web(
-    #         self,
-    #         *,
-    #         inps_name_and_vals: dict | tuple = None,
-    #         stage: int = None,
-    # ):
-    #
-    #     await self.get_inputs()
-    #     if self.response_errors:
-    #         return self
-    #     _inputs = self.response_as_dict['data']['inputs']
-    #
-    #     if stage is not None:
-    #         payloads = InputsVarbinds(_inputs).get_varbinds_set_stage(stage)
-    #     else:
-    #         payloads = InputsVarbinds(_inputs).get_varbinds_as_from_name(inps_name_and_vals)
-    #
-    #     print(f'payloads: {payloads}')
-    #     await self.post_all_pages(
-    #         DataFromWeb.inputs_page_set,
-    #         payload_data=payloads
-    #     )
-    #     await self.get_inputs()
-    #     return self
-
-    # async def set_stage(self, stage: int):
-    #     stage = int(stage)
-    #     if not 0 <= stage <= 8:
-    #         self._request_response_data_default.load_error(str(BadValueToSet(value=stage, expected=(0, 8))))
-    #         return self
-    #
-    #     request_response_inputs = await self._request_sender.common_request(
-    #         self.build_request_response(DataFromWeb.inputs_page_get)
-    #     )
-    #     if request_response_inputs.errors:
-    #         return self
-    #     inps_data = InputsPayloads(request_response_inputs.processed_pretty_data['inputs'])
-    #     for payload in inps_data.create_payloads(stage):
-    #         coro = self._request_sender.post_request(
-    #                 url=self._base_url + routes.set_inputs,
-    #                 semaphore=self._semaphore,
-    #                 cookies=static_data.cookies,
-    #                 data=payload
-    #         )
-    #         self._request_storage.append(
-    #             RequestResponse(protocol=self.protocol, coro=coro, add_to_response_storage=False)
-    #         )
-    #     return await self._common_request()
 
     async def _make_request_and_process_response(
             self,
@@ -367,15 +125,14 @@ class PeekWebHosts(HttpHosts):
                 done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
                 for done_task in done:
                     await done_task
-                    status, content = done_task.result()
-                    if status == 200 and self._ok_alert in content:
+                    error, status, content = done_task.result()
+                    if error is None and status == 200 and self._ok_alert in content:
                         success.append(done_task.get_name())
                     else:
                         faults.append(done_task.get_name())
             if not faults:
                 break
         return success, faults
-
 
     async def set_stage(self, stage: int):
         stage = int(stage)
@@ -402,12 +159,21 @@ class PeekWebHosts(HttpHosts):
                 self._data_storage.put(self._request_response_data_default)
                 return self
             success_sent += ok
-            print(f'success: {success_sent}')
-            print(f'faults_sent: {faults_sent}')
-            await asyncio.sleep(4)
-
-
-        return await self._common_request()
+        parser = SetInputsPageParser()
+        request_response = RequestResponse(
+            name=FieldsNames.set_stage,
+            parser_obj=parser,
+            parser=parser.parse,
+            protocol=self.protocol,
+            add_to_response_storage=True
+        )
+        if not faults_sent:
+            data_to_response = {FieldsNames.set_stage: int(stage)}
+        else:
+            data_to_response = {FieldsNames.set_stage: f'Ошибка установки фазы {int(stage)}'}
+        request_response.load_raw_response(data_to_response)
+        self._data_storage.put(request_response)
+        return self
 
 
 """ Tests """

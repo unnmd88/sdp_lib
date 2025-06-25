@@ -1,9 +1,11 @@
 import asyncio
-from typing import Callable
 
 import aiohttp
 
-from sdp_lib.management_controllers.exceptions import ConnectionTimeout, BadControllerType
+from sdp_lib.management_controllers.exceptions import (
+    ConnectionTimeout,
+    BadControllerType
+)
 from sdp_lib.management_controllers.hosts_core import RequestResponse
 
 
@@ -25,15 +27,19 @@ class AsyncHttpRequests:
             url: str,
             semaphore: asyncio.Semaphore,
             timeout: aiohttp.ClientTimeout = aiohttp.ClientTimeout(connect=.4)
-    ) -> tuple[int, str]:
-
-        async with semaphore:
-            async with self._session.get(url, timeout=timeout) as response:
-                assert response.status == 200
-                content = await response.text()
-                print([content])
-
-                return response.status, content
+    ) -> tuple[str | None, int, str]:
+        error = status = content = None
+        try:
+            async with semaphore:
+                async with self._session.get(url, timeout=timeout) as response:
+                    assert response.status == 200
+                    status = response.status
+                    content = await response.text()
+        except asyncio.TimeoutError:
+            error = ConnectionTimeout()
+        except (AssertionError, aiohttp.client_exceptions.ClientConnectorCertificateError):
+            error = BadControllerType()
+        return error, status, content
 
     async def post_request(
             self,
@@ -42,49 +48,18 @@ class AsyncHttpRequests:
             timeout: aiohttp.ClientTimeout = aiohttp.ClientTimeout(connect=1),
             **kwargs
     ):
-        async with semaphore:
-            async with self._session.post(
-                    url,
-                    timeout=timeout,
-                    **kwargs
-            ) as response:
-                assert response.status == 200
-                content = await response.text()
-                print(f'response.status == {response.status}')
-                print(f'response.content == {[content]}')
-                return response.status, content
-
-    # async def http_request_to_host(
-    #         self,
-    #         *,
-    #         url: str,
-    #         method: Callable,
-    #         timeout: aiohttp.ClientTimeout = aiohttp.ClientTimeout(connect=1),
-    #         **kwargs
-    # ) -> tuple[Exception | None, str | None]:
-    #     """
-    #     Генерирует http запрос получения контента веб страницы.
-    #     :return: Кортеж из 2 объектов:
-    #              [0] -> экземпляр производного класса от Exception
-    #              при ошибке в получении контента, иначе None.
-    #              [1] -> контент веб страницы типа str, если запрос выполнен успешно, иначе None.
-    #     """
-    #     # print(f'++ self.method: {method.__name__}')
-    #     error = content = None
-    #     try:
-    #         content = await method(
-    #             url=url,
-    #             timeout=timeout,
-    #             **kwargs
-    #         )
-    #     except asyncio.TimeoutError:
-    #         error = ConnectionTimeout()
-    #     except (AssertionError, aiohttp.client_exceptions.ClientConnectorCertificateError):
-    #         error = BadControllerType()
-    #     except aiohttp.client_exceptions.ClientConnectorError:
-    #         error = ConnectionTimeout('from connector')
-    #     return error, content
-
+        error = status = content = None
+        try:
+            async with semaphore:
+                async with self._session.post(url, timeout=timeout, **kwargs) as response:
+                    assert response.status == 200
+                    status = response.status
+                    content = await response.text()
+        except asyncio.TimeoutError:
+            error = ConnectionTimeout()
+        except (AssertionError, aiohttp.client_exceptions.ClientConnectorCertificateError):
+            error = BadControllerType()
+        return error, status, content
 
     async def common_request(
             self,
@@ -97,19 +72,14 @@ class AsyncHttpRequests:
                  при ошибке в получении контента, иначе None.
                  [1] -> контент веб страницы типа str, если запрос выполнен успешно, иначе None.
         """
-        # print(f'++ self.method: {method.__name__}')
-        error = None
-        try:
-            status, content = await request_response.coro
-            request_response.load_raw_response(content)
-            request_response.load_status_response(status)
-        except asyncio.TimeoutError:
-            error = ConnectionTimeout()
-        except (AssertionError, aiohttp.client_exceptions.ClientConnectorCertificateError):
-            error = BadControllerType()
-        except aiohttp.client_exceptions.ClientConnectorError:
-            error = ConnectionTimeout('from connector')
+        error, status, content = await request_response.coro
         if error is not None:
             request_response.load_error(str(error))
+        else:
+            request_response.load_raw_response(content)
+            request_response.load_status_response(status)
         return request_response
+
+
+
 
