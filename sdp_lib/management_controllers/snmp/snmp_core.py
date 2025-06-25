@@ -142,17 +142,6 @@ class SnmpHost(Host):
         self._request_response_data_get_states.set_parse_method(
             self._request_response_data_get_states.parser_obj
         )
-        # self._request_response_data_default = RequestResponse(
-        #     protocol=self.protocol,
-        #     parser=self._parser_class(),
-        #     add_to_response_storage=True
-        # )
-        # self._request_response_data_get_states = RequestResponse(
-        #     protocol=self.protocol,
-        #     name='get_state',
-        #     add_to_response_storage=True,
-        #     parser=self._parser_class()
-        # )
         self._get_states_parser_config: ParserConfig = None
 
     @cached_property
@@ -176,8 +165,6 @@ class SnmpHost(Host):
         """
         self._tmp_response = await request_response.coro
         error = self._check_tmp_response_errors()
-        print(f'error: {error}')
-        print(f'self._tmp_response: {self._tmp_response}')
         if error:
             request_response.load_error(error)
             self._data_storage.put(request_response)
@@ -285,14 +272,11 @@ class Ug405Hosts(SnmpHost):
         :return : При успешной установке scn возвращает None, иначе возвращает текст ошибки.
         """
         if self._scn.scn_as_ascii and self.check_scn_is_fresh():
-            print(f'SCN IS FRESH!!!')
             return None
-        print(f'SCN IS ROTTEN...')
 
         self._tmp_response = await self._method_for_request_scn(varbinds=[self._varbinds.site_id_varbind])
         response_error = self._check_tmp_response_errors()
         if response_error is None:
-            print(f'self._get_scn_as_chars_from_tmp_response(): {self._get_scn_as_chars_from_tmp_response()}')
             self._scn.refresh(self._get_scn_as_chars_from_tmp_response())
             self._timestamp_set_scn = time.time()
         else:

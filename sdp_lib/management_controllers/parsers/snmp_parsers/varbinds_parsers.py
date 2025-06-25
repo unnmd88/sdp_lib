@@ -106,10 +106,6 @@ class AbstractSnmpParser(Parsers):
         for field_name, cb_fn in self.extras_methods.items():
             self.parsed_content_as_dict[field_name] = cb_fn()
 
-
-
-
-
     def parse(
             self,
             *,

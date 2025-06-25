@@ -150,7 +150,6 @@ class PeekWebHosts(HttpHosts):
         inps_data = InputsPayloads(request_response_inputs.processed_pretty_data['inputs'])
         success_sent, faults_sent = [], []
         for payloads in inps_data.create_payloads(stage):
-            print(f'payloads: {payloads}')
             ok, faults = await self._make_request_and_process_response(payloads)
             faults_sent += faults
             if faults:

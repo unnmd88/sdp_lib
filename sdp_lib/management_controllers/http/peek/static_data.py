@@ -60,4 +60,3 @@ class ActuatorAsValue(StrEnum):
 
 
 
-print(Actuator.get_reverse_value(ActuatorAsValue.ON))

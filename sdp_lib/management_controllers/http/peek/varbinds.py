@@ -1,4 +1,3 @@
-import itertools
 import os
 from collections import deque
 from collections.abc import (
@@ -6,7 +5,10 @@ from collections.abc import (
     MutableSequence
 )
 from abc import abstractmethod
-from typing import NamedTuple, TypeAlias
+from typing import (
+    NamedTuple,
+    TypeAlias
+)
 
 from dotenv import load_dotenv
 
@@ -107,7 +109,6 @@ class InputsPayloads(AbstractPayloads):
                     actuator_val = Actuator.VF_as_value
             if actuator_val:
                 yield create_payload(index, self._prefix, actuator_val, name)
-                # container.append(create_payload(index, self._prefix, actuator_val, name))
 
     def create_reset_man_payloads(self):
         self.clear_storage_to_send()
@@ -115,7 +116,6 @@ class InputsPayloads(AbstractPayloads):
         self._add_payloads_to_send(first_group_to_send, second_group_to_send)
         first_group_to_send += self._create_payload_reset_man_and_add_to_container(MPP_MAN)
         second_group_to_send += self._create_payload_reset_man_and_add_to_container(*mpp_stages_inputs)
-        print(self._storage_to_send)
         return self._storage_to_send
 
     def create_payloads(self, stage: int):
@@ -133,10 +133,6 @@ class InputsPayloads(AbstractPayloads):
             index, num, name, state, state_time, actuator = self._processed_data[stack.pop()]
             if state != '0' or actuator == Actuator.ON_as_chars:
                 first_group_to_send.append(create_payload(index, self._prefix, Actuator.OFF_as_value, name))
-                # self._add_payloads_to_send(
-                #     create_payload(index, self._prefix, Actuator.OFF_as_value, name)
-                # )
-        print(f'self._storage_to_send: {self._storage_to_send}')
         return self._storage_to_send
 
 
