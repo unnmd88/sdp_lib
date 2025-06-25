@@ -206,18 +206,16 @@ class Host:
             if err:
                 self._all_errors.append(*err)
 
-        print(f'self._all_errors: {self._all_errors}')
+        # print(f'self._all_errors: {self._all_errors}')
         if self._all_errors:
             self._processed_data_to_response.clear()
             self._data_storage.clear()
         else:
             while self.data_storage:
                 resp_data: RequestResponse =self.data_storage.popleft()
-                print(f'resp_data: {resp_data.data_to_handling}')
-                print(f'resp_data: {resp_data.errors}')
-
+                # print(f'resp_data.data_to_handling: {resp_data.data_to_handling}')
+                # print(f'resp_data.errors: {resp_data.errors}')
                 self._processed_data_to_response |= resp_data.processed_pretty_data
-
         # Проверка, если FieldsNames.curr_mode None, то удаляем из словаря
         try:
             current_mode = self._processed_data_to_response.pop(FieldsNames.curr_mode)
@@ -225,12 +223,10 @@ class Host:
                 self._processed_data_to_response[FieldsNames.curr_mode] = current_mode
         except KeyError:
             pass
-        print(f'self._processed_data_to_response: {self._processed_data_to_response}')
         return self._pattern_response
 
     async def _common_request(self) -> Self:
         pending = []
-        print(self._request_storage)
         while self._request_storage:
             pending.append(asyncio.create_task(self._request_sender.common_request(self._request_storage.popleft())))
         # pending = [asyncio.create_task(req_resp.coro) for req_resp in self._storage]
