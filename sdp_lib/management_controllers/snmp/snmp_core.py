@@ -140,7 +140,7 @@ class SnmpHost(Host):
         self.set_driver(engine)
         self._request_sender = AsyncSnmpRequests(self._driver, self.snmp_config, ipv4=self._ipv4)
         self._request_response_data_get_states.set_parse_method(
-            self._request_response_data_get_states.parser_obj
+            self._request_response_data_get_states.parser_obj.parse
         )
         self._get_states_parser_config: ParserConfig = None
 
@@ -207,6 +207,9 @@ class Ug405Hosts(SnmpHost):
             val_oid_handler=pretty_print,
             oid_name_by_alias=True,
             host_protocol=FieldsNames.protocol_ug405
+        )
+        self._request_response_data_default.set_parse_method(
+            self._request_response_data_default.parser_obj
         )
 
 
@@ -368,7 +371,7 @@ class Ug405Hosts(SnmpHost):
         self._get_states_parser_config.set_oid_handler(
             build_func_with_remove_scn(self._scn.scn_as_ascii, get_val_as_str)
         )
-        self._request_response_data_get_states.parser.load_config_parser(self._get_states_parser_config)
+        self._request_response_data_get_states.parser_obj.load_config_parser(self._get_states_parser_config)
         self._request_response_data_get_states.load_coro(
             self._request_sender.snmp_get(self._varbinds.get_varbinds_current_states(self._scn.scn_as_ascii))
         )
@@ -397,7 +400,7 @@ class Ug405Hosts(SnmpHost):
         self._request_response_data_default.load_coro(
             self._request_sender.snmp_set(self._varbinds.get_varbinds_set_stage(self._scn.scn_as_ascii, value))
         )
-        self._request_response_data_default.parser.load_config_parser(default_processing_ug405_parser_config)
+        self._request_response_data_default.parser_obj.load_config_parser(default_processing_ug405_parser_config)
         return await self._make_request(self._request_response_data_default)
 
 
