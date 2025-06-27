@@ -27,7 +27,7 @@ from sdp_lib.management_controllers.http.peek.varbinds import (
     InputsPayloads,
     Payload
 )
-from sdp_lib.management_controllers.parsers.parsers_peek_http_new import (
+from sdp_lib.management_controllers.parsers.parsers_peek_http import (
     MainPageParser,
     InputsPageParser,
     PeekWebPagesParser,

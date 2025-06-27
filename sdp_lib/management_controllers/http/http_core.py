@@ -6,7 +6,7 @@ from sdp_lib.management_controllers.constants import Names
 from sdp_lib.management_controllers.fields_names import FieldsNames
 from sdp_lib.management_controllers.hosts_core import Host
 from sdp_lib.management_controllers.http.request_sender import AsyncHttpRequests
-from sdp_lib.management_controllers.parsers.parsers_peek_http_new import PeekWebPagesParser
+from sdp_lib.management_controllers.parsers.parsers_peek_http import PeekWebPagesParser
 from sdp_lib.management_controllers.structures import HttpResponseStructure
 from sdp_lib.utils_common.utils_common import check_is_ipv4
 
