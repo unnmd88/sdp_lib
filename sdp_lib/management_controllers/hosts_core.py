@@ -92,6 +92,7 @@ class Host:
             host_id: str | int = None,
             driver = None
     ):
+        self._check_initial_ip_v4(ipv4)
         self._ipv4 = ipv4
         self._driver = driver
         self.host_id = host_id
@@ -112,7 +113,6 @@ class Host:
             name='get_state',
             add_to_response_storage=True,
             parser_obj=self._parser_class()
-            # parser=self._parser_class()
         )
         self._request_response_data_default = RequestResponse(
             protocol=self.protocol,
@@ -132,20 +132,21 @@ class Host:
             return self._processed_data_to_response.get(FieldsNames.curr_stage)
         raise AttributeError()
 
-    def __setattr__(self, key, value):
-        if key == '_ipv4' and value:
-            print(ipaddress.IPv4Address(value))
-        super().__setattr__(key, value)
+    # def __setattr__(self, key, value):
+    #     if key == '_ipv4' and value:
+    #         ipaddress.IPv4Address(value)
+    #     super().__setattr__(key, value)
+
+    def _check_initial_ip_v4(self, ipv4: str):
+        if ipv4 is not None:
+            ipaddress.IPv4Address(ipv4)
 
     @property
     def ip_v4(self):
         return self._ipv4
 
     def set_ipv4(self, ipv4: str):
-        if ipv4 is None or check_is_ipv4(ipv4):
-            self._ipv4 = ipv4
-        else:
-            raise ValueError(f'Значение < self.ipv4 > должно быть валидным ipv4 адресом: {ipv4}')
+        self._check_initial_ip_v4(ipv4)
 
     @property
     def driver(self):
@@ -200,21 +201,15 @@ class Host:
 
         """
         self.clear_response_data()
-
-        # self._all_errors = [err for err in (obj.errors for obj in self.data_storage)]
         for err in (obj.errors for obj in self.data_storage):
             if err:
                 self._all_errors.append(*err)
-
-        # print(f'self._all_errors: {self._all_errors}')
         if self._all_errors:
             self._processed_data_to_response.clear()
             self._data_storage.clear()
         else:
             while self.data_storage:
                 resp_data: RequestResponse =self.data_storage.popleft()
-                # print(f'resp_data.data_to_handling: {resp_data.data_to_handling}')
-                # print(f'resp_data.errors: {resp_data.errors}')
                 self._processed_data_to_response |= resp_data.processed_pretty_data
         # Проверка, если FieldsNames.curr_mode None, то удаляем из словаря
         try:
@@ -229,7 +224,6 @@ class Host:
         pending = []
         while self._request_storage:
             pending.append(asyncio.create_task(self._request_sender.common_request(self._request_storage.popleft())))
-        # pending = [asyncio.create_task(req_resp.coro) for req_resp in self._storage]
         while pending:
             done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
             for done_task in done:
@@ -238,6 +232,7 @@ class Host:
                 if request_response.add_to_response_storage:
                     self._data_storage.put(request_response)
         return self
+
 
 class ResponseStorage:
 

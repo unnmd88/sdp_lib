@@ -1,5 +1,4 @@
 import abc
-import typing
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import cached_property
@@ -15,15 +14,14 @@ from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods impo
     get_val_as_str,
     pretty_print
 )
-from sdp_lib.management_controllers.snmp import snmp_utils
 from sdp_lib.management_controllers.snmp.user_types import T_Varbinds
 from sdp_lib.management_controllers.snmp.oids import Oids
-
 from sdp_lib.management_controllers.snmp.snmp_utils import(
     StageConverterMixinPotokS,
     StageConverterMixinSwarco,
     StageConverterMixinUg405
 )
+
 
 @dataclass(slots=True)
 class ParserConfig:
@@ -113,11 +111,13 @@ class AbstractSnmpParser(Parsers):
             config: ParserConfig = default_processing_parser_config
     ):
         self.parsed_content_as_dict[FieldsNames.protocol] = config.host_protocol
+        oid_handler, val_handler = config.oid_handler, config.val_oid_handler
+        by_alias = config.oid_name_by_alias
         for oid, val in varbinds:
-            oid, val = config.oid_handler(oid), config.val_oid_handler(val)
+            oid, val = oid_handler(oid), val_handler(val)
             try:
                 field_name, cb_fn = self.matches[oid]
-                if config.oid_name_by_alias:
+                if by_alias:
                     self.parsed_content_as_dict[field_name] = cb_fn(val)
                 else:
                     self.parsed_content_as_dict[oid] = cb_fn(val)

@@ -71,35 +71,6 @@ class InputsPageData:
         return {str(FieldsNames.inputs): self.inputs}
 
 
-# class ParserBase(Parsers):
-#     """
-#     Базовый класс интерфейса парсера Peek web.
-#     """
-#     def __init__(self):
-#         super().__init__()
-#         # self._main_page_data: MainPageData = MainPageData()
-#         # self.content_as_list = None
-#
-#     def base_extract_data_from_line(self, line: str, pattern: str):
-#         """
-#         Базовый метод извлечения данных из строки спарсенного контента с web страницы.
-#         Делит строку на 2 части, где вторая часть - искомые данные(номер плана/адрес и т.д.)
-#         :param line: Строка, из которой будут излечены данные.
-#         :param pattern: Шаблон, по которому будет разделена строка для извлечения данных.
-#         :return: Данные, если переданная строка валидна, иначе исходная строка.
-#         """
-#         try:
-#             return line.split(pattern)[-1]
-#         except IndexError:
-#             pass
-#         return None
-#
-#     def build_attr_data_for_response(self, props: list[tuple[str, Any]]) -> dict[str, properties]:
-#         # self.data_for_response = {k: v for k, v in props}
-#         self.parsed_content_as_dict = {k: v for k, v in props}
-#         return self.parsed_content_as_dict
-
-
 class MainPageParser(Parsers):
     """
     Парсер контента главной web страницы ДК Peek.

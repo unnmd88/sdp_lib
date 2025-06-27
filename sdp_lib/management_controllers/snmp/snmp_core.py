@@ -140,7 +140,7 @@ class SnmpHost(Host):
         self.set_driver(engine)
         self._request_sender = AsyncSnmpRequests(self._driver, self.snmp_config, ipv4=self._ipv4)
         self._request_response_data_get_states.set_parse_method(
-            self._request_response_data_get_states.parser_obj.parse
+            self._request_response_data_get_states.parser_obj
         )
         self._get_states_parser_config: ParserConfig = None
 
@@ -415,7 +415,7 @@ class StcipHosts(SnmpHost):
     ):
         super().__init__(ipv4=ipv4, engine=engine, host_id=host_id)
         self._get_states_parser_config = pretty_processing_stcip_parser_config
-        self._request_response_data_get_states.parser.load_config_parser(self._get_states_parser_config)
+        self._request_response_data_get_states.parser_obj.load_config_parser(self._get_states_parser_config)
 
     @cached_property
     def snmp_config(self) -> HostSnmpConfig:
@@ -544,9 +544,9 @@ async def main():
 
     while True:
         start_time = time.time()
-        # res = await obj.get_states()
+        res = await obj.get_states()
         # res = await obj.get_current_stage()
-        res = await obj.set_stage(2)
+        # res = await obj.set_stage(0)
         print(json.dumps(res.build_response_as_dict(), indent=4, ensure_ascii=False))
         print(f'время составло: {time.time() - start_time}')
         await asyncio.sleep(2)
