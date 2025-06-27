@@ -1,9 +1,13 @@
-from typing import KeysView, Any, TypeVar
+import ipaddress
+from collections.abc import Sequence
+from typing import KeysView, Any, TypeVar, NamedTuple
 
 from pysnmp.hlapi.v3arch.asyncio import *
 from pysnmp.proto import errind, rfc1905
 
 from sdp_lib.management_controllers.snmp.oids import Oids
+from sdp_lib.management_controllers.snmp.snmp_utils import  HostSnmpConfig
+from sdp_lib.type_aliases import T_Varbinds
 
 snmp_engine = SnmpEngine()
 
@@ -87,14 +91,17 @@ async def snmp_set(
 
 class AsyncSnmpRequests:
 
-    def __init__(self, instance):
-        self._instance_host = instance
-        self.ip = instance.ip_v4
-        self.community_r = instance.snmp_config.community_r
-        self.community_w = instance.snmp_config.community_w
-        self._timeout: float = 1
-        self._retries: int = 0
-        # self.engine = instance._driver
+    def __init__(self, engine: SnmpEngine, config: HostSnmpConfig, ipv4: str = ''):
+        self._ipv4 = ipv4
+        self._engine = engine
+        self._config = config
+
+    @property
+    def ipv4(self):
+        return self._ipv4
+
+    def set_ipv4(self, ipv4: str):
+        self._ipv4 = str(ipaddress.IPv4Address(ipv4))
 
     def set_timeout(self, val: float):
         self._timeout = float(val)
@@ -104,13 +111,13 @@ class AsyncSnmpRequests:
 
     async def snmp_get(
             self,
-            varbinds: list[ObjectType] | tuple[ObjectType],
+            varbinds: T_Varbinds,
             timeout: float = 1,
             retries: int = 0
     ) -> tuple[errind.ErrorIndication, Integer32 | int, Integer32 | int, tuple[ObjectType, ...]]:
         """
         Метод get запросов по snmp v2 протоколу.
-        :param oids: список oids, которые будут отправлены в get запросе.
+        :param varbinds: Коллекция с ObjectType для отправки запроса.
         :param timeout: таймаут запроса, в секундах.
         :param retries: количество попыток запроса.
         :return: tuple вида (error_indication, error_status, error_index, var_binds)
@@ -134,9 +141,9 @@ class AsyncSnmpRequests:
         """
         # print(f'oids: {oids}')
         return await get_cmd(
-            self._instance_host.driver or snmp_engine,
-            CommunityData(self.community_r),
-            await UdpTransportTarget.create((self._instance_host.ip_v4, 161), timeout=timeout, retries=retries),
+            self._engine,
+            CommunityData(self._config.community_r),
+            await UdpTransportTarget.create((self._ipv4, 161), timeout=timeout, retries=retries),
             ContextData(),
             *varbinds
         )
@@ -155,9 +162,9 @@ class AsyncSnmpRequests:
     ) -> tuple[errind.ErrorIndication, Integer32 | int, Integer32 | int, tuple[ObjectType, ...]]:
 
         return await set_cmd(
-            self._instance_host.driver or snmp_engine,
-            CommunityData(self.community_w),
-            await UdpTransportTarget.create((self.ip, 161), timeout= timeout, retries=retries),
+            self._engine,
+            CommunityData(self._config.community_w),
+            await UdpTransportTarget.create((self._ipv4, 161), timeout= timeout, retries=retries),
             ContextData(),
             *varbinds
             # *[ObjectType(ObjectIdentity(oid), val) for oid, val in oids]
@@ -196,9 +203,9 @@ class AsyncSnmpRequests:
         """
         # print(f'oids: {oids}')
         return await next_cmd(
-            self._instance_host.driver or snmp_engine,
-            CommunityData(self.community_r),
-            await UdpTransportTarget.create((self.ip, 161), timeout=timeout, retries=retries),
+            self._engine,
+            CommunityData(self._config.community_w),
+            await UdpTransportTarget.create((self.ipv4, 161), timeout=timeout, retries=retries),
             ContextData(),
             *varbinds
         )

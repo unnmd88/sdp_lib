@@ -1,12 +1,17 @@
 # from sdp_lib.management_controllers.snmp import snmp_utils
 
-def get_random_scn():
-    pass
-
-
 from random import randint
 
+l1 = [1, 2]
+
+def get_random_scn():
+    for x in range(10):
+        if x == 7:
+            print('yiels')
+            yield x
 
 
-print(randint(1, 9999))
+l1 += get_random_scn()
+
+print(l1)
 

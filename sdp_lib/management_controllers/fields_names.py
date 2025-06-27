@@ -20,6 +20,8 @@ class FieldsNames(StrEnum):
     web_content = 'web_content'
     source = 'source'
 
+    snmp_varbinds = 'snmp_varbinds'
+
     num_streams = 'number_of_streams'
     streams_data = 'streams_data'
     curr_xp = 'xp'
@@ -56,7 +58,6 @@ class FieldsNames(StrEnum):
 
     #Set command section
     set_stage = 'set_stage'
-
 
 
 class ErrorMessages(StrEnum):
