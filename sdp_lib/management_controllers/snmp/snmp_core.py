@@ -1,7 +1,6 @@
 import abc
 import asyncio
 import functools
-import itertools
 import json
 import time
 from abc import abstractmethod
@@ -20,7 +19,7 @@ from collections.abc import (
 from sdp_lib.management_controllers.exceptions import BadControllerType
 from sdp_lib.management_controllers.hosts_core import (
     Host,
-    ResponseEntity, RequestResponse
+    RequestResponse
 )
 from sdp_lib.management_controllers.fields_names import FieldsNames
 from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods import (
@@ -46,7 +45,6 @@ from sdp_lib.management_controllers.snmp import (
 from sdp_lib.management_controllers.structures import SnmpResponseStructure
 from sdp_lib.management_controllers.snmp.set_commands import SnmpEntity
 from sdp_lib.management_controllers.snmp.snmp_utils import (
-    ScnConverterMixin,
     HostSnmpConfig,
     VarbSwarco,
     VarbPotokS,
@@ -62,7 +60,7 @@ from sdp_lib.management_controllers.snmp.snmp_utils import (
     swarco_stcip_varbinds,
     potok_stcip_varbinds,
     potok_ug405_varbinds,
-    peek_ug405_varbinds, CommonVarbindsUg405
+    peek_ug405_varbinds
 )
 
 
