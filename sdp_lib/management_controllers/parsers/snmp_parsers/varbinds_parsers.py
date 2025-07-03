@@ -1,6 +1,6 @@
 import abc
-import typing
 from collections.abc import Callable
+from dataclasses import dataclass
 from functools import cached_property
 
 from sdp_lib.management_controllers.controller_modes import NamesMode
@@ -16,7 +16,6 @@ from sdp_lib.management_controllers.parsers.snmp_parsers.processing_methods impo
 )
 from sdp_lib.management_controllers.snmp.user_types import T_Varbinds
 from sdp_lib.management_controllers.snmp.oids import Oids
-
 from sdp_lib.management_controllers.snmp.snmp_utils import(
     StageConverterMixinPotokS,
     StageConverterMixinSwarco,
@@ -24,21 +23,28 @@ from sdp_lib.management_controllers.snmp.snmp_utils import(
 )
 
 
-class ConfigsParser(typing.NamedTuple):
+@dataclass(slots=True)
+class ParserConfig:
     extras: bool
-    oid_handler: Callable
-    val_oid_handler: Callable
+    oid_handler: Callable = get_val_as_str
+    val_oid_handler: Callable = pretty_print
     oid_name_by_alias: bool = False
     host_protocol: str = None
 
+    def set_oid_handler(self, handler: Callable):
+        self.oid_handler = handler
 
-default_processing = ConfigsParser(
+    def set_val_oid_handler(self, handler: Callable):
+        self.val_oid_handler = handler
+
+
+default_processing_parser_config = ParserConfig(
     extras=False,
     oid_handler=get_val_as_str,
     val_oid_handler=pretty_print,
 )
 
-pretty_processing_stcip = ConfigsParser(
+pretty_processing_stcip_parser_config = ParserConfig(
     extras=True,
     oid_handler=get_val_as_str,
     val_oid_handler=pretty_print,
@@ -46,21 +52,21 @@ pretty_processing_stcip = ConfigsParser(
     host_protocol=FieldsNames.protocol_stcip
 )
 
-default_processing_ug405 = ConfigsParser(
+default_processing_ug405_parser_config = ParserConfig(
     extras=False,
     oid_handler=get_val_as_str,
     val_oid_handler=pretty_print,
     host_protocol=FieldsNames.protocol_ug405
 )
 
-default_processing_stcip = ConfigsParser(
+default_processing_stcip_parser_config = ParserConfig(
     extras=False,
     oid_handler=get_val_as_str,
     val_oid_handler=pretty_print,
     host_protocol=FieldsNames.protocol_stcip
 )
 
-pretty_processing_stcip_without_extras = ConfigsParser(
+pretty_processing_stcip_parser_config_without_extras = ParserConfig(
     extras=False,
     oid_handler=get_val_as_str,
     val_oid_handler=pretty_print,
@@ -68,7 +74,10 @@ pretty_processing_stcip_without_extras = ConfigsParser(
     host_protocol=FieldsNames.protocol_stcip
 )
 
-class BaseSnmpParser(Parsers):
+class AbstractSnmpParser(Parsers):
+
+    def __call__(self, varbinds: T_Varbinds, *args, **kwargs):
+        return self.parse(varbinds=varbinds, config=self.config)
 
     @property
     @abc.abstractmethod
@@ -79,19 +88,17 @@ class BaseSnmpParser(Parsers):
         значение -> кортеж, где нулевой элемент это строка названия поля, а первый
                     элемент это функция-обработчик.
         """
-
+        ...
 
     @property
     @abc.abstractmethod
     def extras_methods(self) -> dict[str, Callable]:
+        """ Дополнительные методы, которые будут вызваны после обработки оидов метода self.parse """
         ...
 
     def add_fields_to_response(self, **kwargs):
         for field_name, val in kwargs.items():
             self.parsed_content_as_dict[field_name] = val
-
-    def add_host_protocol_to_response(self, protocol: str):
-        self.add_fields_to_response(**{FieldsNames.host_protocol: protocol})
 
     def _add_extras_to_response(self):
         for field_name, cb_fn in self.extras_methods.items():
@@ -101,13 +108,16 @@ class BaseSnmpParser(Parsers):
             self,
             *,
             varbinds: T_Varbinds,
-            config: ConfigsParser = default_processing
+            config: ParserConfig = default_processing_parser_config
     ):
+        self.parsed_content_as_dict[FieldsNames.protocol] = config.host_protocol
+        oid_handler, val_handler = config.oid_handler, config.val_oid_handler
+        by_alias = config.oid_name_by_alias
         for oid, val in varbinds:
-            oid, val = config.oid_handler(oid), config.val_oid_handler(val)
+            oid, val = oid_handler(oid), val_handler(val)
             try:
                 field_name, cb_fn = self.matches[oid]
-                if config.oid_name_by_alias:
+                if by_alias:
                     self.parsed_content_as_dict[field_name] = cb_fn(val)
                 else:
                     self.parsed_content_as_dict[oid] = cb_fn(val)
@@ -115,13 +125,10 @@ class BaseSnmpParser(Parsers):
                 self.parsed_content_as_dict[oid] = val
         if config.extras:
             self._add_extras_to_response()
-
-        self.add_host_protocol_to_response(config.host_protocol)
-        self.data_for_response = self.parsed_content_as_dict
-        return self.data_for_response
+        return self.parsed_content_as_dict
 
 
-class ParsersVarbindsSwarco(BaseSnmpParser, StcipMixin):
+class ParsersVarbindsSwarco(AbstractSnmpParser, StcipMixin):
 
     CENTRAL_PLAN              = '16'
     MANUAL_PLAN               = '15'
@@ -183,7 +190,7 @@ class ParsersVarbindsSwarco(BaseSnmpParser, StcipMixin):
         }
 
 
-class ParsersVarbindsPotokS(BaseSnmpParser, StcipMixin):
+class ParsersVarbindsPotokS(AbstractSnmpParser, StcipMixin):
 
     modes = {
         '8': str(NamesMode.VA),
@@ -213,7 +220,7 @@ class ParsersVarbindsPotokS(BaseSnmpParser, StcipMixin):
     }
 
 
-class ParsersVarbindsPotokP(BaseSnmpParser, Ug405Mixin):
+class ParsersVarbindsPotokP(AbstractSnmpParser, Ug405Mixin):
 
     def get_current_mode(self) -> str | None:
         try:
@@ -274,7 +281,7 @@ class ParsersVarbindsPotokP(BaseSnmpParser, Ug405Mixin):
         }
 
 
-class ParsersVarbindsPeek(BaseSnmpParser, Ug405Mixin):
+class ParsersVarbindsPeek(AbstractSnmpParser, Ug405Mixin):
     @property
     def matches(self) -> dict[str | Oids, tuple[FieldsNames, Callable]]:
         return {}
