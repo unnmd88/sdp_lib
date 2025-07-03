@@ -531,6 +531,7 @@ async def main():
     # obj.set_driver()
     # obj = SwarcoStcip(ipv4='10.179.89.225', host_id='3584')
     # obj = PotokP(ipv4='10.45.154.12', host_id='laba', engine=snmp_engine)
+    # obj = PotokP(ipv4='178.178.218.105', host_id='54', engine=snmp_engine)
 
     # obj.ip_v4 = '10.179.20.129'
 
@@ -545,6 +546,7 @@ async def main():
     # res = await obj.set_stage(2)
 
     while True:
+        obj = PotokP(ipv4='178.178.218.105', host_id='54', engine=snmp_engine)
         start_time = time.time()
         res = await obj.get_states()
         # res = await obj.get_current_stage()
