@@ -4,6 +4,11 @@ from enum import StrEnum
 from typing import MutableSequence, Any
 
 
+class FieldNames(StrEnum):
+    errors = 'errors'
+    result_condition = 'result_condition'
+
+
 class ErrMessages(StrEnum):
     invalid_condition = 'Некорректное условие'
 
@@ -156,7 +161,7 @@ class ConditionMaker:
         return self._result_expr
 
     def build_result_as_dict(self) -> MutableMapping[str, Any]:
-        return {'errors': self._errors, 'result_expression': self._create_result_condition_string()}
+        return {FieldNames.errors: self._errors, FieldNames.result_condition: self._create_result_condition_string()}
 
     def process_data_and_build_result_as_dict(self):
         err, self._main_expr, self._and_mr_expr = get_main_and_mr_expr(self._raw_string)
