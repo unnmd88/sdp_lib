@@ -1,6 +1,7 @@
 import re
+from collections.abc import MutableMapping
 from enum import StrEnum
-from typing import MutableSequence
+from typing import MutableSequence, Any
 
 
 class ErrMessages(StrEnum):
@@ -58,8 +59,8 @@ class Tokens:
                 break
         else:
             self._errors.append(
-                f'Отсутствует допустимый оператор в выражении {self._raw_token}. '
-                f'Используйте один из: {[f"<{op}>" for op in allowed_operators]}'
+                f'Отсутствует допустимый оператор в выражении <{self._raw_token}>. '
+                f'Используйте один из: {set(f"{op}" for op in allowed_operators)}'
             )
             return False
         try:
@@ -103,17 +104,33 @@ class Tokens:
     def get_func_name(self):
         return self._func_name
 
-    def get_processed_condition(self):
+    def get_processed_condition(self, wrap_parentheses: bool = False):
+        print(self._processed_expr)
+        if wrap_parentheses and self._processed_expr not in allowed_operators.values():
+            return f'({self._processed_expr})'
         return self._processed_expr
 
 
 class ConditionMaker:
     def __init__(self, raw_string: str):
-        self._raw_string = re.sub(r' {2,}', ' ', raw_string)
-        self._processed_expr = ''
+        self._raw_string = re.sub(r' {2,}', ' ', raw_string).rstrip().lstrip()
+        self._result_expr = ''
         self._errors = []
         self._main_expr = self._and_mr_expr = ''
         self._tokens_to_parse = self._parsed_tokens = None
+
+    def __repr__(self):
+        return (
+            f'{self.__class__.__name__}('
+            f'raw_string="{self._raw_string}" '
+            f'errors={self._errors} '
+            f'tokens_to_parse={self._tokens_to_parse} '
+            f'parsed_tokens={self._parsed_tokens} '
+            f'main_expr={self._main_expr} '
+            f'and_mr_expr={self._and_mr_expr} '
+            f'result_expr={self._result_expr} '
+            f')'
+        )
 
     def _create_parsed_tokens(self):
         self._parsed_tokens = []
@@ -124,31 +141,35 @@ class ConditionMaker:
         return self._parsed_tokens
 
     def _create_main_expr(self):
+        if len(self._tokens_to_parse) > 1:
+            return ' '.join(token.get_processed_condition(wrap_parentheses=True) for token in self._parsed_tokens)
         return ' '.join(token.get_processed_condition() for token in self._parsed_tokens)
 
-    def _create_condition_string(self) -> str:
+    def _create_result_condition_string(self) -> str:
         if not self._errors:
             if self._and_mr_expr:
-                self._processed_expr = f'({self._create_main_expr()}) {self._and_mr_expr}'
+                self._result_expr = f'({self._create_main_expr()}) {self._and_mr_expr}'
             else:
-                self._processed_expr = self._create_main_expr()
+                self._result_expr = self._create_main_expr()
         else:
-            self._processed_expr = ''
-        return self._processed_expr
+            self._result_expr = ''
+        return self._result_expr
+
+    def build_result_as_dict(self) -> MutableMapping[str, Any]:
+        return {'errors': self._errors, 'result_expression': self._create_result_condition_string()}
 
     def process_data_and_build_result_as_dict(self):
         err, self._main_expr, self._and_mr_expr = get_main_and_mr_expr(self._raw_string)
-        if err is not None:
+        if err is not  None:
             self._errors.append(err)
-            return
-        self._tokens_to_parse = self._main_expr.split()
-        self._parsed_tokens: MutableSequence[Tokens] = []
-
-        if len(self._tokens_to_parse) % 2 == 0 or self._tokens_to_parse[0] in allowed_operators:
-            self._errors.append(ErrMessages.invalid_condition)
-            return
-        self._create_parsed_tokens()
-        return {'errors': self._errors, 'processed_string': self._create_condition_string()}
+        else:
+            self._tokens_to_parse = self._main_expr.split()
+            self._parsed_tokens: MutableSequence[Tokens] = []
+            if len(self._tokens_to_parse) % 2 == 0 or self._tokens_to_parse[0] in allowed_operators:
+                self._errors.append(ErrMessages.invalid_condition)
+            else:
+                self._create_parsed_tokens()
+        return self.build_result_as_dict()
 
 
 if __name__ == '__main__':
@@ -159,8 +180,11 @@ if __name__ == '__main__':
     # print('3|8 & 5&9 | 10|17'.split())
     # s_str = '3|r & 5&9 | 10|17,12'
     s_str = '& 5&9 | 10|17,12'
-    processed_condition = ConditionMaker(s_str)
-    print(processed_condition.process_data_and_build_result_as_dict())
+    s_str = ' 5&9 | 10|17 | 121|124,12'
+    s_str = ' 1|2 | 14-17'
+    maker = ConditionMaker(s_str)
+    print(maker.process_data_and_build_result_as_dict())
+    print(maker)
 
 
     # print()
