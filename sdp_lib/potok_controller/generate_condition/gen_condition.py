@@ -8,7 +8,7 @@ from typing import (
 )
 
 
-ALLOWED_OPERATORS = {'|': 'or', '&': 'and'}
+ALLOWED_OPERATORS = {'|': 'or', '&': 'and', '-': 'or'}
 
 
 def remove_spaces(string: str, left=True, right=True):
@@ -36,7 +36,6 @@ def get_main_and_mr_expr(
         main_expr, mr_expr = gr[0], ''
     else:
         error = ErrMessages.invalid_condition
-    # print(f'>> {error, main_expr, mr_expr}')
     return error, remove_spaces(main_expr), remove_spaces(mr_expr)
 
 
@@ -73,7 +72,10 @@ class Tokens:
     def _check_token_and_add_err_if_has(self):
         self._processed_expr = ALLOWED_OPERATORS.get(self._raw_token, '')
         if self._processed_expr:
-            return self._processed_expr
+            return True
+        elif self._raw_token.isdigit():
+            self._processed_expr = f'{self._func_name}(D{int(self._raw_token)})'
+            return True
 
         for op in ALLOWED_OPERATORS:
             success_splited = self._raw_token.split(op)
@@ -83,20 +85,23 @@ class Tokens:
                 break
         else:
             self._errors.append(
-                f'Отсутствует допустимый оператор в выражении "{self._raw_token}". '
-                f'Используйте один из: {set(f"{op}" for op in ALLOWED_OPERATORS)}'
+                f'Ошибка в выражении "{self._raw_token}". '
+                f'Для диапазона используйте один из операторов: {set(f"{op}" for op in ALLOWED_OPERATORS)},'
+                f'например: "1-4", "125&130". '
+                f'Для одиночного выражения используйте число, например: "5", "20"'
             )
             return False
         try:
             self._left, self._right = map(int, success_splited)
         except ValueError:
-            self._errors.append(f'Ошибка в выражении: <{self._raw_token}>. Номер группы должен быть числом')
+            self._errors.append(f'Ошибка в выражении: "{self._raw_token}". Номер группы должен быть числом')
             return False
 
         self._op = ALLOWED_OPERATORS[op]
         self._processed_expr = (
             f' {self._op} '.join(f'{self._func_name}(D{num})' for num in range(self._left, self._right + 1))
         )
+        self._processed_expr_as_list = self._processed_expr.split()
         return True
 
     def _validate_token(self):
@@ -135,8 +140,9 @@ class Tokens:
 
 
 class ConditionMaker:
-    def __init__(self, raw_string: str):
+    def __init__(self, raw_string: str, func_name: str = 'ddr'):
         self._raw_string = re.sub(r' {2,}', ' ', raw_string).rstrip().lstrip()
+        self._func_name = func_name
         self._result_expr = ''
         self._errors = []
         self._main_expr = self._and_mr_expr = ''
@@ -158,7 +164,7 @@ class ConditionMaker:
     def _create_parsed_tokens(self):
         self._parsed_tokens = []
         for raw_token in self._tokens_to_parse:
-            token = Tokens(raw_token)
+            token = Tokens(raw_token, self._func_name)
             self._errors += token.get_errors()
             self._parsed_tokens.append(token)
         return self._parsed_tokens
@@ -210,8 +216,8 @@ def debug():
 
 if __name__ == '__main__':
     # s_str = ' 5&9 | 10|17 | 121|124,12'
-    # s_str = ' 1|2 ,14'
-    # maker = ConditionMaker(s_str)
-    # print(maker.process_data_and_build_result_as_dict())
-    # print(maker)
+    s_str = ' 1|2 ,14'
+    maker = ConditionMaker(s_str, 'ddo')
+    print(maker.process_data_and_build_result_as_dict())
+    print(maker)
     debug()
