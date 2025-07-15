@@ -171,8 +171,8 @@ class ConditionMaker:
 
     def _create_main_expr(self):
         if len(self._tokens_to_parse) > 1:
-            return ' '.join(token.get_processed_condition(wrap_parentheses=True) for token in self._parsed_tokens)
-        return ' '.join(token.get_processed_condition() for token in self._parsed_tokens)
+            return ' '.join(token.get_condition(wrap_parentheses=True) for token in self._parsed_tokens)
+        return ' '.join(token.get_condition() for token in self._parsed_tokens)
 
     def _create_result_condition_string(self) -> str:
         if not self._errors:
