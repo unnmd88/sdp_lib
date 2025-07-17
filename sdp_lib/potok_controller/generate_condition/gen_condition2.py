@@ -136,7 +136,7 @@ class Token:
         self._expr_with_parens = ''
         for pattern in self.patterns:
             matches = re.findall(pattern, self._raw_token)
-            print(f'matches: {matches}')
+            # print(f'matches: {matches}')
             if len(matches) == 1:
                 self._entity = matches[0]
                 self._parens_left_side, self._parens_right_side = re.split(pattern, self._raw_token)
@@ -169,15 +169,10 @@ class Token:
                     if not self._errors:
                         self._expr_with_parens = f'{self._parens_left_side}{self._expr_without_parens}{self._parens_right_side}'
             elif len(matches) >= 2:
-                # self._errors.append(
-                #     f'В фрагменте "{self._raw_token}" ошибка. Диапазон должен быть в единственном экземпляре, '
-                #     f'предоставлено {len(matches)}: {matches}'
-                # )
                 self._errors.append(f'В фрагменте "{self._raw_token}" ошибка.')
             if self._errors or self._expr_with_parens:
                 return True
         self._errors.append(f'Ошибка в фрагменте {self._raw_token}.')
-        print(self)
         return False
 
     def get_errors(self):
