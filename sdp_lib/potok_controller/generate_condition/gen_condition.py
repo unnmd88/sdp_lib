@@ -18,8 +18,8 @@ class ConditionMaker:
     def __init__(self, raw_string: str, func_name: str = 'ddr', strict_mode = False):
         self._raw_string = re.sub(r' {2,}', ' ', raw_string).rstrip().lstrip()
         self._strict_mode = strict_mode
-        self._counter = Counter(self._raw_string)
-        self._manual_parents_control = bool(self._counter[')'] or self._counter['('])
+        self._chars_counter = Counter(self._raw_string)
+        self._manual_parents_control = bool(self._chars_counter[')'] or self._chars_counter['('])
         self._func_name = func_name
         self._errors = []
         self._result_condition = ''
@@ -30,7 +30,7 @@ class ConditionMaker:
         return (
             f'{self.__class__.__name__}('
             f'raw_string="{self._raw_string}" '
-            f'counter="{self._counter}" '
+            f'counter="{self._chars_counter}" '
             f'errors={self._errors} '
             f'tokens_to_parse={self._tokens_to_parse} '
             f'parsed_tokens={self._processed_tokens} '
@@ -47,7 +47,7 @@ class ConditionMaker:
         return True if not bad_chars else False
 
     def _check_valid_num_parens(self) -> bool:
-        if self._counter[')'] != self._counter['(']:
+        if self._chars_counter[')'] != self._chars_counter['(']:
             self._errors.append(
                 f'Ошибка в заданном выражении: количество открывающих и закрывающих скобок не совпадает.'
             )
