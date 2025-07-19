@@ -4,7 +4,7 @@ from typing import List, Dict
 from .lexer import LexerOriginalConditionString
 
 
-lexer = LexerOriginalConditionString.get_lexer().build()
+lexer = LexerOriginalConditionString.get_lexer().make()
 
 
 class ConditionStringPotokTlc:

@@ -10,8 +10,8 @@ from .parser import pg
 from .condition_string import ConditionStringPotokTlc
 
 
-lexer = LexerValuesInConditionString.get_lexer().build()
-parser = pg.build()
+lexer = LexerValuesInConditionString.get_lexer().make()
+parser = pg.make()
 
 
 class BaseCondition(metaclass=abc.ABCMeta):

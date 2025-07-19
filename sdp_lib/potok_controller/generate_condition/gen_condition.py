@@ -11,7 +11,7 @@ from sdp_lib.potok_controller.generate_condition.constants import (
     ErrMessages
 )
 from sdp_lib.potok_controller.generate_condition.tokens import Token
-from sdp_lib.potok_controller.generate_condition.utils import get_main_and_mr_expr
+from sdp_lib.potok_controller.generate_condition.utils import get_main_and_mr_stmt
 
 
 class ConditionMaker:
@@ -87,7 +87,7 @@ class ConditionMaker:
             token.get_condition(wrap_parentheses=wrap_parentheses) for token in self._processed_tokens
         )
 
-    def _create_result_condition_string(self) -> str:
+    def _create_full_condition_string(self) -> str:
         if not self._errors:
             if self._and_mr_stmt:
                 self._result_condition = f'({self._create_main_stmt()}) {self._and_mr_stmt}'
@@ -97,21 +97,24 @@ class ConditionMaker:
             self._result_condition = ''
         return self._result_condition
 
-    def get_result_condition(self) -> str:
+    def get_errors(self) -> MutableSequence[str]:
+        return self._errors
+
+    def get_created_condition(self) -> str:
         return self._result_condition
 
-    def get_result_as_dict(self):
+    def get_result_data_as_dict(self):
         return {str(FieldNames.errors): self._errors, str(FieldNames.result_condition): self._result_condition}
 
-    def build(self):
+    def make(self):
         self._errors = []
         self._check_valid_chars_in_raw_string()
         self._check_valid_num_parens()
         if self._errors:
-            self._create_result_condition_string()
-            return self.get_result_as_dict()
+            self._create_full_condition_string()
+            return self.get_result_data_as_dict()
 
-        err, self._main_stmt, self._and_mr_stmt = get_main_and_mr_expr(self._raw_string)
+        err, self._main_stmt, self._and_mr_stmt = get_main_and_mr_stmt(self._raw_string)
         if err is not None:
             self._errors.append(err)
         else:
@@ -122,8 +125,8 @@ class ConditionMaker:
             else:
                 self._create_tokens()
                 self._check_token_position()
-        self._create_result_condition_string()
-        return self.get_result_as_dict()
+        self._create_full_condition_string()
+        return self.get_result_data_as_dict()
 
 
 def debug():
@@ -133,10 +136,10 @@ def debug():
             user_data = input('Ввод выражения: ')
             start_time = time.perf_counter()
             _maker = ConditionMaker(user_data)
-            print(_maker.build())
+            print(_maker.make())
             print(_maker)
-            print(_maker.get_result_as_dict())
-            print(f'result_condition: {_maker.get_result_condition()}')
+            print(_maker.get_result_data_as_dict())
+            print(f'result_condition: {_maker.get_created_condition()}')
             print(f'time: {time.perf_counter() - start_time}')
             print('-' * 100)
         except KeyboardInterrupt:
@@ -153,6 +156,6 @@ if __name__ == '__main__':
 
     s_str = ' 1|2 ,14'
     maker = ConditionMaker(s_str, 'ddo')
-    print(maker.build())
+    print(maker.make())
     print(maker)
     debug()

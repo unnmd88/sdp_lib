@@ -16,7 +16,7 @@ def remove_left_right_spaces(string: str, left=True, right=True) -> str:
     return string
 
 
-def get_main_and_mr_expr(
+def get_main_and_mr_stmt(
     cond_string: str,
     sep: str = ','
 ) -> tuple[None | str, str, str]:
