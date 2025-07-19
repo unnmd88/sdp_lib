@@ -19,7 +19,14 @@ ALLOWED_PARENS = ALLOWED_LEFT_EXTRA_CHARS | ALLOWED_RIGHT_EXTRA_CHARS
 
 
 
-def remove_left_right_spaces(string: str, left=True, right=True):
+def remove_left_right_spaces(string: str, left=True, right=True) -> str:
+    """
+    Удаляет пробельные символы справа/слева у строки.
+    :param string: Строка, в которой необходимо удалить пробельные символы.
+    :param left:  True -> удаляет все пробельные символы слева.
+    :param right: True -> удаляет все пробельные символы справа.
+    :return: Строка с удаленными пробельными символами справа/слева.
+    """
     if left:
         string = string.lstrip()
     if right:
@@ -31,6 +38,23 @@ def get_main_and_mr_expr(
     cond_string: str,
     sep: str = ','
 ) -> tuple[None | str, str, str]:
+    """
+    Делит строку на 2 части по заданному разделителю.
+    1-ую часть оставляет без изменений, из 2-й части делает условие
+    с функцией "mr" для продления.
+    Пример строки: "1|2 & 4, 5"
+    ""
+    :param cond_string: Строка для обработки и формирования условий.
+    :param sep: Разделитель, по которому будет разделена строка.
+    :return: Кортеж из 3-х элементов:
+             [0] -> Текст ошибки в виде строки, если есть. Иначе None.
+             [1] -> 1-ая часть строки до разделителя, без изменений, если нет ошибки.
+                    Из примера: "1|2 & 4". Иначе пустая строка "".
+             [2] -> 2-ая часть строки после разделителя с условием продления,
+                    если разделитель присутствует в строке и после разделителя имеется символ цифры,
+                    означающий номер группы. Из примера: "and mr(G5)". Иначе пустая строка "".
+            Пример. Из строки "1|2 & 4, 5" вернётся кортеж: (None, "1|2 & 4", "and mr(G5)").
+    """
     gr = cond_string.split(sep)
     error = None
     main_expr = mr_expr = ''
@@ -48,15 +72,21 @@ def get_main_and_mr_expr(
 
 
 class FieldNames(StrEnum):
+    """ Содержит имена полей для словаря."""
+
     errors = 'errors'
     result_condition = 'result_condition'
 
 
 class ErrMessages(StrEnum):
+    """ Содержит текстовое представление ошибок."""
+
     invalid_condition = 'Некорректное условие'
 
 
 class Patterns(enum.Enum):
+    """ Шаблоны для парса регулярными выражениями. """
+
     allowed_chars = re.compile('[' + r'\d()\s,' + f'{"".join(MATCHING_OPERATORS)}'  + ']')
     func_range = re.compile(r'\d+' + f'[{"".join(MATCHING_OPERATORS)}]' + r'\d+')
     operators = re.compile(f'[{"".join(MATCHING_OPERATORS)}]')
@@ -64,6 +94,10 @@ class Patterns(enum.Enum):
 
 
 class Token:
+    """
+    Класс для обработки токенов и формирования из них условия продления/вызова для
+    Traffic Lights configurator контроллера "Поток."
+    """
 
     max_range = 255
     patterns: Sequence[Pattern] = tuple(p.value for p in Patterns if p != Patterns.allowed_chars)
@@ -74,7 +108,7 @@ class Token:
         self._errors = []
         self._func_name = func_name
         self._expr_without_parens = ''
-        self._expr_with_parens = ''
+        self._expr_with_parens_if_has = ''
         self._entity = ''
         self._parens_left_side = ''
         self._parens_right_side = ''
@@ -97,16 +131,16 @@ class Token:
             f'op="{self._op}" '
             f'is_combining_operator={self.is_combining_operator} '
             f'func_name="{self._func_name}" '
-            f'condition="{self._expr_with_parens}"'
+            f'condition="{self._expr_with_parens_if_has}"'
             f')'
         )
 
-    def _validate_parens(self):
+    def _validate_parens(self) -> bool:
+        """
+        Проверяет валидность скобок в токене, добавляет текст ошибки в self._errors при наличии.
+        :return: False, если есть ошибки в скобках токена, иначе True.
+        """
         parens_errors = []
-        # bad_chars = [
-        #     c for c in itertools.chain(self._parens_left_side, self._parens_right_side)
-        #     if c not in ALLOWED_PARENS
-        # ]
         bad_chars = [str(c) for c in f'{self._parens_left_side}{self._parens_right_side}' if c not in ALLOWED_PARENS]
         if bad_chars:
             parens_errors.append(
@@ -131,13 +165,17 @@ class Token:
         return True if not parens_errors else False
 
     def _parse_token(self):
-        self._expr_without_parens = ''
-        self._entity = ''
-        self._expr_with_parens = ''
+        """
+        Основной метод парса токена и формирования соответствующих атрибутов.
+        :return:
+        """
+        # self._expr_without_parens = ''
+        # self._entity = ''
+        # self._expr_with_parens = ''
         for pattern in self.patterns:
             matches = re.findall(pattern, self._raw_token)
             # print(f'matches: {matches}')
-            if len(matches) == 1:
+            if len(matches) == 1: # Шаблон токене найден успешно
                 self._entity = matches[0]
                 self._parens_left_side, self._parens_right_side = re.split(pattern, self._raw_token)
                 if self._validate_parens():
@@ -167,10 +205,10 @@ class Token:
                     else:
                         self._expr_without_parens = MATCHING_OPERATORS[self._entity]
                     if not self._errors:
-                        self._expr_with_parens = f'{self._parens_left_side}{self._expr_without_parens}{self._parens_right_side}'
-            elif len(matches) >= 2:
+                        self._expr_with_parens_if_has = f'{self._parens_left_side}{self._expr_without_parens}{self._parens_right_side}'
+            elif len(matches) >= 2: # Найдено несколько шаблонов в токене, что является ошибкой токена.
                 self._errors.append(f'В фрагменте "{self._raw_token}" ошибка.')
-            if self._errors or self._expr_with_parens:
+            if self._errors or self._expr_with_parens_if_has:
                 return True
         self._errors.append(f'Ошибка в фрагменте {self._raw_token}.')
         return False
@@ -186,8 +224,8 @@ class Token:
 
     def get_condition(self, wrap_parentheses: bool = False):
         if wrap_parentheses and not self.is_combining_operator:
-            return f'({self._expr_with_parens})'
-        return self._expr_with_parens
+            return f'({self._expr_with_parens_if_has})'
+        return self._expr_with_parens_if_has
 
 
 class ConditionMaker:
@@ -197,8 +235,8 @@ class ConditionMaker:
         self._counter = Counter(self._raw_string)
         self._manual_parents_control = bool(self._counter[')'] or self._counter['('])
         self._func_name = func_name
-        self._result_condition = ''
         self._errors = []
+        self._result_condition = ''
         self._main_stmt = self._and_mr_stmt = ''
         self._tokens_to_parse = self._processed_tokens = None
 
@@ -322,10 +360,10 @@ def debug():
 
 if __name__ == '__main__':
     # s_str = ' 5&9 | 10|17 | 121|124,12'
-    # t = Token('22|22')
+    t = Token('22|23')
     # t = Token('|')
     # t = Token('((|)))')
-    # print(t)
+    print(t)
 
     s_str = ' 1|2 ,14'
     maker = ConditionMaker(s_str, 'ddo')
