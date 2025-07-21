@@ -22,15 +22,12 @@ class StagesData:
     direction_to_stages_mapping: stages_content_type = field(default_factory=dict)
     stage_to_direction_mapping: stages_content_type = field(default_factory=dict)
 
-    def _load_common(self, data_type):
-        pass
-
     def load_groups_to_stages_mapping(self, direction_to_stages:  stages_content_type):
         print(f'self.direction_to_stages_mapping before: {self.direction_to_stages_mapping}')
         self.direction_to_stages_mapping |= direction_to_stages
         print(f'self.direction_to_stages_mapping after: {self.direction_to_stages_mapping}')
-
         print(f'self.stage_to_direction_mapping before: {self.stage_to_direction_mapping}')
+        self.stage_to_direction_mapping.clear()
         for direction, stages in self.direction_to_stages_mapping.items():
             for stage in stages:
                 try:
@@ -39,18 +36,10 @@ class StagesData:
                     self.stage_to_direction_mapping[stage] = {direction}
         print(f'self.stage_to_direction_mapping after: {self.stage_to_direction_mapping}')
 
-
     def load_stage_to_groups_mapping(self,  stage_to_direction:  MutableMapping[float, MutableSequence[float]]):
         self.stage_to_direction_mapping |= stage_to_direction
         for stage, directions in self.stage_to_direction_mapping.items():
             pass
-
-
-
-
-    def __post_init__(self):
-        self.as_float = 1
-
 
 
 @dataclass
