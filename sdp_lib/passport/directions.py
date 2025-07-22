@@ -1,98 +1,107 @@
+import pprint
 import re
 from collections import Counter
 from collections.abc import MutableSequence, MutableMapping
-from dataclasses import (
-    dataclass,
-    field,
-    astuple,
-    InitVar
-)
-from typing import TypeAlias
 
-from sdp_lib.passport.constants import GroupTypes
+from sdp_lib.passport._base import AbstractEntity
+from sdp_lib.passport.constants import (
+    DirectionTypes,
+    StagesMapping,
+    ColumnsNamesDirectionTable,
+    default_values
+)
+
+from sdp_lib.passport.utils import StagesData
 
 
 DEBUG = True
 
-stages_content_type: TypeAlias = MutableMapping[float, set[float]]
 
+class Direction(AbstractEntity):
 
-@dataclass
-class StagesData:
-    direction_to_stages_mapping: stages_content_type = field(default_factory=dict)
-    stage_to_direction_mapping: stages_content_type = field(default_factory=dict)
-
-    def load_groups_to_stages_mapping(self, direction_to_stages:  stages_content_type):
-        print(f'self.direction_to_stages_mapping before: {self.direction_to_stages_mapping}')
-        self.direction_to_stages_mapping |= direction_to_stages
-        print(f'self.direction_to_stages_mapping after: {self.direction_to_stages_mapping}')
-        print(f'self.stage_to_direction_mapping before: {self.stage_to_direction_mapping}')
-        self.stage_to_direction_mapping.clear()
-        for direction, stages in self.direction_to_stages_mapping.items():
-            for stage in stages:
-                try:
-                    self.stage_to_direction_mapping[stage].add(direction)
-                except KeyError:
-                    self.stage_to_direction_mapping[stage] = {direction}
-        print(f'self.stage_to_direction_mapping after: {self.stage_to_direction_mapping}')
-
-    def load_stage_to_groups_mapping(self,  stage_to_direction:  MutableMapping[float, MutableSequence[float]]):
-        self.stage_to_direction_mapping |= stage_to_direction
-        for stage, directions in self.stage_to_direction_mapping.items():
-            pass
-
-
-@dataclass
-class Direction:
-
-    ALL_RED = re.compile(r'кр|\-', re.IGNORECASE)
+    ALL_RED = re.compile(r'кр|-', re.IGNORECASE)
     ALL_TABLE_COLUMNS = slice(1, 15)
     FIRST_3_TABLE_COLUMNS = slice(1, 4)
 
-    index: int
-    num_as_string: str
-    entity: str = str(GroupTypes.common)
-    stages: str = ''
-    traffic_lights: str = ''
-    t_green_ext: int = 0
-    t_flashing_green: int = 0
-    t_yellow: int = 0
-    t_red: int = 0
-    t_red_yellow: int = 0
-    t_z: int = 0
-    t_zz: int = 0
-    all_red: bool | None = None
-    toov_red: bool = False
-    toov_green: bool = False
-    description: str = ''
-    compute_num_as_float: InitVar[bool] = True
-    num_as_int_or_float: int | float = .0
-    errors: MutableSequence = field(default_factory=list)
-    stages_as_str: MutableSequence[str] = field(default_factory=list)
-    stages_as_float: set[float] = field(default_factory=set)
+    def __init__(
+            self,
+            index: int,
+            num_as_string: str,
+            entity: str = str(DirectionTypes.common),
+            stages: str = '',
+            traffic_lights: str = '' ,
+            t_green_ext: int = None,
+            t_flashing_green: int = None,
+            t_yellow: int = None,
+            t_red: int = None,
+            t_red_yellow: int = None,
+            t_z: int = None,
+            t_zz: int = None,
+            all_red: bool = None,
+            toov_red: bool = None,
+            toov_green: bool = None,
+            description: str = '',
+    ):
+        super().__init__()
+        self.index = index
+        self.num_as_string = num_as_string
+        self.entity = entity
+        self.stages = stages
+        self.traffic_lights = traffic_lights
+        self.t_green_ext = self._get_default_val(ColumnsNamesDirectionTable.t_green_ext, t_green_ext)
+        self.t_flashing_green = self._get_default_val(ColumnsNamesDirectionTable.t_flashing_green, t_flashing_green)
+        self.t_yellow =  self._get_default_val(ColumnsNamesDirectionTable.t_yellow, t_yellow)
+        self.t_red = self._get_default_val(ColumnsNamesDirectionTable.t_red, t_red)
+        self.t_red_yellow = self._get_default_val(ColumnsNamesDirectionTable.t_red_yellow, t_red_yellow)
+        self.t_z =  self._get_default_val(ColumnsNamesDirectionTable.t_z, t_z)
+        self.t_zz =  self._get_default_val(ColumnsNamesDirectionTable.t_zz, t_zz)
+        self.always_red = all_red
+        self.toov_red = toov_red or False
+        self.toov_green= toov_green or False
+        self.description = description
+        self.num_as_int_or_float: int | float = .0
+        self.stages_as_str: MutableSequence[str] = []
+        self.stages_as_float: set[float] = set()
+        self._extra_init_and_check_data()
 
-    def __post_init__(self, compute_num_as_float: bool):
+    def _get_default_val(self, attr: ColumnsNamesDirectionTable, curr_val) -> int | str:
+        if self.entity == DirectionTypes.common:
+            return 0
+        if curr_val is not None:
+            try:
+                curr_val = int(curr_val)
+            except ValueError:
+                self.add_warnings(
+                    f'Для колонки "{str(attr)}" направления {self.num_as_int_or_float} '
+                    f'передано значение < {curr_val} >, не являющееся целым числом или 0'
+                )
+            return curr_val
+        return default_values[(self.entity, attr)]
+
+    def _extra_init_and_check_data(self):
         if not self.num_as_string:
             self.add_errors(
                 f'Нет данных о направлении с индексом={self.index}. '
                 f'У направления должен быть номер, тип и фазы, в которых оно участвует.'
             )
             return
-        if compute_num_as_float:
-            try:
-                self.num_as_int_or_float = int(self.num_as_string) if self.num_as_string.isdigit() else float(self.num_as_string)
-            except ValueError:
-                self.errors.append(
-                    'Недопустимый номер направления. Допускаются номера в виде целых чисел("1", "5", "15" и т.д) или'
-                    'числа через точку("8.1", "8.2", "10.1" и т.д.)'
-                )
-        if self.all_red is None: # Определить атрибут self.all_red, если он не задан явно при инициализации
-            self.all_red = bool(re.findall(self.ALL_RED, self.stages))
-        if not self.all_red: # Сформировать фазы для направления
+        try:
+            if self.num_as_string.isdigit():
+                self.num_as_int_or_float = int(self.num_as_string)
+            else:
+                self.num_as_int_or_float = float(self.num_as_string)
+            assert self.num_as_string == str(self.num_as_int_or_float)
+        except (ValueError, AssertionError):
+            self.add_errors(
+                f'Недопустимый номер направления "{self.num_as_string}"(Индекс={self.index}). '
+                f'Допускаются номера в виде целых чисел("1", "5", "15" и т.д) или '
+                f'числа через точку("8.1", "8.2", "10.1" и т.д.)'
+            )
+        if self.always_red is None: # Определить атрибут self.all_red, если он не задан явно при инициализации
+            self.always_red = bool(re.findall(self.ALL_RED, self.stages))
+        if not self.always_red: # Сформировать фазы для направления
             self._create_stages_data()
-
-    def __iter__(self):
-        return (prop for prop in astuple(self)[self.ALL_TABLE_COLUMNS])
+        #TO DO валидация типов остальных атрибутов
 
     def _create_stages_data(self):
         self.stages_as_str = self.stages.split(',') if self.stages else []
@@ -107,35 +116,38 @@ class Direction:
         except AssertionError:
             self.stages_as_float.clear()
 
-    def add_errors(self, *args: str):
-        for err in args:
-            if err:
-                self.errors.append(err)
+    def valid_for_compare_stages(self) -> bool:
+        if not self._errors and not self.always_red and self.stages_as_float:
+            return True
+        elif not self._errors and self.always_red:
+            return True
+        else:
+            return False
 
-    def is_valid(self) -> bool:
-        return not bool(self.errors)
 
-
-class DirectionsTable:
+class DirectionsTable(AbstractEntity):
     def __init__(self, raw_directions: str):
-        self._raw_groups = raw_directions
-        self._directions: MutableSequence[Direction] = []
-        self._errors = []
+        super().__init__()
+        self._raw_data = raw_directions
+        self._directions: MutableMapping[float, Direction] = {}
         self._max_direction_num: float = .0
         self._max_stage: float = .0
-        self._stages_data = StagesData()
+        self._quantity_directions_with_err_for_compare_stages = 0
+        self._stages_data = StagesData(StagesMapping.direction_to_stages)
         self._create_data_from_raw_directions_string()
-        self._direction_type_counter = Counter(str(direction_type.entity) for direction_type in self._directions)
+        self._direction_type_counter = Counter(str(direction.entity) for direction in self._directions.values())
+        self._valid_to_compare_stages = True
 
-
-    def _add_errors(self, *args: str):
-        for err in args:
-            if err:
-                self._errors.append(err)
+    def _load_directions(self, *directions: Direction) -> int:
+        cnt = 0
+        for direction in directions:
+            cnt += 1
+            self._directions[direction.num_as_int_or_float] = direction
+        return cnt
 
     def _create_data_from_raw_directions_string(self):
         self._max_direction_num = .0
-        for i, g in enumerate(self._raw_groups.split('\n')):
+        for i, g in enumerate(self._raw_data.split('\n')):
             # print(f'g: {g}')
             split_data = g.split()
             if not g:
@@ -144,24 +156,28 @@ class DirectionsTable:
                 num, entity, stages = split_data
             elif len(split_data) == 1:
                 num = 'xx'
-                entity = GroupTypes.common
+                entity = DirectionTypes.common
                 stages = split_data[0]
             else:
                 raise ValueError
             direction = Direction(index=i, num_as_string=num, entity=entity, stages=stages)
-            self._add_errors(*direction.errors)
+            # print(direction)
+            self.add_errors(*direction.get_errors())
             if not self._errors:
                 self._max_direction_num = max(self._max_direction_num, direction.num_as_int_or_float)
-                if not direction.all_red:
+                if not direction.always_red:
                     self._max_stage = max(self._max_stage, max(direction.stages_as_float))
-            self._directions.append(direction)
-        example = {d.num_as_int_or_float: d.stages_as_float for d in self._directions}
-        self._stages_data.load_groups_to_stages_mapping(example)
+            self._quantity_directions_with_err_for_compare_stages += int(not direction.valid_for_compare_stages())
+            self._load_directions(direction)
+        self._stages_data.refresh({d.num_as_int_or_float: d.stages_as_float for d in self._directions.values()})
+
+    def get_raw_income_data(self):
+        return self._raw_data
 
     def get_errors(self) -> MutableSequence[str]:
         return self._errors
 
-    def get_directions(self) -> MutableSequence[Direction]:
+    def get_directions(self) -> MutableMapping[float, Direction]:
         return self._directions
 
     def get_max_direction_num(self) -> float:
@@ -173,44 +189,25 @@ class DirectionsTable:
     def get_direction_types_cnt(self):
         return self._direction_type_counter
 
-    def build_table_stages(self):
-        pass
+    def get_stages_data(self) -> StagesData:
+        return self._stages_data
 
-
-def build_instances_groups_table(data: str):
-    storage: MutableSequence[Direction] = []
-    errors: MutableSequence[str] = []
-    for i, g in enumerate(data.split('\n')):
-        # print(f'g: {g}')
-        split_data = g.split()
-        if not g:
-            errors.append(f'Нет данных о группе. Индекс={i} {g}')
-            continue
-
-        if len(split_data) == 3:
-            num, entity, stages = split_data
-        elif len(split_data) == 1:
-            num = 'xx'
-            entity = GroupTypes.common
-            stages = split_data[0]
-        else:
-            raise ValueError
-        storage.append(Direction(index=i, num_as_string=num, entity=entity, stages=stages))
-        print(storage[i])
-    # print(f'storage: \n', storage)
-    # print()
-    # print(f'errors: \n', errors)
-
+    @property
+    def quantity_directions_with_err_for_compare_stages(self):
+        return self._quantity_directions_with_err_for_compare_stages
 
 if __name__ == '__main__':
-    _data = '1\tТранспортное\t1,8,9\n2\tТранспортное\t1,2\n3\tТранспортное\t4\n4\tПоворотное\t2,3,4\n5\tТранспортное\t3,6,7,8,9,10\n6\tТранспортное\t5,6,7,10\n7\tТранспортное\t4,5,8,9\n8\tТранспортное\t1,2,3,4\n9\tПешеходное\t2,3\n10\tТранспортное\t1,5,6,7,8,9,10\n11\tПешеходное\t1,2,3,4,5,6,8,9\n12\tТранспортное\t2,3,4,5,6,7,10\n13\tТранспортное\t6,7,10\n14\tТранспортное\t1\n15\tПоворотное\t5,6,7,10\n16\tТранспортное\t5,6,7,8,9,10\n17\tТранспортное\t2,3,4\n18\tТранспортное\t7,10\n19\tТранспортное\t3,4,5,8,9,10\n20\tПешеходное\t3\n21\tТранспортное\t1,2,3,4\n22\tПешеходное\t1,2,3,4,5,8,9\n23\tТранспортное\t6,7\n24\tТранспортное\tПост.краси.\n'.rstrip()
+    _data = '1\tТранспортное\t1,8,9\n2\tТранспортное\t1,2\n3\tТранспортное\t4\n4.1\tПоворотное\t2,3,4\n5\tТранспортное\t3,6,7,8,9,10\n6\tТранспортное\t5,6,7,10\n7\tТранспортное\t4,5,8,9\n8\tТранспортное\t1,2,3,4\n9\tПешеходное\t2,3\n10\tТранспортное\t1,5,6,7,8,9,10\n11\tПешеходное\t1,2,3,4,5,6,8,9\n12\tТранспортное\t2,3,4,5,6,7,10\n13\tТранспортное\t6,7,10\n14\tТранспортное\t1\n15\tПоворотное\t5,6,7,10\n16\tТранспортное\t5,6,7,8,9,10\n17\tТранспортное\t2,3,4\n18\tТранспортное\t7,10\n19\tТранспортное\t3,4,5,8,9,10\n20\tПешеходное\t3\n21\tТранспортное\t1,2,3,4\n22\tПешеходное\t1,2,3,4,5,8,9\n23\tТранспортное\t6,7\n24\tТранспортное\tПост.краси.\n'.rstrip()
     _data2 = '1\t1, 2, 8, 10, 11, 14, 21, 22\n2\t2, 4, 8, 9, 11, 12, 17, 22, 25\n3\t4, 5, 8, 9, 11, 12, 17, 19, 20, 21, 22\n4\t3, 4, 7, 8, 11, 12, 17, 19, 21, 22\n5\t6, 7, 10, 11, 12, 15, 16, 19, 22\n6\t5, 6, 10, 11, 12, 13, 15, 16, 23, 25\n7\t5, 6, 10, 12, 13, 15, 16, 18, 23, 25\n8\t1, 5, 7, 10, 11, 16, 19, 22\n9\t1, 5, 7, 10, 11, 16, 19, 22\n10\t5, 6, 10, 12, 13, 15, 16, 18, 19\n'.rstrip()
 
-    direction_table = DirectionsTable(_data)
-    print(direction_table.get_max_direction_num())
-    print(direction_table.get_errors())
-    print(direction_table.get_direction_types_cnt())
-    print(direction_table.get_max_stage_num())
-
-    grp = Direction(0, '12', entity=GroupTypes.vehicle, stages='1,3,4,43')
+    grp = Direction(0, '12', entity=DirectionTypes.vehicle, stages='1,3,4,43')
     print(grp)
+    direction_table = DirectionsTable(_data)
+    print(direction_table)
+    print(f'direction_table.quantity_directions_with_err_for_compare_stages: {direction_table.quantity_directions_with_err_for_compare_stages}')
+    pprint.pprint(direction_table.get_directions())
+
+    # pprint.pprint(direction_table.get_stages_data().get_direction_to_stages_mapping())
+    # pprint.pprint(direction_table.get_stages_data().get_stage_to_direction_mapping())
+
+
