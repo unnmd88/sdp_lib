@@ -2,7 +2,7 @@ from abc import abstractmethod
 from collections.abc import (
     MutableSequence, MutableMapping, Sequence
 )
-from typing import Any, TypeVar
+from typing import Any, TypeVar, Type
 
 from sdp_lib.passport.constants import ColumnsDirectionTimes
 from sdp_lib.passport.utils import add_record
@@ -10,6 +10,7 @@ from sdp_lib.passport.utils import add_record
 
 class AbstractRow:
     def __init__(self):
+        self.num_as_int_or_float: int | float = .0
         self._errors = []
         self._warnings = []
 
@@ -81,17 +82,13 @@ class AbstractTable:
     @abstractmethod
     def _create_data_from_raw_directions_string(self):
         """ Основной метод создания данных для таблицы. """
+        ...
 
-    def _load_row(
-            self,
-            container: MutableMapping[float, T_Row],
-            *args: tuple[float, T_Row]
-    ) -> int:
-        cnt = 0
-        for key, row in args:
-            cnt += 1
-            container[key] = row
-        return cnt
+    def _load_row(self, *args: tuple[float, T_Row]):
+        return add_record(self._rows, args)
+
+    def _load_row_with_err(self, *args: tuple[float, T_Row]):
+        return add_record(self._rows_with_errors, args)
 
     def get_income_data(self):
         return self._raw_data

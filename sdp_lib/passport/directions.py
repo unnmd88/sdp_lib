@@ -61,7 +61,7 @@ class DirectionRaw(AbstractRow, ReprMixin):
         self.toov_red = toov_red or False
         self.toov_green= toov_green or False
         self.description = description
-        self.num_as_int_or_float: int | float = .0
+
         self.stages_as_str: MutableSequence[str] = []
         self.stages_as_float: set[float] = set()
         self._allow_for_compare_stages = False
@@ -87,6 +87,7 @@ class DirectionRaw(AbstractRow, ReprMixin):
             return False
 
     def _extra_init_and_check_data(self):
+        self._entity_is_standard = self.entity_is_standard
         if not self.num_as_string:
             self.add_errors(
                 f'Нет данных о направлении с индексом={self.index}. '
@@ -177,10 +178,10 @@ class DirectionsTable(AbstractTable, ReprMixin):
                 if not direction.always_red:
                     self._max_stage = max(self._max_stage, max(direction.stages_as_float))
             else:
-                self._load_row(self._rows_with_errors, (i, direction))
+                self._load_row_with_err((direction.num_as_int_or_float, direction))
             if not direction.allow_for_compare_stages:
                 self._quantity_directions_with_err_for_compare_stages += 1
-            self._load_row(self._rows, (i, direction))
+            self._load_row((direction.num_as_int_or_float, direction))
         self._stages_data.refresh({d.num_as_int_or_float: d.stages_as_float for d in self._rows.values()})
 
     def get_max_direction_num(self) -> float:
@@ -297,6 +298,7 @@ if __name__ == '__main__':
     print('-*-' * 100)
     pprint.pprint(direction_table.get_rows_with_errors())
     print(f'Время составило: {time.perf_counter() - start_time}')
+    print(direction_table.get_all_rows()[6])
     # pprint.pprint(direction_table.get_stages_data().get_direction_to_stages_mapping())
     # pprint.pprint(direction_table.get_stages_data().get_stage_to_direction_mapping())
 

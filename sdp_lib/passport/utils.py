@@ -1,15 +1,23 @@
 from collections.abc import MutableSequence, Sequence, MutableMapping
 from dataclasses import dataclass, field
-from typing import TypeAlias
+from typing import TypeAlias, Any
 
 from sdp_lib.passport.constants import StagesMapping
 
 
-def add_record(container: MutableSequence[str], records: Sequence[str]) -> int:
+def add_record(
+    container: MutableSequence[str] | MutableMapping[float, Any],
+    records: tuple[str, ...] | tuple[tuple[float, Any], ...]
+) -> int:
     cnt = 0
-    for record in records:
-        cnt += 1
-        container.append(record)
+    if isinstance(container, MutableMapping):
+        for key, row in records:
+            cnt += 1
+            container[key] = row
+    elif isinstance(container, MutableSequence):
+        for record in records:
+            cnt += 1
+            container.append(record)
     return cnt
 
 

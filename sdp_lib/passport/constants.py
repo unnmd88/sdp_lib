@@ -1,5 +1,7 @@
-import typing
-from enum import StrEnum, IntEnum, auto, Enum
+from enum import (
+    StrEnum,
+    IntEnum
+)
 
 
 class DirectionTypes(StrEnum):
