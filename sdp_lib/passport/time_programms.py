@@ -1,9 +1,9 @@
 import re
 
-from sdp_lib.passport._base import AbstractEntity
+from sdp_lib.passport.base import AbstractRow
 
 
-class Program(AbstractEntity):
+class Program(AbstractRow):
 
     TIME_INTERVAL_PATTERN = re.compile('\d{2}:\d{2}:\d{2}-\d{2}:\d{2}:\d{2}')
 

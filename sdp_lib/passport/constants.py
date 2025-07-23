@@ -14,7 +14,7 @@ class StagesMapping(IntEnum):
     stage_to_direction  = 1
 
 
-class ColumnsNamesDirectionTable(StrEnum):
+class ColumnsDirectionTimes(StrEnum):
     t_green_ext = 'Тзд'
     t_flashing_green = 'Тзм'
     t_yellow = 'Тж'
@@ -43,31 +43,32 @@ common_direction_default_times = DefaultTimeValuesDirectionTable(0, 0, 0, 0, 0, 
 
 
 default_values = {
-    (DirectionTypes.vehicle, ColumnsNamesDirectionTable.t_green_ext): 0,
-    (DirectionTypes.vehicle, ColumnsNamesDirectionTable.t_flashing_green): 3,
-    (DirectionTypes.vehicle, ColumnsNamesDirectionTable.t_yellow): 3,
-    (DirectionTypes.vehicle, ColumnsNamesDirectionTable.t_red): 0,
-    (DirectionTypes.vehicle, ColumnsNamesDirectionTable.t_red_yellow): 1,
-    (DirectionTypes.vehicle, ColumnsNamesDirectionTable.t_z): 0,
-    (DirectionTypes.vehicle, ColumnsNamesDirectionTable.t_zz): 0,
+    (DirectionTypes.vehicle, ColumnsDirectionTimes.t_green_ext): 0,
+    (DirectionTypes.vehicle, ColumnsDirectionTimes.t_flashing_green): 3,
+    (DirectionTypes.vehicle, ColumnsDirectionTimes.t_yellow): 3,
+    (DirectionTypes.vehicle, ColumnsDirectionTimes.t_red): 0,
+    (DirectionTypes.vehicle, ColumnsDirectionTimes.t_red_yellow): 1,
+    (DirectionTypes.vehicle, ColumnsDirectionTimes.t_z): 0,
+    (DirectionTypes.vehicle, ColumnsDirectionTimes.t_zz): 0,
 
-    (DirectionTypes.pedestrian, ColumnsNamesDirectionTable.t_green_ext): 0,
-    (DirectionTypes.pedestrian, ColumnsNamesDirectionTable.t_flashing_green): 3,
-    (DirectionTypes.pedestrian, ColumnsNamesDirectionTable.t_yellow): 0,
-    (DirectionTypes.pedestrian, ColumnsNamesDirectionTable.t_red): 3,
-    (DirectionTypes.pedestrian, ColumnsNamesDirectionTable.t_red_yellow): 0,
-    (DirectionTypes.pedestrian, ColumnsNamesDirectionTable.t_z): 0,
-    (DirectionTypes.pedestrian, ColumnsNamesDirectionTable.t_zz): 0,
+    (DirectionTypes.pedestrian, ColumnsDirectionTimes.t_green_ext): 0,
+    (DirectionTypes.pedestrian, ColumnsDirectionTimes.t_flashing_green): 3,
+    (DirectionTypes.pedestrian, ColumnsDirectionTimes.t_yellow): 0,
+    (DirectionTypes.pedestrian, ColumnsDirectionTimes.t_red): 3,
+    (DirectionTypes.pedestrian, ColumnsDirectionTimes.t_red_yellow): 0,
+    (DirectionTypes.pedestrian, ColumnsDirectionTimes.t_z): 0,
+    (DirectionTypes.pedestrian, ColumnsDirectionTimes.t_zz): 0,
 
-    (DirectionTypes.arrow, ColumnsNamesDirectionTable.t_green_ext): 0,
-    (DirectionTypes.arrow, ColumnsNamesDirectionTable.t_flashing_green): 3,
-    (DirectionTypes.arrow, ColumnsNamesDirectionTable.t_yellow): 0,
-    (DirectionTypes.arrow, ColumnsNamesDirectionTable.t_red): 3,
-    (DirectionTypes.arrow, ColumnsNamesDirectionTable.t_red_yellow): 0,
-    (DirectionTypes.arrow, ColumnsNamesDirectionTable.t_z): 0,
-    (DirectionTypes.arrow, ColumnsNamesDirectionTable.t_zz): 0,
+    (DirectionTypes.arrow, ColumnsDirectionTimes.t_green_ext): 0,
+    (DirectionTypes.arrow, ColumnsDirectionTimes.t_flashing_green): 3,
+    (DirectionTypes.arrow, ColumnsDirectionTimes.t_yellow): 0,
+    (DirectionTypes.arrow, ColumnsDirectionTimes.t_red): 3,
+    (DirectionTypes.arrow, ColumnsDirectionTimes.t_red_yellow): 0,
+    (DirectionTypes.arrow, ColumnsDirectionTimes.t_z): 0,
+    (DirectionTypes.arrow, ColumnsDirectionTimes.t_zz): 0,
 }
 
 
 if __name__ == '__main__':
-    print()
+
+    print(bool(DirectionTypes('Транспортно')))
