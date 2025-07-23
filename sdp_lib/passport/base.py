@@ -1,8 +1,9 @@
 from abc import abstractmethod
 from collections.abc import (
-    MutableSequence, MutableMapping, Sequence
+    MutableSequence,
+    MutableMapping
 )
-from typing import Any, TypeVar, Type
+from typing import Any, TypeVar
 
 from sdp_lib.passport.constants import ColumnsDirectionTimes
 from sdp_lib.passport.utils import add_record

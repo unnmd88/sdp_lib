@@ -61,7 +61,6 @@ class DirectionRaw(AbstractRow, ReprMixin):
         self.toov_red = toov_red or False
         self.toov_green= toov_green or False
         self.description = description
-
         self.stages_as_str: MutableSequence[str] = []
         self.stages_as_float: set[float] = set()
         self._allow_for_compare_stages = False
@@ -178,7 +177,7 @@ class DirectionsTable(AbstractTable, ReprMixin):
                 if not direction.always_red:
                     self._max_stage = max(self._max_stage, max(direction.stages_as_float))
             else:
-                self._load_row_with_err((direction.num_as_int_or_float, direction))
+                self._load_row_with_err((i, direction))
             if not direction.allow_for_compare_stages:
                 self._quantity_directions_with_err_for_compare_stages += 1
             self._load_row((direction.num_as_int_or_float, direction))
@@ -200,92 +199,9 @@ class DirectionsTable(AbstractTable, ReprMixin):
     def quantity_directions_with_err_for_compare_stages(self):
         return self._quantity_directions_with_err_for_compare_stages
 
-# class DirectionsTable(ReprMixin):
-#     def __init__(self, raw_directions: str):
-#         self._raw_data = raw_directions
-#         self._directions: MutableMapping[float, DirectionRaw] = {}
-#         self._directions_with_errors: MutableMapping[float, DirectionRaw] = {}
-#         self._max_direction_num: float = .0
-#         self._max_stage: float = .0
-#         self._quantity_directions_with_err_for_compare_stages = 0
-#         self._stages_data = StagesData(StagesMapping.direction_to_stages)
-#         self._create_data_from_raw_directions_string()
-#         self._direction_type_counter = Counter(str(direction.entity) for direction in self._directions.values())
-#         self._valid_to_compare_stages = True
-#
-#     def _load_direction_common(
-#             self,
-#             container: MutableMapping[float, DirectionRaw],
-#             directions: Sequence[DirectionRaw]
-#     ) -> int:
-#         cnt = 0
-#         for direction in directions:
-#             cnt += 1
-#             container[direction.num_as_int_or_float] = direction
-#         return cnt
-#
-#     def _load_directions(self, *directions: DirectionRaw) -> int:
-#         return self._load_direction_common(self._directions, directions)
-#
-#     def _load_direction_if_has_err(self, *directions: DirectionRaw) -> int:
-#         return self._load_direction_common(self._directions_with_errors, directions)
-#
-#     def _create_data_from_raw_directions_string(self):
-#         self._max_direction_num = .0
-#         for i, g in enumerate(self._raw_data.split('\n')):
-#             # print(f'g: {g}')
-#             split_data = g.split()
-#             if not g:
-#                 num = entity = stages = ''
-#             elif len(split_data) == 3:
-#                 num, entity, stages = split_data
-#             elif len(split_data) == 1:
-#                 num = 'xx'
-#                 entity = DirectionTypes.common
-#                 stages = split_data[0]
-#             else:
-#                 raise ValueError
-#             direction = DirectionRaw(index=i, num_as_string=num, entity=entity, stages=stages)
-#             # print(direction)
-#             self._load_direction_if_has_err(direction)
-#             if not direction.get_errors():
-#                 self._max_direction_num = max(self._max_direction_num, direction.num_as_int_or_float)
-#                 if not direction.always_red:
-#                     self._max_stage = max(self._max_stage, max(direction.stages_as_float))
-#             if not direction.allow_for_compare_stages:
-#                 self._quantity_directions_with_err_for_compare_stages += 1
-#             self._load_directions(direction)
-#
-#         self._stages_data.refresh({d.num_as_int_or_float: d.stages_as_float for d in self._directions.values()})
-#
-#     def get_raw_income_data(self):
-#         return self._raw_data
-#
-#     def get_errors(self) -> MutableSequence[str]:
-#         return self._errors
-#
-#     def get_directions(self) -> MutableMapping[float, DirectionRaw]:
-#         return self._directions
-#
-#     def get_max_direction_num(self) -> float:
-#         return self._max_direction_num
-#
-#     def get_max_stage_num(self) -> float:
-#         return self._max_direction_num
-#
-#     def get_direction_types_cnt(self):
-#         return self._direction_type_counter
-#
-#     def get_stages_data(self) -> StagesData:
-#         return self._stages_data
-#
-#     @property
-#     def quantity_directions_with_err_for_compare_stages(self):
-#         return self._quantity_directions_with_err_for_compare_stages
-
 
 if __name__ == '__main__':
-    _data = '1\tТранспортное\t1,8,9\n2\tТранспортное\t1,2\n3\tТранспортное\t4\n4.1\tПоворотное\t2,3,4\n5\tТранспортное\t3,6,7,8,9,10\n6\tТранспортное\t5,6,7,10\n7\tТранспортное\t4,5,8,9\n8\tТранспортное\t1,2,3,4\n9\tПешеходное\t2,3\n10\tТранспортное\t1,5,6,7,8,9,10\n11\tПешеходное\t1,2,3,4,5,6,8,9\n12\tТранспортное\t2,3,4,5,6,7,10\n13\tТранспортное\t6,7,10\n14\tТранспортное\t1\n15\tПоворотное\t5,6,7,10\n16\tТранспортное\t5,6,7,8,9,10\n17\tТранспортное\t2,3,4\n18\tТранспортное\t7,10\n19\tТранспортное\t3,4,5,8,9,10\n20\tПешеходное\t3\n21\tТранспортное\t1,2,3,4\n22\tПешеходное\t1,2,3,4,5,8,9\n23\tТранспортное\t6,7\n24\tТранспортное\tПост.краси.\n'.rstrip()
+    _data = '1\tТранспортное\t1,8,9\n2\tТранспортное\t1,2\n3\tТранспортное\t4\n4\tПоворотное\t2,3,4\n5е\tТранспортное\t3,6,7,8,9,10\n6\tТранспортное\t5,6,7,10\n7\tТранспортное\t4,5,8,9\n8\tТранспортное\t1,2,3,4\n9\tПешеходное\t2,3\n10\tТранспортное\t1,5,6,7,8,9,10\n11\tПешеходное\t1,2,3,4,5,6,8,9\n12\tТранспортное\t2,3,4,5,6,7,10\n13\tТранспортное\t6,7,10\n14\tТранспортное\t1\n15\tПоворотное\t5,6,7,10\n16\tТранспортное\t5,6,7,8,9,10\n17\tТранспортное\t2,3,4\n18\tТранспортное\t7,10\n19\tТранспортное\t3,4,5,8,9,10\n20\tПешеходное\t3\n21\tТранспортное\t1,2,3,4\n22\tПешеходное\t1,2,3,4,5,8,9\n23\tТранспортное\t6,7\n24\tТранспортное\tПост.краси.\n'.rstrip()
     _data2 = '1\t1, 2, 8, 10, 11, 14, 21, 22\n2\t2, 4, 8, 9, 11, 12, 17, 22, 25\n3\t4, 5, 8, 9, 11, 12, 17, 19, 20, 21, 22\n4\t3, 4, 7, 8, 11, 12, 17, 19, 21, 22\n5\t6, 7, 10, 11, 12, 15, 16, 19, 22\n6\t5, 6, 10, 11, 12, 13, 15, 16, 23, 25\n7\t5, 6, 10, 12, 13, 15, 16, 18, 23, 25\n8\t1, 5, 7, 10, 11, 16, 19, 22\n9\t1, 5, 7, 10, 11, 16, 19, 22\n10\t5, 6, 10, 12, 13, 15, 16, 18, 19\n'.rstrip()
 
     start_time = time.perf_counter()
