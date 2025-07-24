@@ -9,6 +9,7 @@ class DirectionTypes(StrEnum):
     vehicle = 'Транспортное'
     pedestrian = 'Пешеходное'
     arrow = 'Поворотное'
+    always_red = 'Пост. красн'
 
 
 class StagesMapping(IntEnum):
@@ -16,7 +17,7 @@ class StagesMapping(IntEnum):
     stage_to_direction  = 1
 
 
-class ColumnsDirectionTimes(StrEnum):
+class ColNamesDirectionsTable(StrEnum):
     t_green_ext = 'Тзд'
     t_flashing_green = 'Тзм'
     t_yellow = 'Тж'
@@ -24,6 +25,15 @@ class ColumnsDirectionTimes(StrEnum):
     t_red_yellow = 'Ткж'
     t_z = 'Тз'
     t_zz = 'Тз'
+
+    number = '№ нап.'
+    direction_type = 'Тип направления'
+    traffic_lights = 'Светофоры'
+    stages = 'Фазы, в кот. участ. направ.'
+    always_red = 'Пост. красное'
+    toov_green = 'Зелен.'
+    toov_red = 'Красн.'
+    description = 'Примечание'
 
 
 """
@@ -45,29 +55,29 @@ common_direction_default_times = DefaultTimeValuesDirectionTable(0, 0, 0, 0, 0, 
 
 
 default_values = {
-    (DirectionTypes.vehicle, ColumnsDirectionTimes.t_green_ext): 0,
-    (DirectionTypes.vehicle, ColumnsDirectionTimes.t_flashing_green): 3,
-    (DirectionTypes.vehicle, ColumnsDirectionTimes.t_yellow): 3,
-    (DirectionTypes.vehicle, ColumnsDirectionTimes.t_red): 0,
-    (DirectionTypes.vehicle, ColumnsDirectionTimes.t_red_yellow): 1,
-    (DirectionTypes.vehicle, ColumnsDirectionTimes.t_z): 0,
-    (DirectionTypes.vehicle, ColumnsDirectionTimes.t_zz): 0,
+    (DirectionTypes.vehicle, ColNamesDirectionsTable.t_green_ext): 0,
+    (DirectionTypes.vehicle, ColNamesDirectionsTable.t_flashing_green): 3,
+    (DirectionTypes.vehicle, ColNamesDirectionsTable.t_yellow): 3,
+    (DirectionTypes.vehicle, ColNamesDirectionsTable.t_red): 0,
+    (DirectionTypes.vehicle, ColNamesDirectionsTable.t_red_yellow): 1,
+    (DirectionTypes.vehicle, ColNamesDirectionsTable.t_z): 0,
+    (DirectionTypes.vehicle, ColNamesDirectionsTable.t_zz): 0,
 
-    (DirectionTypes.pedestrian, ColumnsDirectionTimes.t_green_ext): 0,
-    (DirectionTypes.pedestrian, ColumnsDirectionTimes.t_flashing_green): 3,
-    (DirectionTypes.pedestrian, ColumnsDirectionTimes.t_yellow): 0,
-    (DirectionTypes.pedestrian, ColumnsDirectionTimes.t_red): 3,
-    (DirectionTypes.pedestrian, ColumnsDirectionTimes.t_red_yellow): 0,
-    (DirectionTypes.pedestrian, ColumnsDirectionTimes.t_z): 0,
-    (DirectionTypes.pedestrian, ColumnsDirectionTimes.t_zz): 0,
+    (DirectionTypes.pedestrian, ColNamesDirectionsTable.t_green_ext): 0,
+    (DirectionTypes.pedestrian, ColNamesDirectionsTable.t_flashing_green): 3,
+    (DirectionTypes.pedestrian, ColNamesDirectionsTable.t_yellow): 0,
+    (DirectionTypes.pedestrian, ColNamesDirectionsTable.t_red): 3,
+    (DirectionTypes.pedestrian, ColNamesDirectionsTable.t_red_yellow): 0,
+    (DirectionTypes.pedestrian, ColNamesDirectionsTable.t_z): 0,
+    (DirectionTypes.pedestrian, ColNamesDirectionsTable.t_zz): 0,
 
-    (DirectionTypes.arrow, ColumnsDirectionTimes.t_green_ext): 0,
-    (DirectionTypes.arrow, ColumnsDirectionTimes.t_flashing_green): 3,
-    (DirectionTypes.arrow, ColumnsDirectionTimes.t_yellow): 0,
-    (DirectionTypes.arrow, ColumnsDirectionTimes.t_red): 3,
-    (DirectionTypes.arrow, ColumnsDirectionTimes.t_red_yellow): 0,
-    (DirectionTypes.arrow, ColumnsDirectionTimes.t_z): 0,
-    (DirectionTypes.arrow, ColumnsDirectionTimes.t_zz): 0,
+    (DirectionTypes.arrow, ColNamesDirectionsTable.t_green_ext): 0,
+    (DirectionTypes.arrow, ColNamesDirectionsTable.t_flashing_green): 3,
+    (DirectionTypes.arrow, ColNamesDirectionsTable.t_yellow): 0,
+    (DirectionTypes.arrow, ColNamesDirectionsTable.t_red): 3,
+    (DirectionTypes.arrow, ColNamesDirectionsTable.t_red_yellow): 0,
+    (DirectionTypes.arrow, ColNamesDirectionsTable.t_z): 0,
+    (DirectionTypes.arrow, ColNamesDirectionsTable.t_zz): 0,
 }
 
 

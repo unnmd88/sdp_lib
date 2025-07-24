@@ -5,13 +5,12 @@ from collections.abc import (
 )
 from typing import Any, TypeVar
 
-from sdp_lib.passport.constants import ColumnsDirectionTimes
+from sdp_lib.passport.constants import ColNamesDirectionsTable
 from sdp_lib.passport.utils import add_record
 
 
 class AbstractRow:
     def __init__(self):
-        self.num_as_int_or_float: int | float = .0
         self._errors = []
         self._warnings = []
 
@@ -40,7 +39,7 @@ class ColumnValues:
 
     def __init__(
             self,
-            col_name: ColumnsDirectionTimes,
+            col_name: ColNamesDirectionsTable,
             init_val: Any,
             default_val: Any,
             value: Any
@@ -104,7 +103,7 @@ class AbstractTable:
 if __name__ == '__main__':
     o = AbstractRow()
     print(o)
-    cl = ColumnValues(ColumnsDirectionTimes.t_flashing_green, None, 3, 3)
+    cl = ColumnValues(ColNamesDirectionsTable.t_flashing_green, None, 3, 3)
     print(cl)
 
 
