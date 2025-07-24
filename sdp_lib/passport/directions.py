@@ -59,9 +59,9 @@ class DirectionRaw(AbstractRow, ReprMixin):
         self.t_z =  self._get_prom_tact_time(ColNamesDirectionsTable.t_z, t_z)
         self.t_zz =  self._get_prom_tact_time(ColNamesDirectionsTable.t_zz, t_zz)
         self.always_red = self._get_always_red_val()
-        self.toov_red = self._get_toov(toov_red)
-        self.toov_green= self._get_toov(toov_green)
-        self.description = description
+        self.toov_red = self._get_common_val(toov_red, False)
+        self.toov_green= self._get_common_val(toov_green, False)
+        self.description = self._get_common_val(description, '')
         self._allow_for_compare_stages = False
         self._entity_is_standard = self.entity_is_standard
 
@@ -149,8 +149,8 @@ class DirectionRaw(AbstractRow, ReprMixin):
         val = self.direction_type == DirectionTypes.always_red
         return ColumnValues(ColNamesDirectionsTable.always_red, None, False, val)
 
-    def _get_toov(self, init_val) -> ColumnValues:
-        return ColumnValues(ColNamesDirectionsTable.stages, init_val, False, init_val or False)
+    def _get_common_val(self, init_val, default_val) -> ColumnValues:
+        return ColumnValues(ColNamesDirectionsTable.stages, init_val, default_val, init_val or default_val)
 
     @property
     def entity_is_standard(self) -> bool:
@@ -246,6 +246,9 @@ if __name__ == '__main__':
     pprint.pprint(direction_table.get_rows_with_errors())
     print(f'Время составило: {time.perf_counter() - start_time}')
     print(direction_table.get_all_rows()[6])
+    for k, v in grp.__dict__.items():
+        print(f'k:{k}={v}')
+
     # pprint.pprint(direction_table.get_stages_data().get_direction_to_stages_mapping())
     # pprint.pprint(direction_table.get_stages_data().get_stage_to_direction_mapping())
 
