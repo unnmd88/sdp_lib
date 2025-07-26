@@ -1,7 +1,25 @@
 from enum import (
+    Enum,
     StrEnum,
-    IntEnum
+    IntEnum,
+    auto,
+
 )
+
+
+class MessageLevels(StrEnum):
+    debug = 'DEBUG'
+    info = 'INFO'
+    warning = 'WARNING'
+    error = 'ERROR'
+    critical = 'CRITICAL'
+
+
+class StorageNames(StrEnum):
+    direction = 'Направление'
+    directions_table = 'Таблица направлений'
+    income_data = 'Входные данные'
+    errors_and_warnings = 'Ошибки и предупреждения'
 
 
 class DirectionTypes(StrEnum):

@@ -1,37 +1,49 @@
+import typing
 from abc import abstractmethod
 from collections.abc import (
     MutableSequence,
-    MutableMapping
+    MutableMapping,
+    Iterable
 )
 from typing import Any, TypeVar
 
-from sdp_lib.passport.constants import ColNamesDirectionsTable
-from sdp_lib.passport.utils import add_record
+from sdp_lib.passport.constants import ColNamesDirectionsTable, StorageNames
+from sdp_lib.passport.mixins import ReprMixin
+from sdp_lib.passport.storages import MessageStorage, add_record, Message
 
 
-class AbstractRow:
+class AbstractEntity:
     def __init__(self):
-        self._errors = []
-        self._warnings = []
+        self._err_and_warn = MessageStorage()
 
-    def add_errors(self, *errors: str):
-        return add_record(self._errors, errors)
-
-    def add_warnings(self, *warnings: str):
-        return add_record(self._errors, warnings)
-
-    def get_errors(self) -> MutableSequence[str]:
-        return self._errors
-
-    def get_warnings(self) -> MutableSequence[str]:
-        return self._warnings
-
-    @property
-    def is_valid(self) -> bool:
-        return not bool(self._errors)
+    def get_message_storage(self):
+        return self._err_and_warn
 
 
-T_Row = TypeVar('T_Row', bound=AbstractRow)
+
+# class AbstractRow:
+#     def __init__(self):
+#         self._errors = []
+#         self._warnings = []
+#
+#     def add_errors(self, *errors: str):
+#         return add_record(self._errors, errors)
+#
+#     def add_warnings(self, *warnings: str):
+#         return add_record(self._errors, warnings)
+#
+#     def get_errors(self) -> MutableSequence[str]:
+#         return self._errors
+#
+#     def get_warnings(self) -> MutableSequence[str]:
+#         return self._warnings
+#
+#     @property
+#     def is_valid(self) -> bool:
+#         return not bool(self._errors)
+
+
+T_Row = TypeVar('T_Row', bound=AbstractEntity)
 
 
 class ColumnValues:
@@ -73,16 +85,29 @@ class ColumnValues:
         self._value = value
 
 
-class AbstractTable:
+class AbstractTable(AbstractEntity):
+
+    table_name: str = ''
+
     def __init__(self, income_data: str):
+        super().__init__()
         self._raw_data = income_data
+        self._income_data_errors = MessageStorage(StorageNames.income_data)
+        self._check_raw_data()
         self._rows: MutableMapping[float, T_Row] = {}
         self._rows_with_errors: MutableMapping[float, T_Row] = {}
 
     @abstractmethod
-    def _create_data_from_raw_directions_string(self):
+    def _create_data_from_income_string(self):
         """ Основной метод создания данных для таблицы. """
         ...
+
+    def _check_raw_data(self) -> bool:
+        if len(self._raw_data) < 4:
+            self._income_data_errors.add_errors(
+                Message(f'Некорректные данные для обработки и формирования таблицы {self.table_name}')
+            )
+        return self.income_data_is_valid
 
     def _load_row(self, *args: tuple[float, T_Row]):
         return add_record(self._rows, args)
@@ -93,6 +118,10 @@ class AbstractTable:
     def get_income_data(self):
         return self._raw_data
 
+    @property
+    def income_data_is_valid(self) -> bool:
+        return not self._income_data_errors.errors
+
     def get_rows_with_errors(self) -> MutableMapping[float, T_Row]:
         return self._rows_with_errors
 
@@ -101,7 +130,7 @@ class AbstractTable:
 
 
 if __name__ == '__main__':
-    o = AbstractRow()
+    o = AbstractEntity()
     print(o)
     cl = ColumnValues(ColNamesDirectionsTable.t_flashing_green, None, 3, 3)
     print(cl)
