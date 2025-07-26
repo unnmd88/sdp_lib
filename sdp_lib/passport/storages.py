@@ -29,26 +29,6 @@ def add_record(
     return cnt
 
 
-# class MessageStorage:
-#
-#     __slots__ = ('_errors', '_warnings')
-#
-#     def __init__(self):
-#         self._errors: MutableSequence[Message] = []
-#         self._warnings: MutableSequence[Message] = []
-#
-#     def add_errors(self, errors: Iterable[Message]):
-#         return add_record(self._errors, errors)
-#
-#     def add_warnings(self, warnings: Iterable[Message]):
-#         return add_record(self._errors, warnings)
-#
-#     def get_errors(self) -> MutableSequence[Message]:
-#         return self._errors
-#
-#     def get_warnings(self) -> MutableSequence[Message]:
-#         return self._warnings
-
 @dataclass
 class MessageStorage:
     name: str = ''
