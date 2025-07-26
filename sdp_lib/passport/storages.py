@@ -1,11 +1,21 @@
-from dataclasses import dataclass, field
+from dataclasses import (
+    dataclass,
+    field
+)
 from typing import (
     Any,
     NamedTuple
 )
-from collections.abc import MutableSequence, Iterable, MutableMapping
+from collections.abc import (
+    MutableSequence,
+    Iterable,
+    MutableMapping
+)
 
-from sdp_lib.passport.constants import MessageLevels, StorageNames
+from sdp_lib.passport.constants import (
+    MessageLevels,
+    StorageNames
+)
 
 
 class Message(NamedTuple):
