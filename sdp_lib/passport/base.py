@@ -18,7 +18,7 @@ from sdp_lib.passport.storages import (
     add_record,
     Message
 )
-from sdp_lib.passport.utils import make_int_or_float_collection
+from sdp_lib.passport.utils import make_int_or_float_collection, get_int_or_float
 from sdp_lib.utils_common.utils_common import remove_chars
 
 
@@ -66,7 +66,7 @@ class ColumnData(NamedTuple):
     init_val: Any
     default_val: Any
     value: Any
-    is_valid: bool
+    is_valid: bool = True
 
 
 class AbstractEntity:
@@ -162,7 +162,7 @@ def get_number(
 ) -> ColumnData:
     default_val, is_valid = None, True
     try:
-        val = int(init_val)
+        val = get_int_or_float(init_val)
     except (ValueError, TypeError):
         is_valid = False
         val = init_val

@@ -43,7 +43,7 @@ class StageRow(AbstractEntity, ReprMixin):
             self._err_and_warn.add_warnings(Message(Text.bad_num_pp))
         self.num_stage = get_number(num_stage, ColNamesTimeProgramsTable.num_stage)
         if not self.num_stage.is_valid:
-            self._err_and_warn.add_errors(Text.get_bad_num_stage(num_stage))
+            self._err_and_warn.add_errors(Text.get_bad_num(num_stage, ColNamesTimeProgramsTable.num_stage))
             self._actions.set_compare_stages(False)
         self.directions = get_stage_or_direction_data(
             directions, self.REST_STAGE, ColNamesTimeProgramsTable.directions
@@ -113,7 +113,7 @@ class TimeProgramTable(AbstractTable, ReprMixin):
 if __name__ == '__main__':
     r = re.compile('\d{2}:\d{2}:\d{2}-\d{2}:\d{2}:\d{2}')
     print(re.findall(r, '07:00:00-11:00:00'))
-    tp1 = StageRow(0,'1r', '1f', '1,2,4,5')
+    tp1 = StageRow(0,'1', '1', '1,2,4,5')
     print(tp1)
     print(tp1.num_stage)
     print(tp1.directions)
