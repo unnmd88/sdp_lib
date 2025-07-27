@@ -7,7 +7,7 @@ from typing import Any
 from sdp_lib.passport.base import (
     AbstractEntity,
     AbstractTable,
-    ColumnValues
+    ColumnData
 )
 from sdp_lib.passport.constants import (
     DirectionTypes,
@@ -16,8 +16,10 @@ from sdp_lib.passport.constants import (
     default_values, StorageNames
 )
 from sdp_lib.passport.mixins import ReprMixin
-from sdp_lib.passport.storages import Message
-from sdp_lib.passport.utils import StagesData
+from sdp_lib.passport.storages import (
+    Message,
+    StagesData, Actions
+)
 
 
 DEBUG = True
@@ -25,7 +27,7 @@ DEBUG = True
 
 class DirectionRow(AbstractEntity, ReprMixin):
 
-    ALL_RED = re.compile(r'кр|-', re.IGNORECASE)
+    ALWAYS_RED = re.compile(r'кр|-', re.IGNORECASE)
     ALL_TABLE_COLUMNS = slice(1, 15)
     FIRST_3_TABLE_COLUMNS = slice(1, 4)
 
@@ -48,6 +50,7 @@ class DirectionRow(AbstractEntity, ReprMixin):
             description: str = '',
     ):
         super().__init__()
+        self._actions = Actions()
         self._err_and_warn.set_name(StorageNames.direction)
         self.index = index
         self.number = self._get_number(number)
@@ -78,13 +81,13 @@ class DirectionRow(AbstractEntity, ReprMixin):
                 f'числа через точку("8.1", "8.2", "10.1" и т.д.)'
 
             ))
-            return ColumnValues(ColNamesDirectionsTable.number, init_val, default_val, init_val)
+            return ColumnData(ColNamesDirectionsTable.number, init_val, default_val, init_val)
         try:
             if init_val.isdigit():
                 val = int(init_val)
             else:
                 before_dot, after_dot = init_val.split('.')
-                if len(after_dot) != 1 and not after_dot.isdigit():
+                if len(after_dot) != 1 or not after_dot.isdigit():
                     raise ValueError
                 val = float(init_val)
             assert init_val == str(val)
@@ -96,11 +99,11 @@ class DirectionRow(AbstractEntity, ReprMixin):
 
             ))
             val = default_val
-        return ColumnValues(ColNamesDirectionsTable.number, init_val, default_val, val)
+        return ColumnData(ColNamesDirectionsTable.number, init_val, default_val, val)
 
-    def _get_direction_type(self, init_val: str | DirectionTypes) -> ColumnValues:
+    def _get_direction_type(self, init_val: str | DirectionTypes) -> ColumnData:
         default_val = DirectionTypes.common
-        if re.findall(self.ALL_RED, init_val):
+        if re.findall(self.ALWAYS_RED, init_val):
             val = DirectionTypes.always_red
         elif init_val:
             val = init_val
@@ -113,9 +116,9 @@ class DirectionRow(AbstractEntity, ReprMixin):
                 ))
         else:
             val = default_val
-        return ColumnValues(ColNamesDirectionsTable.direction_type, init_val, default_val, val)
+        return ColumnData(ColNamesDirectionsTable.direction_type, init_val, default_val, val)
 
-    def _get_stages_and_fill_stages_as_int_or_float(self, init_val: Any) -> ColumnValues:
+    def _get_stages_and_fill_stages_as_int_or_float(self, init_val: Any) -> ColumnData:
         self.stages_as_int_or_float: set[float | int] = set()
         default_val = ''
         if not init_val and not self.is_always_red: # Строка с фазами(например: '1,2,4,6') не задана в при инициализации
@@ -123,10 +126,10 @@ class DirectionRow(AbstractEntity, ReprMixin):
                 f'У направления № {self.number!r} c типом {self.direction_type} '
                 f'отсутствуют данные: "Фазы, в кот. участ. направ.".'
             ))
-            return ColumnValues(ColNamesDirectionsTable.stages, init_val, default_val, default_val)
+            return ColumnData(ColNamesDirectionsTable.stages, init_val, default_val, default_val)
         stages_as_str = init_val.replace(' ', '')
-        if re.findall(self.ALL_RED, stages_as_str): # Если тип направления "Пост. красн."
-            return ColumnValues(ColNamesDirectionsTable.stages, init_val, default_val, '-')
+        if re.findall(self.ALWAYS_RED, stages_as_str): # Если тип направления "Пост. красн."
+            return ColumnData(ColNamesDirectionsTable.stages, init_val, default_val, '-')
         for stage in stages_as_str.split(','):
             try:
                 stage = int(stage) if stage.isdigit() else float(stage)
@@ -139,23 +142,20 @@ class DirectionRow(AbstractEntity, ReprMixin):
                     f'числом с точкой: "1.1, 2, 3.1 ,3.2, 7"'
                 ))
                 self.stages_as_int_or_float.clear()
-                return ColumnValues(ColNamesDirectionsTable.stages, init_val, default_val, default_val)
-        return ColumnValues(ColNamesDirectionsTable.stages, init_val, default_val, stages_as_str)
+                return ColumnData(ColNamesDirectionsTable.stages, init_val, default_val, default_val)
+        return ColumnData(ColNamesDirectionsTable.stages, init_val, default_val, stages_as_str)
 
-    def _get_prom_tact_time(self, col_name: ColNamesDirectionsTable, init_val) -> ColumnValues:
+    def _get_prom_tact_time(self, col_name: ColNamesDirectionsTable, init_val) -> ColumnData:
         default_val = default_values.get((self.direction_type, col_name))
         if init_val is None:
             val = default_val
         else:
             val = init_val
-        return ColumnValues(col_name, init_val, default_val, val)
+        return ColumnData(col_name, init_val, default_val, val)
 
-    def _get_always_red_val(self) -> ColumnValues:
+    def _get_always_red_val(self) -> ColumnData:
         val = self.direction_type == DirectionTypes.always_red
-        return ColumnValues(ColNamesDirectionsTable.always_red, None, False, val)
-
-    def _get_common_val(self, init_val, default_val) -> ColumnValues:
-        return ColumnValues(ColNamesDirectionsTable.stages, init_val, default_val, init_val or default_val)
+        return ColumnData(ColNamesDirectionsTable.always_red, None, False, val)
 
     @property
     def entity_is_standard(self) -> bool:

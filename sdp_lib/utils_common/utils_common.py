@@ -1,6 +1,7 @@
 import functools
 import ipaddress
 import random
+import re
 import time
 from collections.abc import Sequence, MutableMapping
 from datetime import datetime as dt
@@ -94,3 +95,24 @@ def format_time(timestamp) -> str:
     except ValueError:
         return timestamp
 
+def remove_chars(string, *args: str) -> str:
+    if not isinstance(string, str):
+        raise TypeError('arg "string" must be a str')
+    pattern = spaces = ''
+    for char in args:
+        if char == ' ':
+            spaces = '\s+'
+        else:
+            pattern += char
+    return re.sub('[' + pattern + spaces + ']', '', string)
+
+if __name__ == '__main__':
+
+    print( remove_chars('пн   ,  вт ,с  р ,ч т  ,   пт:', ':', ' '))
+
+    """
+    Программа 1 Тц = 353 с. пн,вт,ср,чт,пт: 
+
+07:00:00-09:00:00 
+17:00:00-19:00:00 
+    """

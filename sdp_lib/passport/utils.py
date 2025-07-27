@@ -1,5 +1,6 @@
+import operator
 from collections.abc import (
-    MutableMapping
+    MutableMapping, Collection, MutableSequence, Iterable, Sequence, Container, MutableSet
 )
 from dataclasses import (
     dataclass,
@@ -7,35 +8,47 @@ from dataclasses import (
 )
 from typing import (
     TypeAlias,
+    Type, TypeVar,
 )
 
 from sdp_lib.passport.constants import StagesMapping
 
 
-stages_content_type: TypeAlias = MutableMapping[float, set[float]]
+Numbers = int | float
+NumbersContainer = TypeVar('NumbersContainer', tuple, list, set, frozenset)
 
 
-@dataclass
-class StagesData:
-    mapping_type: StagesMapping
-    _direction_to_stages_mapping: stages_content_type = field(default_factory=dict)
-    _stage_to_direction_mapping: stages_content_type = field(default_factory=dict)
+def get_int_or_float(num_as_str: str):
+    if isinstance(num_as_str, (int, float)):
+        num_as_str = str(num_as_str)
+    if not isinstance(num_as_str, str):
+        raise TypeError()
+    if num_as_str.isdigit():
+        val = int(num_as_str)
+    else:
+        before_dot, after_dot = num_as_str.split('.')
+        if len(after_dot) != 1 or not after_dot.isdigit():
+            raise ValueError
+        val = float(num_as_str)
+    assert num_as_str == str(val)
+    return val
 
-    def refresh(self, data: dict[float, set]):
-        if self.mapping_type == StagesMapping.direction_to_stages:
-            self._direction_to_stages_mapping = {k: v for k, v in data.items()}
-            self._stage_to_direction_mapping.clear()
-            for direction, stages in self._direction_to_stages_mapping.items():
-                for stage in stages:
-                    try:
-                        self._stage_to_direction_mapping[stage].add(direction)
-                    except KeyError:
-                        self._stage_to_direction_mapping[stage] = {direction}
-        elif self.mapping_type == StagesMapping.stage_to_direction:
-            self._stage_to_direction_mapping = {k: v for k, v in data.items()}
+def make_int_or_float_collection(
+    data: Iterable[str],
+    container_type: Type[NumbersContainer] = set
+) -> NumbersContainer:
+    try:
+        result = container_type(get_int_or_float(el) for el in data)
+    except (ValueError, TypeError):
+        result = container_type()
+    return result
 
-    def get_direction_to_stages_mapping(self):
-        return self._direction_to_stages_mapping
 
-    def get_stage_to_direction_mapping(self):
-        return self._stage_to_direction_mapping
+
+
+
+
+if __name__ == '__main__':
+    print(make_int_or_float_collection('1,2,3,6.7'.split(',')))
+    print(make_int_or_float_collection('1,2,3,6.7'.split(','), container_type=tuple))
+

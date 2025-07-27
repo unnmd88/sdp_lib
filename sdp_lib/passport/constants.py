@@ -5,6 +5,7 @@ from enum import (
     auto,
 
 )
+from itertools import zip_longest
 
 
 class MessageLevels(StrEnum):
@@ -53,6 +54,33 @@ class ColNamesDirectionsTable(StrEnum):
     toov_red = 'Красн.'
     description = 'Примечание'
 
+class ColNamesTimeProgramsTable(StrEnum):
+    number = 'Программа'
+    cycle_time = 'Тц'
+    weekdays = 'Дни недели'
+    time_interval = 'Временной интервал'
+
+    num_pp = '№ пп'
+    num_stage = '№ фазы'
+    directions = 'Направления'
+    t_osn = 'Тосн'
+    t_sdvig = 'Тсдвиг'
+    t_min = 'Тмин'
+    stage_type = 'Тип фазы'
+
+
+class ModeNames(StrEnum):
+    va = 'va'
+    ft = 'ft'
+    man = 'man'
+    central = 'central'
+
+class StageTypes(StrEnum):
+    main = 'Основная фаза'
+    calling = 'Вызывная фаза'
+
+
+WEEKDAYS = {k: None for k in 'пн,вт,ср,чт,пт,сб,вс'.split(',')}
 
 """
 class DefaultTimeValuesDirectionTable(typing.NamedTuple):
@@ -101,4 +129,5 @@ default_values = {
 
 if __name__ == '__main__':
 
+    print(WEEKDAYS)
     print(bool(DirectionTypes('Транспортно')))
