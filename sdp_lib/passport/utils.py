@@ -38,12 +38,19 @@ def make_int_or_float_collection(
     container_type: Type[NumbersContainer] = set
 ) -> NumbersContainer:
     try:
-        result = container_type(get_int_or_float(el) for el in data)
+        result = container_type(get_int_or_float(el) for el in data if el != '')
     except (ValueError, TypeError):
         result = container_type()
     return result
 
 
+def get_max_num_or_curr_val(curr_val: int | float, for_comparison: int | float | Iterable[int | float]):
+    try:
+        if isinstance(for_comparison, Iterable):
+            return max(curr_val, max(for_comparison))
+        return max(curr_val, for_comparison)
+    except ValueError:
+        return curr_val
 
 
 

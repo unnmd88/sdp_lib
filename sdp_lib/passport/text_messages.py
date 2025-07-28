@@ -1,4 +1,5 @@
 from enum import StrEnum
+from typing import Any
 
 from sdp_lib.passport.constants import ColNamesTimeProgramsTable, ColNamesDirectionsTable, DirectionTypes
 
@@ -26,3 +27,15 @@ class Text(StrEnum):
             f'Допускаются номера в виде целых чисел("1", "2", "6" и т.д) или '
             f'числа через точку("1.1", "1.2", "4.1" и т.д.)'
         )
+
+    @classmethod
+    def get_bad_val(
+            cls,
+            value: Any = '',
+            name: ColNamesTimeProgramsTable | ColNamesDirectionsTable = ''
+    ) -> str:
+        return f'Неверно задано значение "{name}": {value}'
+
+    @classmethod
+    def get_has_doubles(cls, entity: str, column_name: str, doubles: Any):
+        return f'У {entity} найдены дубли в "{column_name}": {[el for el in doubles]}'

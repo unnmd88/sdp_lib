@@ -84,17 +84,10 @@ class StagesData:
         return self._stage_to_direction_mapping
 
 
-@dataclass
-class StagesData2:
-    pass
-
-
-
-
 # @dataclass(slots=True)
 class Actions:
 
-    __slots__ = ('_compare_stages', '_allow_from_false_to_true')
+    __slots__ = ('_compare_stages', '_permission_to_set_flag_from_false_to_true')
 
     def __init__(
             self,
@@ -102,33 +95,33 @@ class Actions:
             compare_stages: bool = True
     ):
         self._compare_stages = compare_stages
-        self._allow_from_false_to_true: bool = False
+        self._permission_to_set_flag_from_false_to_true: bool = False
 
     def __repr__(self):
         attrs = ' '.join(f'{attr}={getattr(self, attr)!r}' for attr in self.__slots__)
         return f'{self.__class__.__name__}({attrs})'
 
     def set_permission_set_flag_from_false_to_true(self, value: bool):
-        self._allow_from_false_to_true = bool(value)
+        self._permission_to_set_flag_from_false_to_true = bool(value)
 
     def _check_permission_and_return_flag(self, flag: bool):
         flag = bool(flag)
-        if flag and self._allow_from_false_to_true is False:
+        if flag and self._permission_to_set_flag_from_false_to_true is False:
             raise AttributeError("can't set attribute from False to True")
         return flag
 
-    def set_compare_stages(self, flag: bool):
+    def set_val_compare_stages(self, flag: bool):
         self._compare_stages = self._check_permission_and_return_flag(flag)
 
     @property
-    def compare_stages(self) -> bool:
+    def allow_compare_stages(self) -> bool:
         return self._compare_stages
 
 
 if __name__ == '__main__':
     act = Actions()
     print(act)
-    act.set_compare_stages(False)
+    act.set_val_compare_stages(False)
     act.set_permission_set_flag_from_false_to_true(True)
-    act.set_compare_stages(True)
+    act.set_val_compare_stages(True)
     print(act)

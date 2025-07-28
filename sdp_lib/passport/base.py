@@ -1,4 +1,5 @@
 import re
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import NamedTuple
 from abc import abstractmethod
@@ -62,7 +63,7 @@ from sdp_lib.utils_common.utils_common import remove_chars
 
 
 class ColumnData(NamedTuple):
-    col_name: ColNamesDirectionsTable | ColNamesTimeProgramsTable
+    col_name: ColNamesDirectionsTable | ColNamesTimeProgramsTable | str
     init_val: Any
     default_val: Any
     value: Any
@@ -78,7 +79,7 @@ class AbstractEntity:
     def get_message_storage(self):
         return self._err_and_warn
 
-    def _get_common_val(self, init_val, default_val=None) -> ColumnData:
+    def _get_common_val(self, init_val, name: str, default_val=None) -> ColumnData:
         return ColumnData(ColNamesDirectionsTable.stages, init_val, default_val, init_val or default_val)
 
 
@@ -154,6 +155,7 @@ class StagesAndDirections:
     is_red: bool
     allow_to_compare: bool
     container: frozenset[int | float]
+    doubles: Iterable[int | float]
 
 
 def get_number(
@@ -174,27 +176,38 @@ def get_stage_or_direction_data(
         red_pattern: re.Pattern,
         name: ColNamesTimeProgramsTable | ColNamesDirectionsTable
 ) -> StagesAndDirections:
-    default_val, is_valid, is_red, allow_to_compare = '', True, False, True
+    default_val, is_valid, is_red, allow_to_compare, doubles = '', True, False, True, {}
     try:
         processed_string_data = remove_chars(string_data, ' ')
+        collection_as_str = processed_string_data.split(',')
         collection_as_int_or_float: frozenset[float | int] = make_int_or_float_collection(
-            processed_string_data.split(','), frozenset
+            collection_as_str, frozenset
         )
         if not collection_as_int_or_float:
             if re.findall(red_pattern, processed_string_data): # Если тип фазы "Фаза покоя"/"Пост. красн"
                 is_red = True
             else:
                 raise ValueError
+        else:
+            if len(collection_as_str) != len(collection_as_int_or_float):
+                cnt = Counter(make_int_or_float_collection(collection_as_str, list))
+                doubles = {k: v for k, v in cnt.items() if v > 1}
     except (TypeError, ValueError):
         allow_to_compare = False
         is_valid = False
         collection_as_int_or_float = frozenset()
+        doubles = {}
     return StagesAndDirections(
         ColumnData(name, string_data, default_val, string_data, is_valid),
         is_red,
         allow_to_compare,
-        collection_as_int_or_float
+        collection_as_int_or_float,
+        doubles
     )
+
+
+def get_column_data_instance(name: str, init_val: Any, default_val=None, is_valid: bool = True) -> ColumnData:
+    return ColumnData(name, init_val, default_val, init_val or default_val, is_valid)
 
 
 if __name__ == '__main__':

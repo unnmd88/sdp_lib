@@ -44,7 +44,7 @@ class StageRow(AbstractEntity, ReprMixin):
         self.num_stage = get_number(num_stage, ColNamesTimeProgramsTable.num_stage)
         if not self.num_stage.is_valid:
             self._err_and_warn.add_errors(Text.get_bad_num(num_stage, ColNamesTimeProgramsTable.num_stage))
-            self._actions.set_compare_stages(False)
+            self._actions.set_val_compare_stages(False)
         self.directions = get_stage_or_direction_data(
             directions, self.REST_STAGE, ColNamesTimeProgramsTable.directions
         )
@@ -64,7 +64,7 @@ class StageRow(AbstractEntity, ReprMixin):
 
     @property
     def allow_compare_stages(self) -> bool:
-        return self._actions.compare_stages
+        return self._actions.allow_compare_stages
 
 
 class HeadData(AbstractEntity, ReprMixin):

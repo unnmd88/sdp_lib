@@ -2,12 +2,13 @@ import pprint
 import re
 import time
 from collections import Counter
+from collections.abc import Iterable
 from typing import Any
 
 from sdp_lib.passport.base import (
     AbstractEntity,
     AbstractTable,
-    ColumnData, get_number, get_stage_or_direction_data
+    ColumnData, get_number, get_stage_or_direction_data, get_column_data_instance
 )
 from sdp_lib.passport.constants import (
     DirectionTypes,
@@ -21,6 +22,7 @@ from sdp_lib.passport.storages import (
     StagesData, Actions
 )
 from sdp_lib.passport.text_messages import Text
+from sdp_lib.passport.utils import get_max_num_or_curr_val
 
 DEBUG = True
 
@@ -56,15 +58,22 @@ class DirectionRow(AbstractEntity, ReprMixin):
         self.number = get_number(number, ColNamesDirectionsTable.number)
         if not self.number.is_valid:
             self._err_and_warn.add_errors(Message(Text.get_bad_num(number, ColNamesDirectionsTable.number)))
-            self._actions.set_compare_stages(False)
+            self._actions.set_val_compare_stages(False)
         self.direction_type = self._get_direction_type(direction_type)
         self.stages = get_stage_or_direction_data(
             stages, self.ALWAYS_RED, ColNamesDirectionsTable.stages
         )
-        if self.direction_type == DirectionTypes.always_red and (self.stages.allow_to_compare or self.stages.container):
+        if self.stages.column_data.is_valid is False:
+            self._err_and_warn.add_errors(Message(Text.get_bad_val(stages, ColNamesDirectionsTable.stages)))
+            self._actions.set_val_compare_stages(False)
+        if self.stages.doubles:
+            self._err_and_warn.add_warnings(
+                Message(Text.get_has_doubles('направления', ColNamesDirectionsTable.stages, self.stages.doubles))
+            )
+        if self.direction_type == DirectionTypes.always_red and self.stages.container:
             self._err_and_warn.add_errors(Message(Text.always_red_must_be_empty))
-            self._actions.set_compare_stages(False)
-        self.traffic_lights = traffic_lights
+            self._actions.set_val_compare_stages(False)
+        self.traffic_lights = get_column_data_instance(ColNamesDirectionsTable.traffic_lights, traffic_lights)
         self.t_green_ext = self._get_prom_tact_time(ColNamesDirectionsTable.t_green_ext, t_green_ext)
         self.t_flashing_green = self._get_prom_tact_time(ColNamesDirectionsTable.t_flashing_green, t_flashing_green)
         self.t_yellow =  self._get_prom_tact_time(ColNamesDirectionsTable.t_yellow, t_yellow)
@@ -73,41 +82,10 @@ class DirectionRow(AbstractEntity, ReprMixin):
         self.t_z =  self._get_prom_tact_time(ColNamesDirectionsTable.t_z, t_z)
         self.t_zz =  self._get_prom_tact_time(ColNamesDirectionsTable.t_zz, t_zz)
         self.always_red = self._get_always_red_val()
-        self.toov_red = self._get_common_val(toov_red, False)
-        self.toov_green= self._get_common_val(toov_green, False)
-        self.description = self._get_common_val(description, '')
-        # self._allow_for_compare_stages = False
-        self._entity_is_standard = self.entity_is_standard
-
-    # def _get_number(self, init_val: str):
-    #     default_val = None
-    #     if not init_val:
-    #         self._err_and_warn.add_errors(Message(
-    #             f'Нет данных о направлении с индексом={self.index}. '
-    #             f'У направления должен быть номер.'
-    #             f'Допускаются номера в виде целых чисел("1", "5", "15" и т.д) или '
-    #             f'числа через точку("8.1", "8.2", "10.1" и т.д.)'
-    #
-    #         ))
-    #         return ColumnData(ColNamesDirectionsTable.number, init_val, default_val, init_val)
-    #     try:
-    #         if init_val.isdigit():
-    #             val = int(init_val)
-    #         else:
-    #             before_dot, after_dot = init_val.split('.')
-    #             if len(after_dot) != 1 or not after_dot.isdigit():
-    #                 raise ValueError
-    #             val = float(init_val)
-    #         assert init_val == str(val)
-    #     except ValueError:
-    #         self._err_and_warn.add_errors(Message(
-    #             f'Недопустимый номер направления "{init_val}"(Индекс={self.index}). '
-    #             f'Допускаются номера в виде целых чисел("1", "5", "15" и т.д) или '
-    #             f'числа через точку("8.1", "8.2", "10.1" и т.д.)'
-    #
-    #         ))
-    #         val = default_val
-    #     return ColumnData(ColNamesDirectionsTable.number, init_val, default_val, val)
+        self.toov_red = get_column_data_instance(ColNamesDirectionsTable.toov_red, toov_red)
+        self.toov_green= get_column_data_instance(ColNamesDirectionsTable.toov_green, toov_green)
+        self.description = get_column_data_instance(ColNamesDirectionsTable.description, description, '')
+        self._direction_type_is_standard = self.direction_type_is_standard
 
     def _get_direction_type(self, init_val: str | DirectionTypes) -> ColumnData:
         default_val, is_valid = DirectionTypes.common, True
@@ -127,33 +105,6 @@ class DirectionRow(AbstractEntity, ReprMixin):
             val = default_val
         return ColumnData(ColNamesDirectionsTable.direction_type, init_val, default_val, val, is_valid)
 
-    # def _get_stages_and_fill_stages_as_int_or_float(self, init_val: Any) -> ColumnData:
-    #     self.stages_as_int_or_float: set[float | int] = set()
-    #     default_val = ''
-    #     if not init_val and not self.is_always_red: # Строка с фазами(например: '1,2,4,6') не задана в при инициализации
-    #         self._err_and_warn.add_warnings(Message(
-    #             f'У направления № {self.number!r} c типом {self.direction_type} '
-    #             f'отсутствуют данные: "Фазы, в кот. участ. направ.".'
-    #         ))
-    #         return ColumnData(ColNamesDirectionsTable.stages, init_val, default_val, default_val)
-    #     stages_as_str = init_val.replace(' ', '')
-    #     if re.findall(self.ALWAYS_RED, stages_as_str): # Если тип направления "Пост. красн."
-    #         return ColumnData(ColNamesDirectionsTable.stages, init_val, default_val, '-')
-    #     for stage in stages_as_str.split(','):
-    #         try:
-    #             stage = int(stage) if stage.isdigit() else float(stage)
-    #             self.stages_as_int_or_float.add(stage)
-    #         except ValueError:
-    #             self._err_and_warn.add_warnings(Message(
-    #                 f'Некорректные данные для столбца "{str(ColNamesDirectionsTable.stages)}" у'
-    #                 f'направления {self.number!r}: {init_val!r}'
-    #                 f'Фазы должны быть представлены через запятую целым числом, например: "1, 2, 4, 5" или '
-    #                 f'числом с точкой: "1.1, 2, 3.1 ,3.2, 7"'
-    #             ))
-    #             self.stages_as_int_or_float.clear()
-    #             return ColumnData(ColNamesDirectionsTable.stages, init_val, default_val, default_val)
-    #     return ColumnData(ColNamesDirectionsTable.stages, init_val, default_val, stages_as_str)
-
     def _get_prom_tact_time(self, col_name: ColNamesDirectionsTable, init_val) -> ColumnData:
         default_val = default_values.get((self.direction_type, col_name))
         if init_val is None:
@@ -163,30 +114,24 @@ class DirectionRow(AbstractEntity, ReprMixin):
         return ColumnData(col_name, init_val, default_val, val)
 
     def _get_always_red_val(self) -> ColumnData:
-        val = self.direction_type == DirectionTypes.always_red
+        val = self.direction_type == DirectionTypes.always_red or self.stages.is_red
         return ColumnData(ColNamesDirectionsTable.always_red, None, False, val)
 
     @property
-    def entity_is_standard(self) -> bool:
+    def direction_type_is_standard(self) -> bool:
         try:
-            self._entity_is_standard = bool(DirectionTypes(self.direction_type))
+            self._direction_type_is_standard = bool(DirectionTypes(self.direction_type))
         except ValueError:
-            self._entity_is_standard = False
-        return self._entity_is_standard
+            self._direction_type_is_standard = False
+        return self._direction_type_is_standard
 
     @property
     def allow_for_compare_stages(self):
-        if not self._err_and_warn.errors and not self.always_red and self.stages_as_int_or_float:
-            self._allow_for_compare_stages = True
-        elif not self._err_and_warn.errors and self.always_red:
-            self._allow_for_compare_stages = True
-        else:
-            self._allow_for_compare_stages = False
-        return self._allow_for_compare_stages
+        return  self._actions.allow_compare_stages
 
     @property
     def is_always_red(self) -> bool:
-        return bool(self.direction_type == DirectionTypes.always_red)
+        return bool(self.direction_type == DirectionTypes.always_red or self.stages.is_red)
 
 
 class DirectionsTable(AbstractTable, ReprMixin):
@@ -212,6 +157,7 @@ class DirectionsTable(AbstractTable, ReprMixin):
             split_data = string_data.split()
             if not string_data:
                 num = entity = stages = ''
+                self._err_and_warn.add_errors(Message(f'Нет данных о направлении № {i + 1}'))
             elif len(split_data) == 3:
                 num, entity, stages = split_data
             elif len(split_data) == 1:
@@ -219,27 +165,29 @@ class DirectionsTable(AbstractTable, ReprMixin):
             else:
                 raise ValueError
             direction = DirectionRow(index=i, number=num, direction_type=entity, stages=stages)
-            print(f'direction: {direction}')
-            if not direction.get_message_storage().errors:
-                self._max_direction_num = max(self._max_direction_num, direction.number.value)
-                if not direction.always_red:
-                    self._max_stage = max(self._max_stage, max(direction.stages_as_int_or_float))
+            print(f'direction: {direction.stages}')
+            # pprint.pprint(f'direction: {direction}')
+            if direction.number.is_valid:
                 key = direction.number.value
+                self._load_row((key, direction))
+                self._max_direction_num = get_max_num_or_curr_val(self._max_direction_num, direction.number.value)
+                self._set_max_stage = get_max_num_or_curr_val(self._max_direction_num, direction.stages.container)
             else:
                 key = direction.number.init_val
                 self._load_row_with_err((key, direction))
             if not direction.allow_for_compare_stages:
                 quantity_directions_with_err_for_compare_stages += 1
-            self._load_row((key, direction))
-        self._allow_to_compare_stages = not bool(quantity_directions_with_err_for_compare_stages)
-        if self._allow_to_compare_stages:
-            self._stages_data.refresh({d.number.value: d.stages_as_int_or_float for d in self._rows.values()})
+
+        if quantity_directions_with_err_for_compare_stages == 0:
+            self._stages_data.refresh({d.number.value: d.stages.container for d in self._rows.values()})
+            print(self._stages_data)
+            print(f'quantity_directions_with_err_for_compare_stages: {quantity_directions_with_err_for_compare_stages}')
 
     def get_max_direction_num(self) -> float:
         return self._max_direction_num
 
-    def get_max_stage_num(self) -> float:
-        return self._max_direction_num
+    def get_max_stage(self) -> float:
+        return self._max_stage
 
     def get_direction_types_cnt(self):
         return self._direction_type_counter
@@ -257,9 +205,10 @@ class DirectionsTable(AbstractTable, ReprMixin):
         return self._allow_to_compare_stages
 
 
+
 def display_directions(raw_data: str = None) -> DirectionsTable:
     if raw_data is None:
-        raw_data = '1\tТранспортное\t1,8,9\n2\tТранспортное\t1,2\n3\tТранспортное\t4\n4\tПоворотное\t2,3,4\n5е\tТранспортное\t3,6,7,8,9,10\n6\tТранспортное\t5,6,7,10\n7\tТранспортное\t4,5,8,9\n8\tТранспортное\t1,2,3,4\n9\tПешеходное\t2,3\n10\tТранспортное\t1,5,6,7,8,9,10\n11\tПешеходное\t1,2,3,4,5,6,8,9\n12\tТранспортное\t2,3,4,5,6,7,10\n13\tТранспортное\t6,7,10\n14\tТранспортное\t1\n15\tПоворотное\t5,6,7,10\n16\tТранспортное\t5,6,7,8,9,10\n17\tТранспортное\t2,3,4\n18\tТранспортное\t7,10\n19\tТранспортное\t3,4,5,8,9,10\n20\tПешеходное\t3\n21\tТранспортное\t1,2,3,4\n22\tПешеходное\t1,2,3,4,5,8,9\n23\tТранспортное\t6,7\n24\tТранспортное\tПост.краси.\n'.rstrip()
+        raw_data = '1\tТранспортное\t1,8,9\n2\tТранспортное\t1,2\n3\tТранспортное\t4\n4\tПоворотное\t2,3,4\n5\tТранспортное\t3,6,7,8,9,10\n6\tТранспортное\t5,6,7,10\n7\tТранспортное\t4,5,8,9\n8\tТранспортное\t1,2,3,4\n9\tПешеходное\t2,3\n10\tТранспортное\t1,5,6,7,8,9,10\n11\tПешеходное\t1,2,3,4,5,6,8,9\n12\tТранспортное\t2,3,4,5,6,7,10\n13\tТранспортное\t6,7,10\n14\tТранспортное\t1\n15\tПоворотное\t5,6,7,10\n16\tТранспортное\t5,6,7,8,9,10\n17\tТранспортное\t2,3,4\n18\tТранспортное\t7,10\n19\tТранспортное\t3,4,5,8,9,10\n20\tПешеходное\t3\n21\tТранспортное\t1,2,3,4\n22\tПешеходное\t1,2,3,4,5,8,9\n23\tТранспортное\t6,7\n24\tТранспортное\tПост.краси.\n'.rstrip()
     start_time = time.perf_counter()
     grp = DirectionRow(0, '12s', direction_type='Пост красн.', stages='1,3,4,43')
     print(grp)

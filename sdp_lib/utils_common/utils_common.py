@@ -106,6 +106,8 @@ def remove_chars(string, *args: str) -> str:
             pattern += char
     return re.sub('[' + pattern + spaces + ']', '', string)
 
+
+
 if __name__ == '__main__':
 
     print( remove_chars('пн   ,  вт ,с  р ,ч т  ,   пт:', ':', ' '))
