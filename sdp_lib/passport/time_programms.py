@@ -114,7 +114,7 @@ class TimeProgramTable(AbstractTable, ReprMixin):
 
     def build(self):
         self._err_and_warn.clear_all()
-        self._max_direction_num = self._max_stage = .0
+        # self._max_direction_num = self._max_stage = .0
         for i, string_data in enumerate(self._raw_data.split('\n')):
             split_data = string_data.split()
 

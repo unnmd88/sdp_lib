@@ -91,6 +91,7 @@ class AbstractTable(AbstractEntity):
 
     table_name: str = ''
     allowed_cnt_row_props: set
+    row_class: Any
 
     def __init__(self, income_data: str):
         super().__init__()

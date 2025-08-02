@@ -138,6 +138,7 @@ class DirectionsTable(AbstractTable, ReprMixin):
 
     table_name = f'"{StorageNames.directions_table}"'
     allowed_cnt_row_props = {1, 3, 14, 15}
+    row_class = DirectionRow
 
     def __init__(self, directions_data: str):
         super().__init__(directions_data)
