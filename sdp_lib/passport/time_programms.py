@@ -26,7 +26,8 @@ class StageRow(AbstractEntity, ReprMixin):
             weekdays: str = '',
             t_osn: str = '',
             t_sdvig: str = '',
-            t_min_man: str = '',
+            t_min_ft: str = '',
+            stage_type: str = '',
             t_min_va: str = '',
             t_max1_va: str = '',
             t_max2_va: str = '',
@@ -54,7 +55,8 @@ class StageRow(AbstractEntity, ReprMixin):
         self.weekdays = weekdays
         self.t_osn = t_osn
         self.t_sdvig = t_sdvig
-        self.t_min_man = t_min_man
+        self.t_min_ft = t_min_ft
+        self.stage_type = stage_type
         self.t_min_va = t_min_va
         self.t_max1_va = t_max1_va
         self.t_max2_va = t_max2_va
@@ -106,9 +108,15 @@ class HeadData(AbstractEntity, ReprMixin):
 
 
 class TimeProgramTable(AbstractTable, ReprMixin):
-    def __init__(self, income_data: str, mode: ModeNames):
+    def __init__(self, income_data: str):
         super().__init__(income_data)
-        self._all_programs: MutableMapping[int, HeadData] = {}
+        self._max_direction_num = self._max_stage = .0
+
+    def build(self):
+        self._err_and_warn.clear_all()
+        self._max_direction_num = self._max_stage = .0
+        for i, string_data in enumerate(self._raw_data.split('\n')):
+            split_data = string_data.split()
 
 if __name__ == '__main__':
     r = re.compile('\d{2}:\d{2}:\d{2}-\d{2}:\d{2}:\d{2}')
@@ -118,3 +126,5 @@ if __name__ == '__main__':
     print(tp1.num_stage)
     print(tp1.directions)
     print(tp1.get_message_storage())
+    _data2 = '1\t1, 2, 8, 10, 11, 14, 21, 22\n2\t2, 4, 8, 9, 11, 12, 17, 22, 25\n3\t4, 5, 8, 9, 11, 12, 17, 19, 20, 21, 22\n4\t3, 4, 7, 8, 11, 12, 17, 19, 21, 22\n5\t6, 7, 10, 11, 12, 15, 16, 19, 22\n6\t5, 6, 10, 11, 12, 13, 15, 16, 23, 25\n7\t5, 6, 10, 12, 13, 15, 16, 18, 23, 25\n8\t1, 5, 7, 10, 11, 16, 19, 22\n9\t1, 5, 7, 10, 11, 16, 19, 22\n10\t5, 6, 10, 12, 13, 15, 16, 18, 19\n'.rstrip()
+

@@ -137,57 +137,57 @@ class DirectionRow(AbstractEntity, ReprMixin):
 class DirectionsTable(AbstractTable, ReprMixin):
 
     table_name = f'"{StorageNames.directions_table}"'
+    allowed_cnt_row_props = {1, 3, 14, 15}
 
     def __init__(self, directions_data: str):
         super().__init__(directions_data)
         self._err_and_warn.set_name(StorageNames.directions_table)
-        self._max_direction_num: float = .0
-        self._max_stage: float = .0
-        self._stages_data = StagesData(StagesMapping.direction_to_stages)
-        self._create_data_from_income_string()
         self._direction_type_counter = Counter(str(direction.direction_type) for direction in self._rows.values())
+        self._stages_data = StagesData(StagesMapping.direction_to_stages)
         self._allow_to_compare_stages = True
+        self.build()
 
-    def _create_data_from_income_string(self):
-        self._max_direction_num = .0
-        quantity_directions_with_err_for_compare_stages = 0
-        if not self.income_data_is_valid:
+    def build(self):
+        self._err_and_warn.clear_all()
+        quantity_rows_with_err_for_compare_stages = 0
+        rows = self._raw_data.rstrip().split('\n')
+        if len(rows) <= 1:
+            self._err_and_warn.add_errors(Message(Text.income_table_text_rule))
             return
-        for i, string_data in enumerate(self._raw_data.split('\n')):
-            split_data = string_data.split()
-            if not string_data:
-                num = entity = stages = ''
-                self._err_and_warn.add_errors(Message(f'Нет данных о направлении № {i + 1}'))
-            elif len(split_data) == 3:
-                num, entity, stages = split_data
-            elif len(split_data) == 1:
-                num, entity, stages = str(i + 1), DirectionTypes.common, split_data[0]
-            else:
-                raise ValueError
-            direction = DirectionRow(index=i, number=num, direction_type=entity, stages=stages)
+        for i, string_data in enumerate(rows):
+            row_properties = string_data.split()
+            if len(row_properties) not in self.allowed_cnt_row_props:
+                self._err_and_warn.add_errors(Message(Text.income_table_text_rule))
+                return
+            elif len(row_properties) == 14:
+                t_zz = 0
+                row_properties = [p if i != 10 else t_zz for i, p in enumerate(row_properties)]
+            elif len(row_properties) == 1:
+                num, direction_type, stages = str(i + 1), DirectionTypes.common, row_properties[0]
+                row_properties = [num, direction_type, stages]
+
+            direction = DirectionRow(i, *row_properties)
             print(f'direction: {direction.stages}')
             # pprint.pprint(f'direction: {direction}')
             if direction.number.is_valid:
                 key = direction.number.value
                 self._load_row((key, direction))
-                self._max_direction_num = get_max_num_or_curr_val(self._max_direction_num, direction.number.value)
-                self._set_max_stage = get_max_num_or_curr_val(self._max_direction_num, direction.stages.container)
             else:
                 key = direction.number.init_val
                 self._load_row_with_err((key, direction))
             if not direction.allow_for_compare_stages:
-                quantity_directions_with_err_for_compare_stages += 1
+                quantity_rows_with_err_for_compare_stages += 1
 
-        if quantity_directions_with_err_for_compare_stages == 0:
+        if quantity_rows_with_err_for_compare_stages == 0:
             self._stages_data.refresh({d.number.value: d.stages.container for d in self._rows.values()})
             print(self._stages_data)
-            print(f'quantity_directions_with_err_for_compare_stages: {quantity_directions_with_err_for_compare_stages}')
+            print(f'quantity_rows_with_err_for_compare_stages: {quantity_rows_with_err_for_compare_stages}')
 
     def get_max_direction_num(self) -> float:
-        return self._max_direction_num
+        return self._stages_data.max_direction
 
     def get_max_stage(self) -> float:
-        return self._max_stage
+        return self._stages_data.max_stage
 
     def get_direction_types_cnt(self):
         return self._direction_type_counter

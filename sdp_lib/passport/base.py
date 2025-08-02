@@ -90,6 +90,7 @@ class AbstractTable(AbstractEntity):
     """ Абстрактный базовый класс таблицы паспорта. """
 
     table_name: str = ''
+    allowed_cnt_row_props: set
 
     def __init__(self, income_data: str):
         super().__init__()
@@ -98,9 +99,12 @@ class AbstractTable(AbstractEntity):
         self._check_raw_data()
         self._rows: MutableMapping[float, T_Row] = {}
         self._rows_with_errors: MutableMapping[float, T_Row] = {}
+        # self._max_direction_num: float = .0
+        # self._max_stage: float = .0
+
 
     @abstractmethod
-    def _create_data_from_income_string(self):
+    def build(self):
         """ Основной метод создания данных для таблицы. """
         ...
 

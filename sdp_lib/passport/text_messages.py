@@ -16,6 +16,12 @@ class Text(StrEnum):
         f'колонке "{ColNamesDirectionsTable.stages}"'
     )
 
+    income_table_text_rule = (
+        f'Некорректные входные данные для обработки. Каждая строка таблицы'
+        f'должна начинаться с новой строки("/n"), а каждое значение в'
+        f'строке должно быть разделено пробелом или табуляцией.'
+    )
+
     @classmethod
     def get_bad_num(
             cls,

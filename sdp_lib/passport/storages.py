@@ -54,6 +54,9 @@ class MessageStorage:
     def add_warnings(self, *warnings: Message):
         return add_record(self.warnings, warnings)
 
+    def clear_all(self):
+        self.errors.clear()
+        self.warnings.clear()
 
 stages_content_type: TypeAlias = MutableMapping[float, set[float]]
 
@@ -82,6 +85,14 @@ class StagesData:
 
     def get_stage_to_direction_mapping(self):
         return self._stage_to_direction_mapping
+
+    @property
+    def max_stage(self) -> int | float:
+        return max(self._stage_to_direction_mapping)
+
+    @property
+    def max_direction(self) -> int | float:
+        return max(self._direction_to_stages_mapping)
 
 
 # @dataclass(slots=True)
