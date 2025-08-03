@@ -1,7 +1,8 @@
 import re
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import NamedTuple
+from functools import cached_property
+from typing import NamedTuple, Type
 from abc import abstractmethod
 from collections.abc import (
     MutableSequence,
@@ -12,13 +13,14 @@ from typing import Any, TypeVar, TypeAlias
 
 from sdp_lib.passport.constants import (
     ColNamesDirectionsTable,
-    StorageNames, ColNamesTimeProgramsTable, StagesMapping
+    StorageNames, ColNamesTimeProgramsTable, StagesMapping, TableNames, DirectionTypes, RowNames
 )
 from sdp_lib.passport.storages import (
     MessageStorage,
     add_record,
-    Message
+    Message, Actions, StagesData
 )
+from sdp_lib.passport.text_messages import Text
 from sdp_lib.passport.utils import make_int_or_float_collection, get_int_or_float
 from sdp_lib.utils_common.utils_common import remove_chars
 
@@ -70,44 +72,157 @@ class ColumnData(NamedTuple):
     is_valid: bool = True
 
 
-class AbstractEntity:
-    """ Абстрактный базовый класс элемента паспорта(строка, таблица и т.д.) """
+# class AbstractEntity:
+#     """ Абстрактный базовый класс элемента паспорта(строка, таблица и т.д.) """
+#
+#     def __init__(self):
+#         self._err_and_warn = MessageStorage()
+#
+#     def get_message_storage(self):
+#         return self._err_and_warn
+#
+#     def _get_common_val(self, init_val, name: str, default_val=None) -> ColumnData:
+#         return ColumnData(ColNamesDirectionsTable.stages, init_val, default_val, init_val or default_val)
+
+
+class AbstractRow:
+
+    row_name: RowNames
 
     def __init__(self):
         self._err_and_warn = MessageStorage()
+        self._actions = Actions(row_name=self.row_name)
+        # print(f'self._actions.: {self._actions.allow_compare_stages}')
 
     def get_message_storage(self):
         return self._err_and_warn
 
-    def _get_common_val(self, init_val, name: str, default_val=None) -> ColumnData:
-        return ColumnData(ColNamesDirectionsTable.stages, init_val, default_val, init_val or default_val)
+    @property
+    def allow_for_compare_stages(self) -> bool:
+        return  self._actions.allow_compare_stages
 
 
-T_Row = TypeVar('T_Row', bound=AbstractEntity)
+T_Row = TypeVar('T_Row', bound=AbstractRow)
 
 
-class AbstractTable(AbstractEntity):
+# class AbstractTable(AbstractEntity):
+#     """ Абстрактный базовый класс таблицы паспорта. """
+#
+#     table_name: str = ''
+#     allowed_cnt_row_props: set
+#     row_class: Any
+#
+#     def __init__(self, income_data: str):
+#         super().__init__()
+#         self._raw_data = income_data
+#         self._income_data_errors = MessageStorage(StorageNames.income_data)
+#         self._check_raw_data()
+#         self._rows: MutableMapping[float, T_Row] = {}
+#         self._rows_with_errors: MutableMapping[float, T_Row] = {}
+#         # self._max_direction_num: float = .0
+#         # self._max_stage: float = .0
+#
+#
+#     @abstractmethod
+#     def build(self):
+#         """ Основной метод создания данных для таблицы. """
+#         ...
+#
+#     def _check_raw_data(self) -> bool:
+#         """
+#         Проверяет валидность атрибута self._income_data
+#         :return: True если входные данные валидны для обработки, иначе False.
+#         """
+#         if len(self._raw_data) < 4:
+#             self._income_data_errors.add_errors(
+#                 Message(f'Некорректные данные для обработки и формирования таблицы {self.table_name}')
+#             )
+#         return self.income_data_is_valid
+#
+#     def _load_row(self, *args: tuple[float, T_Row]) -> int:
+#         """
+#          Добавляет пару ключ-значение в атрибут self._rows.
+#         :param args: Каждый элемент args - кортеж из 2 элементов, у которого 0 элемент - ключ, а 1 - значение.
+#         :return: Количество добавленных пар в self._rows
+#         """
+#         return add_record(self._rows, args)
+#
+#     def _load_row_with_err(self, *args: tuple[float, T_Row]):
+#         """
+#          Добавляет пару ключ-значение в атрибут self._rows_with_errors.
+#         :param args: Каждый элемент args - кортеж из 2 элементов, у которого 0 элемент - ключ, а 1 - значение.
+#         :return: Количество добавленных пар в self._rows_with_errors
+#         """
+#         return add_record(self._rows_with_errors, args)
+#
+#     def get_income_data(self):
+#         """ Возвращает входные данные. """
+#         return self._raw_data
+#
+#     @property
+#     def income_data_is_valid(self) -> bool:
+#         return not self._income_data_errors.errors
+#
+#     def get_rows_with_errors(self) -> MutableMapping[float, T_Row]:
+#         return self._rows_with_errors
+#
+#     def get_all_rows(self) -> MutableMapping[float, T_Row]:
+#         return self._rows
+
+
+class AbstractTable:
     """ Абстрактный базовый класс таблицы паспорта. """
 
-    table_name: str = ''
+    table_name: TableNames = ''
     allowed_cnt_row_props: set
     row_class: Any
 
     def __init__(self, income_data: str):
-        super().__init__()
+        self._err_and_warn = MessageStorage()
         self._raw_data = income_data
         self._income_data_errors = MessageStorage(StorageNames.income_data)
+        if self.table_name == TableNames.directions_table:
+            self._stages_data = StagesData(StagesMapping.direction_to_stages)
+        elif self.table_name == TableNames.time_program:
+            self._stages_data = StagesData(StagesMapping.stage_to_direction)
+        else:
+            self._stages_data = None
         self._check_raw_data()
         self._rows: MutableMapping[float, T_Row] = {}
         self._rows_with_errors: MutableMapping[float, T_Row] = {}
-        # self._max_direction_num: float = .0
-        # self._max_stage: float = .0
+        self._build()
 
+    def _build(self):
+        self._err_and_warn.clear_all()
+        rows = self._raw_data.rstrip().split('\n')
+        if len(rows) <= 1:
+            self._err_and_warn.add_errors(Message(Text.income_table_text_rule))
+            return
+        for i, string_data in enumerate(rows):
+            row_properties = string_data.split()
+            if len(row_properties) not in self.allowed_cnt_row_props:
+                self._err_and_warn.add_errors(Message(Text.income_table_text_rule))
+                return
+            elif len(row_properties) == 14 and self.table_name == TableNames.directions_table:
+                t_zz = 0
+                row_properties = [p if i != 10 else t_zz for i, p in enumerate(row_properties)]
+            elif len(row_properties) == 1:
+                if self.table_name == TableNames.directions_table:
+                    num, direction_type, stages = str(i + 1), DirectionTypes.common, row_properties[0]
+                    row_properties = [num, direction_type, stages]
 
-    @abstractmethod
-    def build(self):
-        """ Основной метод создания данных для таблицы. """
-        ...
+            instance = self.row_class(i, *row_properties)
+            print(f'instance: {instance.stages}')
+            # pprint.pprint(f'instance: {instance}')
+            if instance.number.is_valid:
+                key = instance.number.value
+                self._load_row((key, instance))
+            else:
+                key = instance.number.init_val
+                self._load_row_with_err((key, instance))
+
+        if self.allow_to_compare_stages:
+            self._stages_data.refresh({d.number.value: d.stages.container for d in self._rows.values()})
 
     def _check_raw_data(self) -> bool:
         """
@@ -136,6 +251,9 @@ class AbstractTable(AbstractEntity):
         """
         return add_record(self._rows_with_errors, args)
 
+    def get_message_storage(self):
+        return self._err_and_warn
+
     def get_income_data(self):
         """ Возвращает входные данные. """
         return self._raw_data
@@ -149,6 +267,10 @@ class AbstractTable(AbstractEntity):
 
     def get_all_rows(self) -> MutableMapping[float, T_Row]:
         return self._rows
+
+    @cached_property
+    def allow_to_compare_stages(self) -> bool:
+        return self._stages_data and all(instance.allow_for_compare_stages is True for instance in self._rows.values())
 
 
 stages_content_type: TypeAlias = MutableMapping[float, set[float]]

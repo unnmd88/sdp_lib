@@ -16,6 +16,16 @@ class MessageLevels(StrEnum):
     critical = 'CRITICAL'
 
 
+class RowNames(StrEnum):
+    direction = 'Направление'
+    stage = 'Фаза'
+
+
+class TableNames(StrEnum):
+    directions_table = 'Таблица направлений'
+    time_program = 'Временная программа'
+
+
 class StorageNames(StrEnum):
     direction = 'Направление'
     directions_table = 'Таблица направлений'

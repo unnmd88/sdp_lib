@@ -49,7 +49,7 @@ if __name__ == '__main__':
     lexer = lg.make()
     print([token for token in lexer.lex(txt)])
 
-    parser = pg.build()
+    parser = pg._build()
     res = parser.parse(lexer.lex(txt))
     print(f'res: {res}')
     print(f'equal: {eval("int(not 1) * int(not 0) + (1 + 5 * 0) * 0") == res}')

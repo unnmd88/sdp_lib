@@ -2,32 +2,37 @@ import pprint
 import re
 import time
 from collections import Counter
-from collections.abc import Iterable
-from typing import Any
 
 from sdp_lib.passport.base import (
-    AbstractEntity,
+    AbstractRow,
     AbstractTable,
-    ColumnData, get_number, get_stage_or_direction_data, get_column_data_instance
+    ColumnData,
+    get_number,
+    get_stage_or_direction_data,
+    get_column_data_instance
 )
 from sdp_lib.passport.constants import (
     DirectionTypes,
-    StagesMapping,
     ColNamesDirectionsTable,
-    default_values, StorageNames
+    default_values,
+    StorageNames,
+    TableNames,
+    RowNames
 )
 from sdp_lib.passport.mixins import ReprMixin
 from sdp_lib.passport.storages import (
     Message,
-    StagesData, Actions
+    StagesData
 )
 from sdp_lib.passport.text_messages import Text
-from sdp_lib.passport.utils import get_max_num_or_curr_val
+
 
 DEBUG = True
 
 
-class DirectionRow(AbstractEntity, ReprMixin):
+class DirectionRow(AbstractRow, ReprMixin):
+
+    row_name = RowNames.direction
 
     ALWAYS_RED = re.compile(r'кр|-', re.IGNORECASE)
     ALL_TABLE_COLUMNS = slice(1, 15)
@@ -52,7 +57,7 @@ class DirectionRow(AbstractEntity, ReprMixin):
             description: str = '',
     ):
         super().__init__()
-        self._actions = Actions()
+        # self._actions = Actions()
         self._err_and_warn.set_name(StorageNames.direction)
         self.index = index
         self.number = get_number(number, ColNamesDirectionsTable.number)
@@ -136,7 +141,7 @@ class DirectionRow(AbstractEntity, ReprMixin):
 
 class DirectionsTable(AbstractTable, ReprMixin):
 
-    table_name = f'"{StorageNames.directions_table}"'
+    table_name = TableNames.directions_table
     allowed_cnt_row_props = {1, 3, 14, 15}
     row_class = DirectionRow
 
@@ -144,45 +149,45 @@ class DirectionsTable(AbstractTable, ReprMixin):
         super().__init__(directions_data)
         self._err_and_warn.set_name(StorageNames.directions_table)
         self._direction_type_counter = Counter(str(direction.direction_type) for direction in self._rows.values())
-        self._stages_data = StagesData(StagesMapping.direction_to_stages)
-        self._allow_to_compare_stages = True
-        self.build()
+        # self._stages_data = StagesData(StagesMapping.direction_to_stages)
+        # self._allow_to_compare_stages = True
+        # self.build()
 
-    def build(self):
-        self._err_and_warn.clear_all()
-        quantity_rows_with_err_for_compare_stages = 0
-        rows = self._raw_data.rstrip().split('\n')
-        if len(rows) <= 1:
-            self._err_and_warn.add_errors(Message(Text.income_table_text_rule))
-            return
-        for i, string_data in enumerate(rows):
-            row_properties = string_data.split()
-            if len(row_properties) not in self.allowed_cnt_row_props:
-                self._err_and_warn.add_errors(Message(Text.income_table_text_rule))
-                return
-            elif len(row_properties) == 14:
-                t_zz = 0
-                row_properties = [p if i != 10 else t_zz for i, p in enumerate(row_properties)]
-            elif len(row_properties) == 1:
-                num, direction_type, stages = str(i + 1), DirectionTypes.common, row_properties[0]
-                row_properties = [num, direction_type, stages]
-
-            direction = DirectionRow(i, *row_properties)
-            print(f'direction: {direction.stages}')
-            # pprint.pprint(f'direction: {direction}')
-            if direction.number.is_valid:
-                key = direction.number.value
-                self._load_row((key, direction))
-            else:
-                key = direction.number.init_val
-                self._load_row_with_err((key, direction))
-            if not direction.allow_for_compare_stages:
-                quantity_rows_with_err_for_compare_stages += 1
-
-        if quantity_rows_with_err_for_compare_stages == 0:
-            self._stages_data.refresh({d.number.value: d.stages.container for d in self._rows.values()})
-            print(self._stages_data)
-            print(f'quantity_rows_with_err_for_compare_stages: {quantity_rows_with_err_for_compare_stages}')
+    # def build(self):
+    #     self._err_and_warn.clear_all()
+    #     quantity_rows_with_err_for_compare_stages = 0
+    #     rows = self._raw_data.rstrip().split('\n')
+    #     if len(rows) <= 1:
+    #         self._err_and_warn.add_errors(Message(Text.income_table_text_rule))
+    #         return
+    #     for i, string_data in enumerate(rows):
+    #         row_properties = string_data.split()
+    #         if len(row_properties) not in self.allowed_cnt_row_props:
+    #             self._err_and_warn.add_errors(Message(Text.income_table_text_rule))
+    #             return
+    #         elif len(row_properties) == 14:
+    #             t_zz = 0
+    #             row_properties = [p if i != 10 else t_zz for i, p in enumerate(row_properties)]
+    #         elif len(row_properties) == 1:
+    #             num, direction_type, stages = str(i + 1), DirectionTypes.common, row_properties[0]
+    #             row_properties = [num, direction_type, stages]
+    #
+    #         direction = DirectionRow(i, *row_properties)
+    #         print(f'direction: {direction.stages}')
+    #         # pprint.pprint(f'direction: {direction}')
+    #         if direction.number.is_valid:
+    #             key = direction.number.value
+    #             self._load_row((key, direction))
+    #         else:
+    #             key = direction.number.init_val
+    #             self._load_row_with_err((key, direction))
+    #         if not direction.allow_for_compare_stages:
+    #             quantity_rows_with_err_for_compare_stages += 1
+    #
+    #     if quantity_rows_with_err_for_compare_stages == 0:
+    #         self._stages_data.refresh({d.number.value: d.stages.container for d in self._rows.values()})
+    #         print(self._stages_data)
+    #         print(f'quantity_rows_with_err_for_compare_stages: {quantity_rows_with_err_for_compare_stages}')
 
     def get_max_direction_num(self) -> float:
         return self._stages_data.max_direction
@@ -196,15 +201,15 @@ class DirectionsTable(AbstractTable, ReprMixin):
     def get_stages_data(self) -> StagesData:
         return self._stages_data
 
-    @property
-    def allow_to_compare_stages(self):
-        self._allow_to_compare_stages = False
-        for direction in self._rows.values():
-            if not direction.allow_for_compare_stages:
-                return self._allow_to_compare_stages
-        self._allow_to_compare_stages = True
-        return self._allow_to_compare_stages
-
+    # @property
+    # def allow_to_compare_stages(self):
+    #     return all()
+    #     self._allow_to_compare_stages = False
+    #     for direction in self._rows.values():
+    #         if not direction.allow_for_compare_stages:
+    #             return self._allow_to_compare_stages
+    #     self._allow_to_compare_stages = True
+    #     return self._allow_to_compare_stages
 
 
 def display_directions(raw_data: str = None) -> DirectionsTable:

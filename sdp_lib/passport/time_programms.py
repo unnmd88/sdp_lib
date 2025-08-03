@@ -112,7 +112,7 @@ class TimeProgramTable(AbstractTable, ReprMixin):
         super().__init__(income_data)
         self._max_direction_num = self._max_stage = .0
 
-    def build(self):
+    def _build(self):
         self._err_and_warn.clear_all()
         # self._max_direction_num = self._max_stage = .0
         for i, string_data in enumerate(self._raw_data.split('\n')):

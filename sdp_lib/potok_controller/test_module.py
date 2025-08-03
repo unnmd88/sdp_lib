@@ -21,7 +21,7 @@ lg2.add('mr', r'\d+')
 lg2.ignore(r'not|or|and|[\s+\(\)]')
 
 string = "(ddr(D134) or ddr(D135) or ddr(D136) or not ddr(D137)) and (    fctg(G20) < 30)"
-l = lg2.build()
+l = lg2._build()
 for token in l.lex(string):
     print(token)
     print(token.value)

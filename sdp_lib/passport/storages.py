@@ -14,7 +14,7 @@ from collections.abc import (
 
 from sdp_lib.passport.constants import (
     MessageLevels,
-    StorageNames, StagesMapping
+    StorageNames, StagesMapping, RowNames
 )
 
 
@@ -103,9 +103,12 @@ class Actions:
     def __init__(
             self,
             *,
-            compare_stages: bool = True
+            row_name: str,
     ):
-        self._compare_stages = compare_stages
+        if row_name in (RowNames.direction, RowNames.stage):
+            self._compare_stages = True
+        else:
+            self._compare_stages = False
         self._permission_to_set_flag_from_false_to_true: bool = False
 
     def __repr__(self):
