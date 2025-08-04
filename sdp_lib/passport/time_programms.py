@@ -1,17 +1,18 @@
+import pprint
 import re
-from collections.abc import MutableMapping
-from typing import Any
+import time
 
-from sdp_lib.passport.base import AbstractEntity, AbstractTable, ColumnData, get_stage_or_direction_data, get_number
-from sdp_lib.passport.constants import ColNamesTimeProgramsTable, WEEKDAYS, ModeNames
+from sdp_lib.passport.base import AbstractTable, ColumnData, get_stage_or_direction_data, get_number, AbstractRow
+from sdp_lib.passport.constants import ColNamesTimeProgramsTable, WEEKDAYS, TableNames, RowNames
 from sdp_lib.passport.mixins import ReprMixin
-from sdp_lib.passport.storages import Message, Actions
+from sdp_lib.passport.storages import Message, Actions, StagesData
 from sdp_lib.passport.text_messages import Text
-from sdp_lib.passport.utils import get_int_or_float, make_int_or_float_collection
-from sdp_lib.utils_common.utils_common import remove_chars
 
 
-class StageRow(AbstractEntity, ReprMixin):
+
+class StageRow(AbstractRow, ReprMixin):
+
+    row_name = RowNames.stage
 
     REST_STAGE = re.compile(r'покоя|крас|-', re.IGNORECASE)
 
@@ -21,7 +22,6 @@ class StageRow(AbstractEntity, ReprMixin):
             num_pp: int | str,
             num_stage: int | str,
             directions: str,
-            num: str = '',
             t_cyc: str = '',
             weekdays: str = '',
             t_osn: str = '',
@@ -37,20 +37,18 @@ class StageRow(AbstractEntity, ReprMixin):
 
     ):
         super().__init__()
-        self._actions = Actions()
         self.index = index
         self.num_pp = get_number(num_pp, ColNamesTimeProgramsTable.num_pp)
         if not self.num_pp.is_valid:
             self._err_and_warn.add_warnings(Message(Text.bad_num_pp))
-        self.num_stage = get_number(num_stage, ColNamesTimeProgramsTable.num_stage)
-        if not self.num_stage.is_valid:
+        self.number = get_number(num_stage, ColNamesTimeProgramsTable.num_stage)
+        if not self.number.is_valid:
             self._err_and_warn.add_errors(Text.get_bad_num(num_stage, ColNamesTimeProgramsTable.num_stage))
             self._actions.set_val_compare_stages(False)
         self.directions = get_stage_or_direction_data(
             directions, self.REST_STAGE, ColNamesTimeProgramsTable.directions
         )
         print(self.directions)
-        self.num = num
         self.t_cyc = t_cyc
         self.weekdays = weekdays
         self.t_osn = t_osn
@@ -69,7 +67,7 @@ class StageRow(AbstractEntity, ReprMixin):
         return self._actions.allow_compare_stages
 
 
-class HeadData(AbstractEntity, ReprMixin):
+class HeadData(AbstractTable, ReprMixin):
     def __init__(
             self, number: int | str,
             weekdays: str,
@@ -108,23 +106,54 @@ class HeadData(AbstractEntity, ReprMixin):
 
 
 class TimeProgramTable(AbstractTable, ReprMixin):
-    def __init__(self, income_data: str):
-        super().__init__(income_data)
-        self._max_direction_num = self._max_stage = .0
 
-    def _build(self):
-        self._err_and_warn.clear_all()
-        # self._max_direction_num = self._max_stage = .0
-        for i, string_data in enumerate(self._raw_data.split('\n')):
-            split_data = string_data.split()
+    table_name = TableNames.time_program
+    allowed_cnt_row_props = {1, 2, 3}
+    row_class = StageRow
+
+    def get_stages_data(self) -> StagesData:
+        return self._stages_data
+
+
+
+def display_time_programs(raw_data: str = None) -> TimeProgramTable:
+    if raw_data is None:
+        raw_data = (
+            '1\t1\t1, 2, 8, 10, 11, 14, 21, 22\n'
+            '2\t2\t2, 4, 8, 9, 11, 12, 17, 22, 25\n'
+            '3\t3\t4, 5, 8, 9, 11, 12, 17, 19, 20, 21, 22\n'
+            '4\t4\t3, 4, 7, 8, 11, 12, 17, 19, 21, 22\n'
+            '5\t5\t6, 7, 10, 11, 12, 15, 16, 19, 22\n'
+            '6\t6\t5, 6, 10, 11, 12, 13, 15, 16, 23, 25\n'
+            '7\t7\t5, 6, 10, 12, 13, 15, 16, 18, 23, 25\n'
+            '8\t8\t1, 5, 7, 10, 11, 16, 19, 22\n'
+            '9\t9\t1, 5, 7, 10, 11, 16, 19, 22\n'
+            '10\t10\t5, 6, 10, 12, 13, 15, 16, 18, 19\n'.rstrip()
+        )
+    start_time = time.perf_counter()
+    # grp = DirectionRow(0, '12s', direction_type='Пост красн.', stages='1,3,4,43')
+    # print(grp)
+    # print('-*-' * 100)
+    time_program_table = TimeProgramTable(raw_data)
+    print(time_program_table)
+    pprint.pprint(time_program_table.get_all_rows())
+    print(f'Время составило: {time.perf_counter() - start_time}')
+    # for k, v in grp.__dict__.items():
+    #     print(f'k:{k}={v}')
+    pprint.pprint(time_program_table.get_stages_data().get_direction_to_stages_mapping())
+    pprint.pprint(time_program_table.get_stages_data().get_stage_to_direction_mapping())
+    return time_program_table
+
+
 
 if __name__ == '__main__':
     r = re.compile('\d{2}:\d{2}:\d{2}-\d{2}:\d{2}:\d{2}')
     print(re.findall(r, '07:00:00-11:00:00'))
     tp1 = StageRow(0,'1', '1', '1,2,4,5')
     print(tp1)
-    print(tp1.num_stage)
+    print(tp1.number)
     print(tp1.directions)
     print(tp1.get_message_storage())
     _data2 = '1\t1, 2, 8, 10, 11, 14, 21, 22\n2\t2, 4, 8, 9, 11, 12, 17, 22, 25\n3\t4, 5, 8, 9, 11, 12, 17, 19, 20, 21, 22\n4\t3, 4, 7, 8, 11, 12, 17, 19, 21, 22\n5\t6, 7, 10, 11, 12, 15, 16, 19, 22\n6\t5, 6, 10, 11, 12, 13, 15, 16, 23, 25\n7\t5, 6, 10, 12, 13, 15, 16, 18, 23, 25\n8\t1, 5, 7, 10, 11, 16, 19, 22\n9\t1, 5, 7, 10, 11, 16, 19, 22\n10\t5, 6, 10, 12, 13, 15, 16, 18, 19\n'.rstrip()
 
+    display_time_programs()

@@ -4,23 +4,36 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from typing import NamedTuple
 from collections.abc import (
-
     MutableMapping,
     Iterable
 )
-from typing import Any, TypeVar, TypeAlias
+from typing import (
+    Any,
+    TypeVar,
+    TypeAlias
+)
 
 from sdp_lib.passport.constants import (
     ColNamesDirectionsTable,
-    StorageNames, ColNamesTimeProgramsTable, StagesMapping, TableNames, DirectionTypes, RowNames
+    StorageNames,
+    ColNamesTimeProgramsTable,
+    StagesMapping,
+    TableNames,
+    DirectionTypes,
+    RowNames
 )
 from sdp_lib.passport.storages import (
     MessageStorage,
     add_record,
-    Message, Actions, StagesData
+    Message,
+    Actions,
+    StagesData
 )
 from sdp_lib.passport.text_messages import Text
-from sdp_lib.passport.utils import make_int_or_float_collection, get_int_or_float
+from sdp_lib.passport.utils import (
+    make_int_or_float_collection,
+    get_int_or_float
+)
 from sdp_lib.utils_common.utils_common import remove_chars
 
 
@@ -77,11 +90,12 @@ class AbstractTable:
     def _build(self):
         self._err_and_warn.clear_all()
         rows = self._raw_data.rstrip().split('\n')
+        print(f'rows: {rows}')
         if len(rows) <= 1:
             self._err_and_warn.add_errors(Message(Text.income_table_text_rule))
             return
         for i, string_data in enumerate(rows):
-            row_properties = string_data.split()
+            row_properties = remove_chars(string_data, ' ').split()
             if len(row_properties) not in self.allowed_cnt_row_props:
                 self._err_and_warn.add_errors(Message(Text.income_table_text_rule))
                 return
@@ -94,7 +108,7 @@ class AbstractTable:
                     row_properties = [num, direction_type, stages]
 
             instance = self.row_class(i, *row_properties)
-            print(f'instance: {instance.stages}')
+            # print(f'instance: {instance.stages}')
             # pprint.pprint(f'instance: {instance}')
             if instance.number.is_valid:
                 key = instance.number.value
@@ -104,7 +118,10 @@ class AbstractTable:
                 self._load_row_with_err((key, instance))
 
         if self.allow_to_compare_stages:
-            self._stages_data.refresh({d.number.value: d.stages.container for d in self._rows.values()})
+            if self.table_name == TableNames.directions_table:
+                self._stages_data.refresh({d.number.value: d.stages.container for d in self._rows.values()})
+            elif self.table_name == TableNames.time_program:
+                self._stages_data.refresh({d.number.value: d.directions.container for d in self._rows.values()})
 
     def _check_raw_data(self) -> bool:
         """

@@ -91,7 +91,7 @@ class StageEvents(BaseEvent):
 
     def get_data_from_last_to_curr_event(self, last_event) -> str:
         return (
-            f'Время от начала фазы {last_event.num_stage} до начала {self._num_stage}: '
+            f'Время от начала фазы {last_event.number} до начала {self._num_stage}: '
             f'{self - last_event} секунд'
         )
 
@@ -174,11 +174,11 @@ class Cycles:
         for i, event in enumerate(self[1:]):
             try:
                 data += (
-                    f'\nВремя в секундах от старта фазы {self[i].num_stage}'
-                    f' до старта фазы {event.num_stage} = {event - self[i]}'
+                    f'\nВремя в секундах от старта фазы {self[i].number}'
+                    f' до старта фазы {event.number} = {event - self[i]}'
                 )
             except AttributeError:
-                data += f'\ntime-delta: has not info for stage {event.num_stage}...'
+                data += f'\ntime-delta: has not info for stage {event.number}...'
         return data
 
     def get_cycle_data_for_log_as_string(self):

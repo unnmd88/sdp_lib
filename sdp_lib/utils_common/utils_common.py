@@ -98,6 +98,9 @@ def format_time(timestamp) -> str:
 def remove_chars(string, *args: str) -> str:
     if not isinstance(string, str):
         raise TypeError('arg "string" must be a str')
+    if args == (' ', ):
+        return  string.replace(' ', '')
+
     pattern = spaces = ''
     for char in args:
         if char == ' ':

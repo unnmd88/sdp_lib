@@ -67,18 +67,53 @@ class StagesData:
     _direction_to_stages_mapping: stages_content_type = field(default_factory=dict)
     _stage_to_direction_mapping: stages_content_type = field(default_factory=dict)
 
+    # def refresh(self, data: dict[float, set]):
+    #     if self.mapping_type == StagesMapping.direction_to_stages:
+    #         self._direction_to_stages_mapping = {k: v for k, v in data.items()}
+    #         self._stage_to_direction_mapping.clear()
+    #         for direction, stages in self._direction_to_stages_mapping.items():
+    #             for stage in stages:
+    #                 try:
+    #                     self._stage_to_direction_mapping[stage].add(direction)
+    #                 except KeyError:
+    #                     self._stage_to_direction_mapping[stage] = {direction}
+    #     elif self.mapping_type == StagesMapping.stage_to_direction:
+    #         self._stage_to_direction_mapping = {k: v for k, v in data.items()}
+    #         self._direction_to_stages_mapping.clear()
+    #         for direction, stages in self._stage_to_direction_mapping.items():
+    #             for stage in stages:
+    #                 try:
+    #                     self._direction_to_stages_mapping[stage].add(direction)
+    #                 except KeyError:
+    #                     self._direction_to_stages_mapping[stage] = {direction}
+
     def refresh(self, data: dict[float, set]):
         if self.mapping_type == StagesMapping.direction_to_stages:
-            self._direction_to_stages_mapping = {k: v for k, v in data.items()}
-            self._stage_to_direction_mapping.clear()
-            for direction, stages in self._direction_to_stages_mapping.items():
-                for stage in stages:
-                    try:
-                        self._stage_to_direction_mapping[stage].add(direction)
-                    except KeyError:
-                        self._stage_to_direction_mapping[stage] = {direction}
+            container1, container2 = self._direction_to_stages_mapping, self._stage_to_direction_mapping
         elif self.mapping_type == StagesMapping.stage_to_direction:
-            self._stage_to_direction_mapping = {k: v for k, v in data.items()}
+            container1, container2 = self._stage_to_direction_mapping, self._direction_to_stages_mapping
+        else:
+            raise TypeError(f'Invalid mapping_type: {self.mapping_type}')
+        container1.clear()
+        container1 |= {k: v for k, v in data.items()}
+        print(f'container1: {container1}')
+        container2.clear()
+        for key, values in container1.items():
+            for value in values:
+                try:
+                    container2[value].add(key)
+                except KeyError:
+                    container2[value] = {key}
+
+        # elif self.mapping_type == StagesMapping.stage_to_direction:
+        #     self._stage_to_direction_mapping = {k: v for k, v in data.items()}
+        #     self._direction_to_stages_mapping.clear()
+        #     for direction, stages in self._stage_to_direction_mapping.items():
+        #         for stage in stages:
+        #             try:
+        #                 self._direction_to_stages_mapping[stage].add(direction)
+        #             except KeyError:
+        #                 self._direction_to_stages_mapping[stage] = {direction}
 
     def get_direction_to_stages_mapping(self):
         return self._direction_to_stages_mapping
