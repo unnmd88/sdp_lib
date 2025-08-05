@@ -111,8 +111,7 @@ class TimeProgramTable(AbstractTable, ReprMixin):
     allowed_cnt_row_props = {1, 2, 3}
     row_class = StageRow
 
-    def get_stages_data(self) -> StagesData:
-        return self._stages_data
+
 
 
 
@@ -156,4 +155,4 @@ if __name__ == '__main__':
     print(tp1.get_message_storage())
     _data2 = '1\t1, 2, 8, 10, 11, 14, 21, 22\n2\t2, 4, 8, 9, 11, 12, 17, 22, 25\n3\t4, 5, 8, 9, 11, 12, 17, 19, 20, 21, 22\n4\t3, 4, 7, 8, 11, 12, 17, 19, 21, 22\n5\t6, 7, 10, 11, 12, 15, 16, 19, 22\n6\t5, 6, 10, 11, 12, 13, 15, 16, 23, 25\n7\t5, 6, 10, 12, 13, 15, 16, 18, 23, 25\n8\t1, 5, 7, 10, 11, 16, 19, 22\n9\t1, 5, 7, 10, 11, 16, 19, 22\n10\t5, 6, 10, 12, 13, 15, 16, 18, 19\n'.rstrip()
 
-    display_time_programs()
+    display_time_programs(_data2)

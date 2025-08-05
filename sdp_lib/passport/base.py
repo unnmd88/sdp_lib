@@ -5,7 +5,7 @@ from functools import cached_property
 from typing import NamedTuple
 from collections.abc import (
     MutableMapping,
-    Iterable
+    Iterable, MutableSequence, Collection
 )
 from typing import (
     Any,
@@ -31,8 +31,8 @@ from sdp_lib.passport.storages import (
 )
 from sdp_lib.passport.text_messages import Text
 from sdp_lib.passport.utils import (
-    make_int_or_float_collection,
-    get_int_or_float
+    get_int_or_float,
+    gen_int_or_float
 )
 from sdp_lib.utils_common.utils_common import remove_chars
 
@@ -52,7 +52,6 @@ class AbstractRow:
     def __init__(self):
         self._err_and_warn = MessageStorage()
         self._actions = Actions(row_name=self.row_name)
-        # print(f'self._actions.: {self._actions.allow_compare_stages}')
 
     def get_message_storage(self):
         return self._err_and_warn
@@ -106,6 +105,9 @@ class AbstractTable:
                 if self.table_name == TableNames.directions_table:
                     num, direction_type, stages = str(i + 1), DirectionTypes.common, row_properties[0]
                     row_properties = [num, direction_type, stages]
+            elif len(row_properties) == 2 and self.table_name == TableNames.time_program:
+                num_pp, num_stage, directions,  = i + 1, row_properties[0], row_properties[1]
+                row_properties = [num_pp, num_stage, directions]
 
             instance = self.row_class(i, *row_properties)
             # print(f'instance: {instance.stages}')
@@ -171,6 +173,9 @@ class AbstractTable:
     def allow_to_compare_stages(self) -> bool:
         return self._stages_data and all(instance.allow_for_compare_stages is True for instance in self._rows.values())
 
+    def get_stages_data(self) -> StagesData | None:
+        return self._stages_data
+
 
 stages_content_type: TypeAlias = MutableMapping[float, set[float]]
 
@@ -180,7 +185,8 @@ class StagesAndDirections:
     column_data: ColumnData
     is_red: bool
     allow_to_compare: bool
-    container: frozenset[int | float]
+    container: Collection[int | float]
+    bad_vals: MutableSequence[str]
     doubles: Iterable[int | float]
 
 
@@ -197,37 +203,72 @@ def get_number(
     return ColumnData(name, init_val, default_val, val, is_valid)
 
 
+# def get_stage_or_direction_data(
+#         string_data: Any,
+#         red_pattern: re.Pattern,
+#         name: ColNamesTimeProgramsTable | ColNamesDirectionsTable
+# ) -> StagesAndDirections:
+#     default_val, is_valid, is_red, allow_to_compare, doubles = '', True, False, True, {}
+#     try:
+#         processed_string_data = remove_chars(string_data, ' ')
+#         collection_as_str = processed_string_data.split(',')
+#         collection_as_int_or_float = frozenset(gen_int_or_float(collection_as_str))
+#         if not collection_as_int_or_float:
+#             if re.findall(red_pattern, processed_string_data): # Если тип фазы "Фаза покоя"/"Пост. красн"
+#                 is_red = True
+#             else:
+#                 raise ValueError
+#         else:
+#             if len(collection_as_str) != len(collection_as_int_or_float):
+#                 cnt = Counter(make_int_or_float_collection(collection_as_str, list))
+#                 doubles = {k: v for k, v in cnt.items() if v > 1}
+#     except (TypeError, ValueError):
+#         allow_to_compare = False
+#         is_valid = False
+#         collection_as_int_or_float = frozenset()
+#         doubles = {}
+#     return StagesAndDirections(
+#         ColumnData(name, string_data, default_val, string_data, is_valid),
+#         is_red,
+#         allow_to_compare,
+#         collection_as_int_or_float,
+#         doubles
+#     )
+
+
 def get_stage_or_direction_data(
         string_data: Any,
         red_pattern: re.Pattern,
         name: ColNamesTimeProgramsTable | ColNamesDirectionsTable
 ) -> StagesAndDirections:
-    default_val, is_valid, is_red, allow_to_compare, doubles = '', True, False, True, {}
-    try:
-        processed_string_data = remove_chars(string_data, ' ')
-        collection_as_str = processed_string_data.split(',')
-        collection_as_int_or_float: frozenset[float | int] = make_int_or_float_collection(
-            collection_as_str, frozenset
-        )
-        if not collection_as_int_or_float:
-            if re.findall(red_pattern, processed_string_data): # Если тип фазы "Фаза покоя"/"Пост. красн"
-                is_red = True
-            else:
-                raise ValueError
-        else:
-            if len(collection_as_str) != len(collection_as_int_or_float):
-                cnt = Counter(make_int_or_float_collection(collection_as_str, list))
-                doubles = {k: v for k, v in cnt.items() if v > 1}
-    except (TypeError, ValueError):
-        allow_to_compare = False
-        is_valid = False
-        collection_as_int_or_float = frozenset()
-        doubles = {}
+
+    default_val = ''
+    is_valid = True
+    is_red = False
+    allow_to_compare = True
+    collection_as_int_or_float = None
+    doubles = {}
+
+    processed_string_data = remove_chars(string_data, ' ')
+    collection_as_str = processed_string_data.split(',')
+    bad_vals, good_vals = gen_int_or_float(collection_as_str)
+    if len(bad_vals) == 1 and re.findall(red_pattern, processed_string_data):# Если тип фазы/направления = "Фаза покоя"/"Пост. красн"
+        is_red = True
+        bad_vals.clear()
+    elif not bad_vals:
+        collection_as_int_or_float = frozenset(good_vals)
+        if len(collection_as_str) != len(collection_as_int_or_float):
+            cnt = Counter(good_vals)
+            doubles = {k: v for k, v in cnt.items() if v > 1}
+        is_valid = True
+    else:
+        is_valid = allow_to_compare = False
     return StagesAndDirections(
         ColumnData(name, string_data, default_val, string_data, is_valid),
         is_red,
         allow_to_compare,
-        collection_as_int_or_float,
+        collection_as_int_or_float or frozenset(),
+        bad_vals,
         doubles
     )
 

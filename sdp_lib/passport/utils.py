@@ -1,6 +1,6 @@
 import operator
 from collections.abc import (
-    MutableMapping, Collection, MutableSequence, Iterable, Sequence, Container, MutableSet
+    MutableMapping, Collection, MutableSequence, Iterable, Sequence, Container, MutableSet, Generator
 )
 from dataclasses import (
     dataclass,
@@ -8,7 +8,7 @@ from dataclasses import (
 )
 from typing import (
     TypeAlias,
-    Type, TypeVar,
+    Type, TypeVar, Any,
 )
 
 from sdp_lib.passport.constants import StagesMapping
@@ -18,30 +18,56 @@ Numbers = int | float
 NumbersContainer = TypeVar('NumbersContainer', tuple, list, set, frozenset)
 
 
-def get_int_or_float(num_as_str: str):
-    if isinstance(num_as_str, (int, float)):
-        num_as_str = str(num_as_str)
-    if not isinstance(num_as_str, str):
-        raise TypeError()
-    if num_as_str.isdigit():
-        val = int(num_as_str)
-    else:
-        before_dot, after_dot = num_as_str.split('.')
-        if len(after_dot) != 1 or not after_dot.isdigit():
-            raise ValueError
-        val = float(num_as_str)
-    assert num_as_str == str(val)
-    return val
+def get_int_or_float(val: str) -> int | float | None:
+    """
+    Превращает объект val в тип int | float | None.
+    :param val: Объект строки из которого будет получен объект int | float | None.
+    :return: Если строка val является целым числом, возвращает int(val).
+             Если строка val является числом с точкой, у которого после точки стоит
+             одна единственная целая цифра от 1 до 9, функция вернёт float(val).
+             Иначе возвращает None.
 
-def make_int_or_float_collection(
-    data: Iterable[str],
-    container_type: Type[NumbersContainer] = set
-) -> NumbersContainer:
-    try:
-        result = container_type(get_int_or_float(el) for el in data if el != '')
-    except (ValueError, TypeError):
-        result = container_type()
-    return result
+    Примеры
+    --------
+    >>> get_int_or_float("1")
+    1
+    >>> get_int_or_float("2.1")
+    2.1
+    >>> get_int_or_float("3.2")
+    3.2
+    >>> get_int_or_float("4.45")
+    None
+    >>> get_int_or_float("abracadabra")
+    None
+
+    """
+    if isinstance(val, (int, float)):
+        return val
+    if not isinstance(val, str):
+        return None
+    if val.isdigit():
+        return int(val)
+    else:
+        assumption_is_float = val.split('.')
+        if len(assumption_is_float) != 2:
+            return None
+        before_dot, after_dot = assumption_is_float
+        if len(after_dot) != 1 or not after_dot.isdigit() or not before_dot.isdigit():
+            return None
+        return float(val)
+
+
+def gen_int_or_float(data: Iterable[str]) -> tuple[MutableSequence[str], MutableSequence[int | float]]:
+    good_vals: MutableSequence[int | float] = []
+    bad_vals: MutableSequence[str] = []
+    for el in data:
+        val = get_int_or_float(el)
+        if val is None:
+            bad_vals.append(el)
+        else:
+            assert el == str(val)
+            good_vals.append(val)
+    return bad_vals, good_vals
 
 
 def get_max_num_or_curr_val(curr_val: int | float, for_comparison: int | float | Iterable[int | float]):

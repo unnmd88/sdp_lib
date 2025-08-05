@@ -4,7 +4,8 @@ from dataclasses import (
 )
 from typing import (
     Any,
-    NamedTuple, TypeAlias
+    NamedTuple,
+    TypeAlias
 )
 from collections.abc import (
     MutableSequence,
@@ -14,7 +15,9 @@ from collections.abc import (
 
 from sdp_lib.passport.constants import (
     MessageLevels,
-    StorageNames, StagesMapping, RowNames
+    StorageNames,
+    StagesMapping,
+    RowNames
 )
 
 
@@ -94,16 +97,20 @@ class StagesData:
             container1, container2 = self._stage_to_direction_mapping, self._direction_to_stages_mapping
         else:
             raise TypeError(f'Invalid mapping_type: {self.mapping_type}')
-        container1.clear()
+        if len(container1) > 0:
+            container1.clear()
         container1 |= {k: v for k, v in data.items()}
-        print(f'container1: {container1}')
-        container2.clear()
+        if len(container2) > 0:
+            container2.clear()
         for key, values in container1.items():
             for value in values:
                 try:
                     container2[value].add(key)
                 except KeyError:
                     container2[value] = {key}
+        # container2 |= {k: sorted(v) for k, v in container2.items()}
+
+
 
         # elif self.mapping_type == StagesMapping.stage_to_direction:
         #     self._stage_to_direction_mapping = {k: v for k, v in data.items()}

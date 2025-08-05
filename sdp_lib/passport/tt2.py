@@ -28,20 +28,10 @@ def write_to_file(filepath, to_write):
     with open(filepath, 'w') as f:
         f.writelines(to_write)
 
-d1 = {
-    1: {1, 2 , 3},
-    2: {4, 5, 6}
-}
-d2 = {
-    1: frozenset({1, 2 , 3}),
-    2: frozenset({4, 5, 6})
-}
+def gen1():
+    yield
 
-print(d1 == d2)
-
-for f, s in zip(d1.items(), d2.items()):
-    print(f'f: {f}')
-    print(f's: {s}')
+print(list(el for el in []))
 
 txt = 'Ошибка типа направления'
 if __name__ == '__main__':
