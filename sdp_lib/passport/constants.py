@@ -19,6 +19,7 @@ class MessageLevels(StrEnum):
 class RowNames(StrEnum):
     direction = 'Направление'
     stage = 'Фаза'
+    head_time_table = 'Заголовок временной таблицы'
 
 
 class TableNames(StrEnum):

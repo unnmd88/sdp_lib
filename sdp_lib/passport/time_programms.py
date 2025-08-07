@@ -1,9 +1,10 @@
 import pprint
 import re
 import time
+from collections.abc import MutableMapping
 
 from sdp_lib.passport.base import AbstractTable, ColumnData, get_stage_or_direction_data, get_number, AbstractRow
-from sdp_lib.passport.constants import ColNamesTimeProgramsTable, WEEKDAYS, TableNames, RowNames
+from sdp_lib.passport.constants import ColNamesTimeProgramsTable, WEEKDAYS, TableNames, RowNames, ModeNames
 from sdp_lib.passport.mixins import ReprMixin
 from sdp_lib.passport.storages import Message, Actions, StagesData
 from sdp_lib.passport.text_messages import Text
@@ -67,15 +68,19 @@ class StageRow(AbstractRow, ReprMixin):
         return self._actions.allow_compare_stages
 
 
-class HeadData(AbstractTable, ReprMixin):
+class HeadDataRow(AbstractRow, ReprMixin):
+
+    row_name = RowNames.head_time_table
+
     def __init__(
-            self, number: int | str,
-            weekdays: str,
+            self,
+            number: int | str,
+            weekdays: str = '',
 
     ):
         super().__init__()
         self._number = self._get_number(number)
-        self._weekdays = self._get_number(number)
+        self._weekdays = self._get_weekdays(weekdays)
 
     def _get_number(self, init_val: str):
         default_val = None
@@ -83,26 +88,33 @@ class HeadData(AbstractTable, ReprMixin):
             val = int(init_val)
         except ValueError:
             self._err_and_warn.add_errors(Message(f'Номер программы не является числом: {init_val!r}.'))
-            val = init_val
+            val = None
         return ColumnData(ColNamesTimeProgramsTable.number, init_val, default_val, val)
 
     def _get_weekdays(self, init_val: str):
         default_val = None
-        weekdays = init_val.replace(' ', '').replace(':', '').split(',') # Ожидается строка типа "пн,вт,ср,чт,пт,сб,вс"
-        for day in weekdays:
-            try:
-                WEEKDAYS[day.lower()]
-            except KeyError:
-                self._err_and_warn.add_errors(
-                    Message(f'Дни недели заданы некорректно: {init_val!r}. Пример: <пн,вт,ср,чт,пт,сб,вс>')
-                )
-                break
-
-            val = init_val
-        return ColumnData(ColNamesTimeProgramsTable.number, init_val, default_val, val)
+        is_valid = True
+        val = init_val
+        if init_val == '':
+            is_valid = False
+        else:
+            weekdays = init_val.replace(' ', '').replace(':', '').split(',') # Ожидается строка типа "пн,вт,ср,чт,пт,сб,вс"
+            for day in weekdays:
+                try:
+                    WEEKDAYS[day.lower()]
+                except KeyError:
+                    self._err_and_warn.add_errors(
+                        Message(f'Дни недели заданы некорректно: {init_val!r}. Пример: <пн,вт,ср,чт,пт,сб,вс>')
+                    )
+                    break
+                val = init_val
+        return ColumnData(ColNamesTimeProgramsTable.number, init_val, default_val, val, is_valid)
 
     def _extra_init_and_check_data(self):
         pass
+
+    def get_table_number(self) -> int | None:
+        return self._number.value
 
 
 class TimeProgramTable(AbstractTable, ReprMixin):
@@ -111,6 +123,28 @@ class TimeProgramTable(AbstractTable, ReprMixin):
     allowed_cnt_row_props = {1, 2, 3}
     row_class = StageRow
 
+    def __init__(self, income_data: str, head_data: HeadDataRow, mode: ModeNames = None):
+        super().__init__(income_data)
+        self._head_data = head_data
+        self._mode = mode
+
+    def get_number(self) -> int | None:
+        return self._head_data.get_table_number()
+
+
+class TimeProgramTables:
+    def __init__(self, *tables: TimeProgramTable):
+        self._tables = {table.get_number(): table for table in tables}
+        print(f'self._tables: {self._tables}')
+
+    def __getitem__(self, item: int | float):
+        return self._tables[item]
+
+    def __iter__(self):
+        return (table for table in self._tables.values())
+
+    def as_dict(self) -> MutableMapping[int | float, TimeProgramTable]:
+        return self._tables
 
 
 
@@ -133,7 +167,14 @@ def display_time_programs(raw_data: str = None) -> TimeProgramTable:
     # grp = DirectionRow(0, '12s', direction_type='Пост красн.', stages='1,3,4,43')
     # print(grp)
     # print('-*-' * 100)
-    time_program_table = TimeProgramTable(raw_data)
+
+    time_program_table = TimeProgramTable(raw_data, HeadDataRow(1))
+    tables = TimeProgramTables(time_program_table)
+    for t in tables:
+        print(f't: {t}')
+    print(tables[1])
+    print(f'tables: {tables}')
+    print()
     print(time_program_table)
     pprint.pprint(time_program_table.get_all_rows())
     print(f'Время составило: {time.perf_counter() - start_time}')

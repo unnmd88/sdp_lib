@@ -5,7 +5,7 @@ from collections import Counter
 from collections.abc import MutableSequence
 from dataclasses import dataclass, field, astuple
 from itertools import filterfalse, count
-from typing import NamedTuple
+from typing import NamedTuple, AnyStr, Any
 
 from sdp_lib.passport.constants import DirectionTypes
 import logging
@@ -28,10 +28,18 @@ def write_to_file(filepath, to_write):
     with open(filepath, 'w') as f:
         f.writelines(to_write)
 
-def gen1():
-    yield
 
-print(list(el for el in []))
+class Nt(NamedTuple):
+    num: int
+    table_data: Any
+
+nt = Nt(1, 'dasdas')
+print(nt[0])
+print(nt[1])
+
+aa, bb = nt
+print(aa, bb)
+print(isinstance(nt, tuple))
 
 txt = 'Ошибка типа направления'
 if __name__ == '__main__':
