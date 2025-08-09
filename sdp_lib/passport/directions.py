@@ -62,21 +62,21 @@ class DirectionRow(AbstractRow, ReprMixin):
         self.number = get_number(number, ColNamesDirectionsTable.number)
         if not self.number.is_valid:
             self._err_and_warn.add_errors(Message(Text.get_bad_num(number, ColNamesDirectionsTable.number)))
-            self._actions.set_val_compare_stages(False)
+            self._actions.set_val_for_compare_stages(False)
         self.direction_type = self._get_direction_type(direction_type)
         self.stages = get_stage_or_direction_data(
             stages, self.ALWAYS_RED, ColNamesDirectionsTable.stages
         )
         if self.stages.column_data.is_valid is False:
             self._err_and_warn.add_errors(Message(Text.get_bad_val(stages, ColNamesDirectionsTable.stages)))
-            self._actions.set_val_compare_stages(False)
+            self._actions.set_val_for_compare_stages(False)
         if self.stages.doubles:
             self._err_and_warn.add_warnings(
                 Message(Text.get_has_doubles('направления', ColNamesDirectionsTable.stages, self.stages.doubles))
             )
         if self.direction_type == DirectionTypes.always_red and self.stages.container:
             self._err_and_warn.add_errors(Message(Text.always_red_must_be_empty))
-            self._actions.set_val_compare_stages(False)
+            self._actions.set_val_for_compare_stages(False)
         self.traffic_lights = get_column_data_instance(ColNamesDirectionsTable.traffic_lights, traffic_lights)
         self.t_green_ext = self._get_prom_tact_time(ColNamesDirectionsTable.t_green_ext, t_green_ext)
         self.t_flashing_green = self._get_prom_tact_time(ColNamesDirectionsTable.t_flashing_green, t_flashing_green)

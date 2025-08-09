@@ -166,7 +166,7 @@ class Actions:
             raise AttributeError("can't set attribute from False to True")
         return flag
 
-    def set_val_compare_stages(self, flag: bool):
+    def set_val_for_compare_stages(self, flag: bool):
         self._compare_stages = self._check_permission_and_return_flag(flag)
 
     @property
@@ -177,7 +177,7 @@ class Actions:
 if __name__ == '__main__':
     act = Actions()
     print(act)
-    act.set_val_compare_stages(False)
+    act.set_val_for_compare_stages(False)
     act.set_permission_set_flag_from_false_to_true(True)
-    act.set_val_compare_stages(True)
+    act.set_val_for_compare_stages(True)
     print(act)

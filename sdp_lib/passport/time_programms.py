@@ -45,11 +45,13 @@ class StageRow(AbstractRow, ReprMixin):
         self.number = get_number(num_stage, ColNamesTimeProgramsTable.num_stage)
         if not self.number.is_valid:
             self._err_and_warn.add_errors(Text.get_bad_num(num_stage, ColNamesTimeProgramsTable.num_stage))
-            self._actions.set_val_compare_stages(False)
+            self._actions.set_val_for_compare_stages(False)
         self.directions = get_stage_or_direction_data(
             directions, self.REST_STAGE, ColNamesTimeProgramsTable.directions
         )
-        print(self.directions)
+        if self.directions.column_data.is_valid is False:
+            self._actions.set_val_for_compare_stages(False)
+        print(f'DD: {self.directions}')
         self.t_cyc = t_cyc
         self.weekdays = weekdays
         self.t_osn = t_osn
