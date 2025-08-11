@@ -6,7 +6,7 @@ from collections import Counter
 from sdp_lib.passport.base import (
     AbstractRow,
     AbstractTable,
-    ColumnData,
+    CellData,
     get_number,
     get_stage_or_direction_data,
     get_column_data_instance
@@ -74,7 +74,7 @@ class DirectionRow(AbstractRow, ReprMixin):
             self._err_and_warn.add_warnings(
                 Message(Text.get_has_doubles('направления', ColNamesDirectionsTable.stages, self.stages.doubles))
             )
-        if self.direction_type == DirectionTypes.always_red and self.stages.container:
+        if self.direction_type == DirectionTypes.always_red and self.stages.numbers:
             self._err_and_warn.add_errors(Message(Text.always_red_must_be_empty))
             self._actions.set_val_for_compare_stages(False)
         self.traffic_lights = get_column_data_instance(ColNamesDirectionsTable.traffic_lights, traffic_lights)
@@ -91,7 +91,7 @@ class DirectionRow(AbstractRow, ReprMixin):
         self.description = get_column_data_instance(ColNamesDirectionsTable.description, description, '')
         self._direction_type_is_standard = self.direction_type_is_standard
 
-    def _get_direction_type(self, init_val: str | DirectionTypes) -> ColumnData:
+    def _get_direction_type(self, init_val: str | DirectionTypes) -> CellData:
         default_val, is_valid = DirectionTypes.common, True
         if re.findall(self.ALWAYS_RED, init_val):
             val = DirectionTypes.always_red
@@ -107,19 +107,19 @@ class DirectionRow(AbstractRow, ReprMixin):
                 ))
         else:
             val = default_val
-        return ColumnData(ColNamesDirectionsTable.direction_type, init_val, default_val, val, is_valid)
+        return CellData(ColNamesDirectionsTable.direction_type, init_val, default_val, val, is_valid)
 
-    def _get_prom_tact_time(self, col_name: ColNamesDirectionsTable, init_val) -> ColumnData:
+    def _get_prom_tact_time(self, col_name: ColNamesDirectionsTable, init_val) -> CellData:
         default_val = default_values.get((self.direction_type, col_name))
         if init_val is None:
             val = default_val
         else:
             val = init_val
-        return ColumnData(col_name, init_val, default_val, val)
+        return CellData(col_name, init_val, default_val, val)
 
-    def _get_always_red_val(self) -> ColumnData:
+    def _get_always_red_val(self) -> CellData:
         val = self.direction_type == DirectionTypes.always_red or self.stages.is_red
-        return ColumnData(ColNamesDirectionsTable.always_red, None, False, val)
+        return CellData(ColNamesDirectionsTable.always_red, None, False, val)
 
     @property
     def direction_type_is_standard(self) -> bool:

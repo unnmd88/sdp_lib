@@ -3,7 +3,7 @@ import re
 import time
 from collections.abc import MutableMapping
 
-from sdp_lib.passport.base import AbstractTable, ColumnData, get_stage_or_direction_data, get_number, AbstractRow
+from sdp_lib.passport.base import AbstractTable, CellData, get_stage_or_direction_data, get_number, AbstractRow
 from sdp_lib.passport.constants import ColNamesTimeProgramsTable, WEEKDAYS, TableNames, RowNames, ModeNames
 from sdp_lib.passport.mixins import ReprMixin
 from sdp_lib.passport.storages import Message, Actions, StagesData
@@ -91,7 +91,7 @@ class HeadDataRow(AbstractRow, ReprMixin):
         except ValueError:
             self._err_and_warn.add_errors(Message(f'Номер программы не является числом: {init_val!r}.'))
             val = None
-        return ColumnData(ColNamesTimeProgramsTable.number, init_val, default_val, val)
+        return CellData(ColNamesTimeProgramsTable.number, init_val, default_val, val)
 
     def _get_weekdays(self, init_val: str):
         default_val = None
@@ -110,7 +110,7 @@ class HeadDataRow(AbstractRow, ReprMixin):
                     )
                     break
                 val = init_val
-        return ColumnData(ColNamesTimeProgramsTable.number, init_val, default_val, val, is_valid)
+        return CellData(ColNamesTimeProgramsTable.number, init_val, default_val, val, is_valid)
 
     def _extra_init_and_check_data(self):
         pass
