@@ -82,6 +82,5 @@ def get_max_num_or_curr_val(curr_val: int | float, for_comparison: int | float |
 
 
 if __name__ == '__main__':
-    print(make_int_or_float_collection('1,2,3,6.7'.split(',')))
-    print(make_int_or_float_collection('1,2,3,6.7'.split(','), container_type=tuple))
+    pass
 

@@ -3,7 +3,7 @@ import re
 import time
 from collections.abc import MutableMapping
 
-from sdp_lib.passport.base import AbstractTable, CellData, get_stage_or_direction_data, get_number, AbstractRow
+from sdp_lib.passport.base import AbstractTable, Cell, get_stage_or_direction_data, get_number_data, AbstractRow
 from sdp_lib.passport.constants import ColNamesTimeProgramsTable, WEEKDAYS, TableNames, RowNames, ModeNames
 from sdp_lib.passport.mixins import ReprMixin
 from sdp_lib.passport.storages import Message, Actions, StagesData
@@ -39,10 +39,10 @@ class StageRow(AbstractRow, ReprMixin):
     ):
         super().__init__()
         self.index = index
-        self.num_pp = get_number(num_pp, ColNamesTimeProgramsTable.num_pp)
+        self.num_pp = get_number_data(num_pp, ColNamesTimeProgramsTable.num_pp)
         if not self.num_pp.is_valid:
             self._err_and_warn.add_warnings(Message(Text.bad_num_pp))
-        self.number = get_number(num_stage, ColNamesTimeProgramsTable.num_stage)
+        self.number = get_number_data(num_stage, ColNamesTimeProgramsTable.num_stage)
         if not self.number.is_valid:
             self._err_and_warn.add_errors(Text.get_bad_num(num_stage, ColNamesTimeProgramsTable.num_stage))
             self._actions.set_val_for_compare_stages(False)
@@ -91,7 +91,7 @@ class HeadDataRow(AbstractRow, ReprMixin):
         except ValueError:
             self._err_and_warn.add_errors(Message(f'Номер программы не является числом: {init_val!r}.'))
             val = None
-        return CellData(ColNamesTimeProgramsTable.number, init_val, default_val, val)
+        return Cell(ColNamesTimeProgramsTable.number, init_val, default_val, val)
 
     def _get_weekdays(self, init_val: str):
         default_val = None
@@ -110,7 +110,7 @@ class HeadDataRow(AbstractRow, ReprMixin):
                     )
                     break
                 val = init_val
-        return CellData(ColNamesTimeProgramsTable.number, init_val, default_val, val, is_valid)
+        return Cell(ColNamesTimeProgramsTable.number, init_val, default_val, val, is_valid)
 
     def _extra_init_and_check_data(self):
         pass

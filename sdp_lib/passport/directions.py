@@ -6,10 +6,7 @@ from collections import Counter
 from sdp_lib.passport.base import (
     AbstractRow,
     AbstractTable,
-    CellData,
-    get_number,
-    get_stage_or_direction_data,
-    get_column_data_instance
+    Cell, get_number_data, StageOrDirectionCell,
 )
 from sdp_lib.passport.constants import (
     DirectionTypes,
@@ -59,15 +56,15 @@ class DirectionRow(AbstractRow, ReprMixin):
         super().__init__()
         self._err_and_warn.set_name(StorageNames.direction)
         self.index = index
-        self.number = get_number(number, ColNamesDirectionsTable.number)
+        self.number = get_number_data(number, ColNamesDirectionsTable.number)
         if not self.number.is_valid:
             self._err_and_warn.add_errors(Message(Text.get_bad_num(number, ColNamesDirectionsTable.number)))
             self._actions.set_val_for_compare_stages(False)
         self.direction_type = self._get_direction_type(direction_type)
-        self.stages = get_stage_or_direction_data(
-            stages, self.ALWAYS_RED, ColNamesDirectionsTable.stages
-        )
-        if self.stages.column_data.is_valid is False:
+        self.stages = StageOrDirectionCell(stages, self.row_name)
+
+
+        if not self.stages.is_valid:
             self._err_and_warn.add_errors(Message(Text.get_bad_val(stages, ColNamesDirectionsTable.stages)))
             self._actions.set_val_for_compare_stages(False)
         if self.stages.doubles:
@@ -91,7 +88,7 @@ class DirectionRow(AbstractRow, ReprMixin):
         self.description = get_column_data_instance(ColNamesDirectionsTable.description, description, '')
         self._direction_type_is_standard = self.direction_type_is_standard
 
-    def _get_direction_type(self, init_val: str | DirectionTypes) -> CellData:
+    def _get_direction_type(self, init_val: str | DirectionTypes) -> Cell:
         default_val, is_valid = DirectionTypes.common, True
         if re.findall(self.ALWAYS_RED, init_val):
             val = DirectionTypes.always_red
@@ -107,19 +104,19 @@ class DirectionRow(AbstractRow, ReprMixin):
                 ))
         else:
             val = default_val
-        return CellData(ColNamesDirectionsTable.direction_type, init_val, default_val, val, is_valid)
+        return Cell(ColNamesDirectionsTable.direction_type, init_val, default_val, val, is_valid)
 
-    def _get_prom_tact_time(self, col_name: ColNamesDirectionsTable, init_val) -> CellData:
+    def _get_prom_tact_time(self, col_name: ColNamesDirectionsTable, init_val) -> Cell:
         default_val = default_values.get((self.direction_type, col_name))
         if init_val is None:
             val = default_val
         else:
             val = init_val
-        return CellData(col_name, init_val, default_val, val)
+        return Cell(col_name, init_val, default_val, val)
 
-    def _get_always_red_val(self) -> CellData:
+    def _get_always_red_val(self) -> Cell:
         val = self.direction_type == DirectionTypes.always_red or self.stages.is_red
-        return CellData(ColNamesDirectionsTable.always_red, None, False, val)
+        return Cell(ColNamesDirectionsTable.always_red, None, False, val)
 
     @property
     def direction_type_is_standard(self) -> bool:

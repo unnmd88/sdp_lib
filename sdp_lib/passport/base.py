@@ -1,14 +1,13 @@
 import logging
-import pprint
 import re
-from collections import Counter
 from dataclasses import dataclass, field
 from functools import cached_property
-from os.path import split
 from typing import NamedTuple
 from collections.abc import (
     MutableMapping,
-    Iterable, MutableSequence, Collection, Sequence, Generator
+    Iterable,
+    Sequence,
+    Generator, Mapping, Set
 )
 from typing import (
     Any,
@@ -34,10 +33,7 @@ from sdp_lib.passport.storages import (
     StagesData
 )
 from sdp_lib.passport.text_messages import Text
-from sdp_lib.passport.utils import (
-    get_int_or_float,
-    gen_int_or_float
-)
+from sdp_lib.passport.utils import get_int_or_float
 from sdp_lib.utils_common.utils_common import remove_chars
 from sdp_lib.passport import logging_config
 
@@ -45,8 +41,8 @@ from sdp_lib.passport import logging_config
 logger = logging.getLogger('full_log')
 
 
-class CellData(NamedTuple):
-    col_name: ColNamesDirectionsTable | ColNamesTimeProgramsTable | str
+class Cell(NamedTuple):
+    name: ColNamesDirectionsTable | ColNamesTimeProgramsTable | str
     init_val: Any
     default_val: Any
     value: Any
@@ -84,9 +80,9 @@ class AbstractTable:
         self._raw_data = income_data
         self._income_data_errors = MessageStorage(StorageNames.income_data)
         if self.table_name == TableNames.directions_table:
-            self._stages_data = StageOrDirectionData(StagesMapping.direction_to_stages)
+            self._stages_data = StageOrDirectionCell(StagesMapping.direction_to_stages)
         elif self.table_name == TableNames.time_program:
-            self._stages_data = StageOrDirectionData(StagesMapping.stage_to_direction)
+            self._stages_data = StageOrDirectionCell(StagesMapping.stage_to_direction)
         else:
             self._stages_data = None
         self._check_raw_data()
@@ -188,24 +184,16 @@ class AbstractTable:
 stages_content_type: TypeAlias = MutableMapping[float, set[float]]
 
 
-# @dataclass(slots=True, frozen=True)
-# class StagesData:
-#     column_data: CellData
-#     is_red: bool
-#     allow_to_compare: bool
-#     container: Collection[int | float]
-#     bad_vals: MutableSequence[str]
-#     doubles: Iterable[int | float]
-
-
-class StageOrDirectionData(ReprMixin):
+class StageOrDirectionCell(ReprMixin):
 
     common_always_red_pattern = re.compile(r'кр|покоя|крас', re.IGNORECASE)
 
     def __init__(
             self,
-            stages_or_directions_string: str,
+            number: int | float,
             entity: RowNames,
+
+            stages_or_directions_string: str,
             sep: str = ',',
             always_red_pattern: str | re.Pattern = ''
     ):
@@ -214,29 +202,37 @@ class StageOrDirectionData(ReprMixin):
             self._stages_or_directions = remove_chars(stages_or_directions_string, ' ')
         else:
             raise TypeError(f'{stages_or_directions_string!r} must be a str')
+        self._number = number
         self._entity = entity
         self._sep = sep
-        if not always_red_pattern:
+        self._is_always_red = bool(
+            re.findall(self._get_always_red_pattern(always_red_pattern), self._stages_or_directions)
+        )
+        self._process_income_data()
+        if self._entity == RowNames.direction:
+            self._cell_name = ColNamesDirectionsTable.stages
+        elif self._entity == RowNames.stage:
+            self._cell_name = ColNamesTimeProgramsTable.directions
+        else:
+            self._cell_name = ''
+        logger.info(self)
+
+    def _get_always_red_pattern(self, income_data: str | re.Pattern) -> re.Pattern:
+        if not income_data:
             pattern = self.common_always_red_pattern
-        elif isinstance(always_red_pattern, re.Pattern):
-            pattern = always_red_pattern
-        elif isinstance(always_red_pattern, str):
-            pattern = re.compile(always_red_pattern)
+        elif isinstance(income_data, re.Pattern):
+            pattern = income_data
+        elif isinstance(income_data, str):
+            pattern = re.compile(income_data)
         else:
             raise ValueError(f'attr always_red_pattern must be a str or re.Pattern')
-        self._is_always_red = bool(re.findall(pattern, self._stages_or_directions))
-        self._process_income_data()
-        self._pretty_err_message = Message(self._get_err_text())
-        self._pretty_warn_message = Message(self._get_warn_text())
-        logger.info(self)
+        return pattern
 
     def _process_income_data(self):
         self._numbers, self._doubles, self._bad_nums = frozenset(), {}, []
         if self._is_always_red:
             return
         if self._errors_and_warnings.add_errors(*self._get_sep_errors()) > 0:
-            self._pretty_err_message = Message(self._get_err_text())
-            self._pretty_warn_message = Message(self._get_warn_text())
             return
         nums_as_str = self._stages_or_directions.split(self._sep)
         numbers, unique_nums = [], set()
@@ -276,118 +272,127 @@ class StageOrDirectionData(ReprMixin):
         if more_than_one_sep_char_in_string:
             yield Message(f'Найдено более одного разделяющего символа "{self._sep}" подряд.')
 
-    def _get_err_text(self) -> str:
-        if self._errors_and_warnings.errors:
-            if self._entity == RowNames.direction:
-                entity = ' направлений'
-            elif self._entity == RowNames.stage:
-                entity = ' фаз'
-            else:
-                entity = ''
-            errors = (f'{i}) {msg.text}' for i, msg in enumerate(self._errors_and_warnings.errors, 1))
-            err_text = f'Найдены ошибки в строке{entity}: {"; ".join(errors)}'
-        else:
-            err_text = ''
-        return err_text
+    # def _get_err_text(self) -> str:
+    #     if self._errors_and_warnings.errors:
+    #         if self._entity == RowNames.direction:
+    #             cell_name = f' {ColNamesDirectionsTable.stages}'
+    #             entity = ' направления'
+    #         elif self._entity == RowNames.stage:
+    #             cell_name = f' {ColNamesTimeProgramsTable.directions}'
+    #             entity = ' фазы'
+    #         else:
+    #             cell_name = entity =  ''
+    #         errors = (f'{i}) {msg.text}' for i, msg in enumerate(self._errors_and_warnings.errors, 1))
+    #         err_text = f'Найдены ошибки: направления {self.entity_number} {entity} в колонке{cell_name}: {"; ".join(errors)}'
+    #     else:
+    #         err_text = ''
+    #     return err_text
+    #
+    # def _get_warn_text(self) -> str:
+    #     if self._errors_and_warnings.warnings:
+    #         warnings = (f'{i}) {msg.text}' for i, msg in enumerate(self._errors_and_warnings.errors, 1))
+    #         warnings_text = f'Предупреждения: {"; ".join(warnings)}'
+    #     else:
+    #         warnings_text = ''
+    #     return warnings_text
 
-    def _get_warn_text(self) -> str:
-        if self._errors_and_warnings.warnings:
-            warnings = (f'{i}) {msg.text}' for i, msg in enumerate(self._errors_and_warnings.errors, 1))
-            warnings_text = f'Предупреждения: {"; ".join(warnings)}'
-        else:
-            warnings_text = ''
-        return warnings_text
+    def get_errors(self):
+        return self._errors_and_warnings.errors
 
     def get_bad_vals(self) -> Sequence[str]:
         return self._bad_nums
 
-    def get_numbers_as_int_or_float(self) -> set[str]:
+    def get_numbers_as_int_or_float(self) -> Set[str]:
         return self._numbers
 
     def get_doubles(self) -> MutableMapping[int | float, int]:
         return self._doubles
 
-    def get_pretty_error_message(self) -> Message:
-        return self._pretty_err_message
-
-    def get_pretty_warning_message(self) -> Message:
-        return self._pretty_warn_message
+    def get_errors_as_pretty_string(self):
+        errors = '; '.join((f'{i}) {msg.text}' for i, msg in enumerate(self._errors_and_warnings.errors, 1)))
+        return f'Найдены ошибки. {str(self._entity)}={self._number}: {errors}'
 
     @property
     def is_valid(self):
-        return True if not self._pretty_err_message.text else False
+        return True if not self._errors_and_warnings.errors else False
+
+    @property
+    def is_always_red(self) -> bool:
+        return self._is_always_red
 
 
-def get_number(
+def get_number_data(
     init_val: str | int | float,
     name: ColNamesTimeProgramsTable | ColNamesDirectionsTable
-) -> CellData:
+) -> Cell:
     default_val, is_valid = None, True
     try:
         val = get_int_or_float(init_val)
     except (ValueError, TypeError):
         is_valid = False
-        val = init_val
-    return CellData(name, init_val, default_val, val, is_valid)
-
-
-def get_stage_or_direction_data(
-        string_data: Any,
-        red_pattern: re.Pattern,
-        name: ColNamesTimeProgramsTable | ColNamesDirectionsTable
-) -> StageOrDirectionData:
-
-    default_val = ''
-    is_valid = True
-    is_red = False
-    allow_to_compare = True
-    collection_as_int_or_float = None
-    doubles = {}
-
-    processed_string_data = remove_chars(string_data, ' ')
-    collection_as_str = processed_string_data.split(',')
-    bad_vals, good_vals = gen_int_or_float(collection_as_str)
-    if len(bad_vals) == 1 and re.findall(red_pattern, processed_string_data):# Если тип фазы/направления = "Фаза покоя"/"Пост. красн"
-        is_red = True
-        bad_vals.clear()
-    elif not bad_vals:
-        collection_as_int_or_float = frozenset(good_vals)
-        if len(collection_as_str) != len(collection_as_int_or_float):
-            cnt = Counter(good_vals)
-            doubles = {k: v for k, v in cnt.items() if v > 1}
-        is_valid = True
-    else:
-        is_valid = allow_to_compare = False
-    return StageOrDirectionData(
-        CellData(name, string_data, default_val, string_data, is_valid),
-        is_red,
-        allow_to_compare,
-        collection_as_int_or_float or frozenset(),
-        bad_vals,
-        doubles
-    )
-
-
-def get_column_data_instance(name: str, init_val: Any, default_val=None, is_valid: bool = True) -> CellData:
-    return CellData(name, init_val, default_val, init_val or default_val, is_valid)
+        val = None
+    return Cell(name, init_val, default_val, val, is_valid)
+#
+#
+# def get_stage_or_direction_data(
+#         string_data: Any,
+#         red_pattern: re.Pattern,
+#         name: ColNamesTimeProgramsTable | ColNamesDirectionsTable
+# ) -> StageOrDirectionData:
+#
+#     default_val = ''
+#     is_valid = True
+#     is_red = False
+#     allow_to_compare = True
+#     collection_as_int_or_float = None
+#     doubles = {}
+#
+#     processed_string_data = remove_chars(string_data, ' ')
+#     collection_as_str = processed_string_data.split(',')
+#     bad_vals, good_vals = gen_int_or_float(collection_as_str)
+#     if len(bad_vals) == 1 and re.findall(red_pattern, processed_string_data):# Если тип фазы/направления = "Фаза покоя"/"Пост. красн"
+#         is_red = True
+#         bad_vals.clear()
+#     elif not bad_vals:
+#         collection_as_int_or_float = frozenset(good_vals)
+#         if len(collection_as_str) != len(collection_as_int_or_float):
+#             cnt = Counter(good_vals)
+#             doubles = {k: v for k, v in cnt.items() if v > 1}
+#         is_valid = True
+#     else:
+#         is_valid = allow_to_compare = False
+#     return StageOrDirectionData(
+#         CellData(name, string_data, default_val, string_data, is_valid),
+#         is_red,
+#         allow_to_compare,
+#         collection_as_int_or_float or frozenset(),
+#         bad_vals,
+#         doubles
+#     )
+#
+#
+# def get_column_data_instance(name: str, init_val: Any, default_val=None, is_valid: bool = True) -> CellData:
+#     return CellData(name, init_val, default_val, init_val or default_val, is_valid)
 
 
 if __name__ == '__main__':
 
-    stages = StageOrDirectionData('1,2,3,,4,3,', RowNames.stage)
+    stages = StageOrDirectionCell(1, RowNames.direction, '1,2,3,,4,3,')
     print(stages)
 
-    stages2 = StageOrDirectionData('пост. кр', RowNames.stage)
+    stages2 = StageOrDirectionCell(1, RowNames.direction, 'пост. кр')
     print(stages2)
 
-    stages3 = StageOrDirectionData('1ю3ю4.4,', RowNames.stage)
+    stages3 = StageOrDirectionCell(1, RowNames.direction, '1ю3ю4.4,')
     print(stages3)
 
-    stages4 = StageOrDirectionData('1,2,7, 8.2 ', RowNames.stage)
+    stages4 = StageOrDirectionCell(1, RowNames.direction, '1,2,7, 8.2 ')
     print(stages4)
     print(stages4.is_valid)
     for k, v in stages4.__dict__.items():
         print(f'{k}={v}')
     print(stages.is_valid)
+    print(stages.get_errors_as_pretty_string())
+    print(stages.get_errors())
 
 
