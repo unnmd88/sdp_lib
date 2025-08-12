@@ -1,3 +1,5 @@
+import logging
+import pprint
 import re
 from collections import Counter
 from dataclasses import dataclass, field
@@ -37,6 +39,10 @@ from sdp_lib.passport.utils import (
     gen_int_or_float
 )
 from sdp_lib.utils_common.utils_common import remove_chars
+from sdp_lib.passport import logging_config
+
+
+logger = logging.getLogger('full_log')
 
 
 class CellData(NamedTuple):
@@ -220,54 +226,77 @@ class StageOrDirectionData(ReprMixin):
             raise ValueError(f'attr always_red_pattern must be a str or re.Pattern')
         self._is_always_red = bool(re.findall(pattern, self._stages_or_directions))
         self._process_income_data()
-
+        self._pretty_err_message = Message(self._get_err_text())
+        self._pretty_warn_message = Message(self._get_warn_text())
+        logger.info(self)
 
     def _process_income_data(self):
-        numbers, self._doubles, self._bad_nums = [], {}, []
-        self._numbers = set()
-        unique_nums = set()
-        nums_as_str = self._stages_or_directions.split(self._sep)
+        self._numbers, self._doubles, self._bad_nums = frozenset(), {}, []
         if self._is_always_red:
             return
-        more_than_one_sep_char_in_stages_or_directions_string = False
+        if self._errors_and_warnings.add_errors(*self._get_sep_errors()) > 0:
+            self._pretty_err_message = Message(self._get_err_text())
+            self._pretty_warn_message = Message(self._get_warn_text())
+            return
+        nums_as_str = self._stages_or_directions.split(self._sep)
+        numbers, unique_nums = [], set()
         for number in nums_as_str:
             number_as_int_or_float = get_int_or_float(number)
             if number_as_int_or_float is None:
-                if number == '':
-                    more_than_one_sep_char_in_stages_or_directions_string = True
-                else:
-                    self._bad_nums.append(number)
+                self._bad_nums.append(number)
             else:
                 if number_as_int_or_float in unique_nums:
                     self._doubles[number_as_int_or_float] = self._doubles.get(number_as_int_or_float, 0) + 1
                 numbers.append(number_as_int_or_float)
                 unique_nums.add(number_as_int_or_float)
-        if self._entity == RowNames.direction:
-            entity = ' направлений'
-        elif self._entity == RowNames.stage:
-            entity = ' фаз'
-        else:
-            entity = ''
-        if self._sep.join(str(num) for num in numbers) != self._stages_or_directions:
-            if more_than_one_sep_char_in_stages_or_directions_string:
-                self._errors_and_warnings.errors += self._get_sep_errors()
-            self._errors_and_warnings.errors += (Message(f'Недопустимый номер: {num}') for num in self._bad_nums)
+        if self._bad_nums:
+            self._errors_and_warnings.add_errors(*(Message(f'Недопустимый номер: {num}') for num in self._bad_nums))
+        try:
+            assert self._sep.join(str(num) for num in numbers) == self._stages_or_directions
+        except AssertionError:
+            logger.critical(self._create_text_error_in_generation_numbers(numbers))
+            raise
+        self._numbers = frozenset(unique_nums)
+
+    def _create_text_error_in_generation_numbers(self, numbers: Iterable[int | float]) -> str:
+        generated_numbers = 'Сгенерированные номера:'
+        income_numbers = 'Входная строка с номерами:'
+        indent = max(len(generated_numbers), len(income_numbers))
+        return (
+            f'Программная ошибка логики: сгенерированные номера не должны различаться со входными:\n'
+            f'{generated_numbers:<{indent}} {self._sep.join(str(num) for num in numbers)}\n'
+            f'{income_numbers:<{indent}} {self._stages_or_directions}\n'
+            f'{self}'
+        )
+
+    def _get_sep_errors(self) -> Generator[Message, Any, None]:
+        if self._stages_or_directions[-1] == self._sep:
+            yield Message(f'Строка не должна заканчиваться разделителем "{self._sep}"')
+        more_than_one_sep_char_in_string = re.findall(self._sep + r'{2,}', self._stages_or_directions )
+        if more_than_one_sep_char_in_string:
+            yield Message(f'Найдено более одного разделяющего символа "{self._sep}" подряд.')
+
+    def _get_err_text(self) -> str:
         if self._errors_and_warnings.errors:
+            if self._entity == RowNames.direction:
+                entity = ' направлений'
+            elif self._entity == RowNames.stage:
+                entity = ' фаз'
+            else:
+                entity = ''
             errors = (f'{i}) {msg.text}' for i, msg in enumerate(self._errors_and_warnings.errors, 1))
             err_text = f'Найдены ошибки в строке{entity}: {"; ".join(errors)}'
         else:
             err_text = ''
-        self._err_message = Message(err_text)
-        if self._err_message.text:
-            for storage in (self._numbers, self._doubles):
-                storage.clear()
+        return err_text
 
-    def _get_sep_errors(self) -> Generator[Message, Any, None]:
-        if self._stages_or_directions[-1] == self._sep:
-            yield Message(f'Строка должна заканчиваться номером, а не разделителем "{self._sep}"')
-        more_than_one_sep_char_in_string = re.findall(self._sep + r'{2,}', self._stages_or_directions )
-        if more_than_one_sep_char_in_string:
-            yield Message(f'Найдено более одного разделяющего символа "{self._sep}" подряд.')
+    def _get_warn_text(self) -> str:
+        if self._errors_and_warnings.warnings:
+            warnings = (f'{i}) {msg.text}' for i, msg in enumerate(self._errors_and_warnings.errors, 1))
+            warnings_text = f'Предупреждения: {"; ".join(warnings)}'
+        else:
+            warnings_text = ''
+        return warnings_text
 
     def get_bad_vals(self) -> Sequence[str]:
         return self._bad_nums
@@ -278,6 +307,15 @@ class StageOrDirectionData(ReprMixin):
     def get_doubles(self) -> MutableMapping[int | float, int]:
         return self._doubles
 
+    def get_pretty_error_message(self) -> Message:
+        return self._pretty_err_message
+
+    def get_pretty_warning_message(self) -> Message:
+        return self._pretty_warn_message
+
+    @property
+    def is_valid(self):
+        return True if not self._pretty_err_message.text else False
 
 
 def get_number(
@@ -291,39 +329,6 @@ def get_number(
         is_valid = False
         val = init_val
     return CellData(name, init_val, default_val, val, is_valid)
-
-
-# def get_stage_or_direction_data(
-#         string_data: Any,
-#         red_pattern: re.Pattern,
-#         name: ColNamesTimeProgramsTable | ColNamesDirectionsTable
-# ) -> StagesAndDirections:
-#     default_val, is_valid, is_red, allow_to_compare, doubles = '', True, False, True, {}
-#     try:
-#         processed_string_data = remove_chars(string_data, ' ')
-#         collection_as_str = processed_string_data.split(',')
-#         collection_as_int_or_float = frozenset(gen_int_or_float(collection_as_str))
-#         if not collection_as_int_or_float:
-#             if re.findall(red_pattern, processed_string_data): # Если тип фазы "Фаза покоя"/"Пост. красн"
-#                 is_red = True
-#             else:
-#                 raise ValueError
-#         else:
-#             if len(collection_as_str) != len(collection_as_int_or_float):
-#                 cnt = Counter(make_int_or_float_collection(collection_as_str, list))
-#                 doubles = {k: v for k, v in cnt.items() if v > 1}
-#     except (TypeError, ValueError):
-#         allow_to_compare = False
-#         is_valid = False
-#         collection_as_int_or_float = frozenset()
-#         doubles = {}
-#     return StagesAndDirections(
-#         ColumnData(name, string_data, default_val, string_data, is_valid),
-#         is_red,
-#         allow_to_compare,
-#         collection_as_int_or_float,
-#         doubles
-#     )
 
 
 def get_stage_or_direction_data(
@@ -377,4 +382,12 @@ if __name__ == '__main__':
 
     stages3 = StageOrDirectionData('1ю3ю4.4,', RowNames.stage)
     print(stages3)
+
+    stages4 = StageOrDirectionData('1,2,7, 8.2 ', RowNames.stage)
+    print(stages4)
+    print(stages4.is_valid)
+    for k, v in stages4.__dict__.items():
+        print(f'{k}={v}')
+    print(stages.is_valid)
+
 

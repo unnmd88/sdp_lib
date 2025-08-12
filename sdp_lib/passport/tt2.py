@@ -1,16 +1,21 @@
 import dataclasses
 import operator
 import re
+import time
 from collections import Counter
 from collections.abc import MutableSequence
 from dataclasses import dataclass, field, astuple
 from itertools import filterfalse, count
 from typing import NamedTuple, AnyStr, Any
 
-from sdp_lib.passport.constants import DirectionTypes
+from sdp_lib.passport.constants import DirectionTypes, RowNames
 import logging
 import asyncio
 # from deep_translator import GoogleTranslator
+import pymorphy3
+
+
+
 
 
 data = '1\tТранспортное\t1,8,9\n2\tТранспортное\t1,2\n3\tТранспортное\t4\n4\tПоворотное\t2,3,4\n5\tТранспортное\t3,6,7,8,9,10\n6\tТранспортное\t5,6,7,10\n7\tТранспортное\t4,5,8,9\n8\tТранспортное\t1,2,3,4\n9\tПешеходное\t2,3\n10\tТранспортное\t1,5,6,7,8,9,10\n11\tПешеходное\t1,2,3,4,5,6,8,9\n12\tТранспортное\t2,3,4,5,6,7,10\n13\tТранспортное\t6,7,10\n14\tТранспортное\t1\n15\tПоворотное\t5,6,7,10\n16\tТранспортное\t5,6,7,8,9,10\n17\tТранспортное\t2,3,4\n18\tТранспортное\t7,10\n19\tТранспортное\t3,4,5,8,9,10\n20\tПешеходное\t3\n21\tТранспортное\t1,2,3,4\n22\tПешеходное\t1,2,3,4,5,8,9\n23\tТранспортное\t6,7\n24\tТранспортное\tПост.краси.\n'
@@ -33,6 +38,8 @@ def gen(x):
         yield x
 
 txt = 'Ошибка типа направления'
+
+
 if __name__ == '__main__':
     # read_file(f'directions')
     # raw_data_directions = '1\tТранспортное\t1,8,9\n2\tТранспортное\t1,2\n3\tТранспортное\t4\n4\tПоворотное\t2,3,4\n5\tТранспортное\t3,6,7,8,9,10\n6\tТранспортное\t5,6,7,10\n7\tТранспортное\t4,5,8,9\n8\tТранспортное\t1,2,3,4\n9\tПешеходное\t2,3\n10\tТранспортное\t1,5,6,7,8,9,10\n11\tПешеходное\t1,2,3,4,5,6,8,9\n12\tТранспортное\t2,3,4,5,6,7,10\n13\tТранспортное\t6,7,10\n14\tТранспортное\t1\n15\tПоворотное\t5,6,7,10\n16\tТранспортное\t5,6,7,8,9,10\n17\tТранспортное\t2,3,4\n18\tТранспортное\t7,10\n19\tТранспортное\t3,4,5,8,9,10\n20\tПешеходное\t3\n21\tТранспортное\t1,2,3,4\n22\tПешеходное\t1,2,3,4,5,8,9\n23\tТранспортное\t6,7\n24\tТранспортное\tПост.краси.\n'.rstrip()
@@ -48,15 +55,11 @@ if __name__ == '__main__':
     #     '9\t9\t1, 5, 7, 10, 11, 16, 19, 22\n'
     #     '10\t10\t5, 6, 10, 12, 13, 15, 16, 18, 19\n'.rstrip()
     # )
-    # write_to_file(f'directions1', raw_data_directions)
-    # write_to_file(f'stages2', raw_data_stages)
+    fs = frozenset()
+    fs.add(1)
 
-    l = []
-    l += gen(1)
-    print(l)
 
-    p = re.findall(',{2,}', '1,3,,4,')
-    print(p)
+
 
 
 

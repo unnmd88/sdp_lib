@@ -26,6 +26,12 @@ LOGGING_CONFIG = {
             "filename": "logs/penetrate_stage.log",
             "formatter": "simple2",
         },
+        "file_in_cwd": {
+            "level": "WARNING",
+            "class": "logging.FileHandler",
+            "filename": "log_passport.log",
+            "formatter": "simple2",
+        },
         "server": {
             "level": "DEBUG",
             "class": "logging.FileHandler",
@@ -66,6 +72,11 @@ LOGGING_CONFIG = {
             "handlers": ['file'],
             "propagate": True,
         },
+        "file_and_mail": {
+            "level": "INFO",
+            "handlers": ['file3'],
+            "propagate": True,
+        },
         "trap_verbose": {
             "level": "INFO",
             "handlers": ['trap_verbose_file_handler'],
@@ -96,6 +107,9 @@ LOGGING_CONFIG = {
         },
     },
 }
+
+logging.config.dictConfig(LOGGING_CONFIG)
+
 try:
     logging.config.dictConfig(LOGGING_CONFIG)
 except ValueError:
