@@ -3,17 +3,18 @@ import re
 import time
 from collections.abc import MutableMapping
 
-from sdp_lib.passport.base import AbstractTable, Cell, get_stage_or_direction_data, get_number_data, AbstractRow
+from sdp_lib.passport.base import AbstractTable, Cell, get_number_cell_data, AbstractEntity, Message, \
+    StageOrDirectionCell
 from sdp_lib.passport.constants import ColNamesTimeProgramsTable, WEEKDAYS, TableNames, RowNames, ModeNames
 from sdp_lib.passport.mixins import ReprMixin
-from sdp_lib.passport.storages import Message, Actions, StagesData
+
 from sdp_lib.passport.text_messages import Text
 
 
 
-class StageRow(AbstractRow, ReprMixin):
+class StageRow(AbstractEntity, ReprMixin):
 
-    row_name = RowNames.stage
+    name = RowNames.stage
 
     REST_STAGE = re.compile(r'покоя|крас|-', re.IGNORECASE)
 
@@ -39,19 +40,17 @@ class StageRow(AbstractRow, ReprMixin):
     ):
         super().__init__()
         self.index = index
-        self.num_pp = get_number_data(num_pp, ColNamesTimeProgramsTable.num_pp)
+        self.num_pp = get_number_cell_data(num_pp, ColNamesTimeProgramsTable.num_pp)
         if not self.num_pp.is_valid:
-            self._err_and_warn.add_warnings(Message(Text.bad_num_pp))
-        self.number = get_number_data(num_stage, ColNamesTimeProgramsTable.num_stage)
+            self._data.add_warnings(Message(Text.bad_num_pp))
+        self.number = get_number_cell_data(num_stage, ColNamesTimeProgramsTable.num_stage)
         if not self.number.is_valid:
-            self._err_and_warn.add_errors(Text.get_bad_num(num_stage, ColNamesTimeProgramsTable.num_stage))
-            self._actions.set_val_for_compare_stages(False)
-        self.directions = get_stage_or_direction_data(
-            directions, self.REST_STAGE, ColNamesTimeProgramsTable.directions
-        )
-        if self.directions.column_data.is_valid is False:
-            self._actions.set_val_for_compare_stages(False)
-        print(f'DD: {self.directions}')
+            self._data.add_errors(Text.get_bad_num(num_stage, ColNamesTimeProgramsTable.num_stage))
+            self._data.permissions.set_val_for_compare_stages(False)
+        self.directions = StageOrDirectionCell(directions)
+        if not self.directions.is_valid:
+            self._data.err_and_warn.add_errors(Message(Text.get_bad_val(directions, ColNamesTimeProgramsTable.directions)))
+            self._data.permissions.set_val_for_compare_stages(False)
         self.t_cyc = t_cyc
         self.weekdays = weekdays
         self.t_osn = t_osn
@@ -67,18 +66,17 @@ class StageRow(AbstractRow, ReprMixin):
 
     @property
     def allow_compare_stages(self) -> bool:
-        return self._actions.allow_compare_stages
+        return self._data.permissions.compare_stages
 
 
-class HeadDataRow(AbstractRow, ReprMixin):
+class HeadDataRow(AbstractEntity, ReprMixin):
 
-    row_name = RowNames.head_time_table
+    name = RowNames.head_time_table
 
     def __init__(
             self,
             number: int | str,
             weekdays: str = '',
-
     ):
         super().__init__()
         self._number = self._get_number(number)
@@ -89,7 +87,7 @@ class HeadDataRow(AbstractRow, ReprMixin):
         try:
             val = int(init_val)
         except ValueError:
-            self._err_and_warn.add_errors(Message(f'Номер программы не является числом: {init_val!r}.'))
+            self._data.err_and_warn.add_errors(Message(f'Номер программы не является числом: {init_val!r}.'))
             val = None
         return Cell(ColNamesTimeProgramsTable.number, init_val, default_val, val)
 
@@ -105,7 +103,7 @@ class HeadDataRow(AbstractRow, ReprMixin):
                 try:
                     WEEKDAYS[day.lower()]
                 except KeyError:
-                    self._err_and_warn.add_errors(
+                    self._data.err_and_warn.add_errors(
                         Message(f'Дни недели заданы некорректно: {init_val!r}. Пример: <пн,вт,ср,чт,пт,сб,вс>')
                     )
                     break
@@ -121,7 +119,7 @@ class HeadDataRow(AbstractRow, ReprMixin):
 
 class TimeProgramTable(AbstractTable, ReprMixin):
 
-    table_name = TableNames.time_program
+    name = TableNames.time_program
     allowed_cnt_row_props = {1, 2, 3}
     row_class = StageRow
 
@@ -195,7 +193,6 @@ if __name__ == '__main__':
     print(tp1)
     print(tp1.number)
     print(tp1.directions)
-    print(tp1.get_message_storage())
     _data2 = '1\t1, 2, 8, 10, 11, 14, 21, 22\n2\t2, 4, 8, 9, 11, 12, 17, 22, 25\n3\t4, 5, 8, 9, 11, 12, 17, 19, 20, 21, 22\n4\t3, 4, 7, 8, 11, 12, 17, 19, 21, 22\n5\t6, 7, 10, 11, 12, 15, 16, 19, 22\n6\t5, 6, 10, 11, 12, 13, 15, 16, 23, 25\n7\t5, 6, 10, 12, 13, 15, 16, 18, 23, 25\n8\t1, 5, 7, 10, 11, 16, 19, 22\n9\t1, 5, 7, 10, 11, 16, 19, 22\n10\t5, 6, 10, 12, 13, 15, 16, 18, 19\n'.rstrip()
 
     display_time_programs(_data2)

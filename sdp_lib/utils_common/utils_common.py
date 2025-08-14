@@ -1,4 +1,5 @@
 import functools
+import inspect
 import ipaddress
 import random
 import re
@@ -109,6 +110,17 @@ def remove_chars(string, *args: str) -> str:
             pattern += char
     return re.sub('[' + pattern + spaces + ']', '', string)
 
+def read_file_as_string(filepath) -> str:
+    with open(filepath, encoding='utf-8') as f:
+        return ''.join(line for line in f)
+
+def get_arg_names(func: Callable):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        print(f'args: {inspect.signature(func)}')
+        print(f'args: {inspect.getfullargspec(func).args}')
+        return func(*args, **kwargs)
+    return wrapper
 
 
 if __name__ == '__main__':
