@@ -123,7 +123,12 @@ class TimeProgramTable(AbstractTable, ReprMixin):
     allowed_cnt_row_props = {1, 2, 3}
     row_class = StageRow
 
-    def __init__(self, income_data: str, head_data: HeadDataRow, mode: ModeNames = None):
+    def __init__(
+            self,
+            income_data: str,
+            head_data: HeadDataRow = HeadDataRow(1),
+            mode: ModeNames = None
+    ):
         super().__init__(income_data)
         self._head_data = head_data
         self._mode = mode

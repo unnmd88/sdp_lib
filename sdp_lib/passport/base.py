@@ -1,8 +1,11 @@
 import inspect
 import logging
+import pprint
 import re
+from collections import deque
 from dataclasses import dataclass, field
 from functools import cached_property
+from itertools import zip_longest
 from typing import NamedTuple
 from collections.abc import (
     MutableMapping,
@@ -589,6 +592,35 @@ def compare(
     return result_has_not_in_second, result_has_not_in_first
 
 
+def compare2(
+    first: stages_or_direction_container,
+    second: stages_or_direction_container
+):
+    copy_first = {k: v for k, v in first.items()}
+    copy_second = {k: v for k, v in second.items()}
+    result_has_not_in_first, result_has_not_in_second = {}, {}
+    stack1 = deque(copy_first.keys())# Направления из Таблицы направлений
+    while stack1:
+        k1 = stack1.popleft()
+        v1 = copy_first.pop(k1) #v1 default = frozenset[int | float]
+        try:
+            v2 = copy_second.pop(k1) #v2 default = frozenset[int | float]
+            has_not_in_second = v1 - v2
+            if has_not_in_second:
+                result_has_not_in_second[k1] = sorted(has_not_in_second)
+        except KeyError:
+            result_has_not_in_second[k1] = sorted(v1)
+    stack2 = deque(copy_second)
+    while stack2:
+        k2 = stack2.popleft()
+        v2 = copy_second.pop(k2)
+        result_has_not_in_first[k2] = sorted(v2)
+    print(f'result_has_not_in_second: {result_has_not_in_second}')
+    print(f'result_has_not_in_first: {result_has_not_in_first}')
+    return result_has_not_in_second, result_has_not_in_first
+
+
+
 def compare_stages_data_for_directions_and_time_programs(
     directions_mapping: StagesData,
     time_programs_mapping: Iterable[tuple[int, StagesData]]
@@ -597,7 +629,7 @@ def compare_stages_data_for_directions_and_time_programs(
     directions_to_stage = directions_mapping.get_direction_to_stages_mapping()
     for num, stage_data in time_programs_mapping:
         stage_to_directions = stage_data.get_direction_to_stages_mapping()
-        missing_in_table_stages, missing_in_table_directions = compare(directions_to_stage, stage_to_directions)
+        missing_in_table_stages, missing_in_table_directions = compare2(first=directions_to_stage, second=stage_to_directions)
         print(f'missing_in_table_stages: {missing_in_table_stages}')
         print(f'missing_in_table_directions: {missing_in_table_directions}')
 
