@@ -25,6 +25,7 @@ class RowNames(StrEnum):
 class TableNames(StrEnum):
     directions_table = 'Таблица направлений'
     time_program = 'Временная программа'
+    stages_table = 'Таблица фаз'
 
 
 class StorageNames(StrEnum):

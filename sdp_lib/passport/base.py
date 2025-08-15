@@ -1,7 +1,9 @@
 import inspect
+import itertools
 import logging
 import pprint
 import re
+from abc import abstractmethod
 from collections import deque
 from dataclasses import dataclass, field
 from functools import cached_property
@@ -12,7 +14,7 @@ from collections.abc import (
     Iterable,
     Sequence,
     Generator,
-    Set, MutableSequence
+    Set, MutableSequence, Collection
 )
 from typing import (
     Any,
@@ -38,6 +40,7 @@ logger = logging.getLogger('full_log')
 
 
 stages_or_direction_num: TypeAlias = int | float
+# stages_or_direction_container: TypeAlias = MutableMapping[stages_or_direction_num, Set[stages_or_direction_num]]
 stages_or_direction_container: TypeAlias = MutableMapping[stages_or_direction_num, Set[stages_or_direction_num]]
 
 
@@ -201,47 +204,6 @@ class MessageStorage:
         self.warnings.clear()
 
 
-# @dataclass
-# class StagesData:
-#     mapping_type: StagesMapping
-#     _direction_to_stages_mapping: stages_content_type = field(default_factory=dict)
-#     _stage_to_direction_mapping: stages_content_type = field(default_factory=dict)
-#
-#     def load(self, data: dict[float, set]):
-#         if self.mapping_type == StagesMapping.direction_to_stages:
-#             container1, container2 = self._direction_to_stages_mapping, self._stage_to_direction_mapping
-#         elif self.mapping_type == StagesMapping.stage_to_direction:
-#             container1, container2 = self._stage_to_direction_mapping, self._direction_to_stages_mapping
-#         else:
-#             raise TypeError(f'Invalid mapping_type: {self.mapping_type}')
-#         if len(container1) > 0:
-#             container1.clear()
-#         container1 |= {k: v for k, v in data.items()}
-#         if len(container2) > 0:
-#             container2.clear()
-#         for key, values in container1.items():
-#             for value in values:
-#                 try:
-#                     container2[value].add(key)
-#                 except KeyError:
-#                     container2[value] = {key}
-#
-#     def get_direction_to_stages_mapping(self):
-#         return self._direction_to_stages_mapping
-#
-#     def get_stage_to_direction_mapping(self):
-#         return self._stage_to_direction_mapping
-#
-#     @property
-#     def max_stage(self) -> int | float:
-#         return max(self._stage_to_direction_mapping)
-#
-#     @property
-#     def max_direction(self) -> int | float:
-#         return max(self._direction_to_stages_mapping)
-
-
-
 class StagesData:
 
     __slots__ = (
@@ -258,6 +220,15 @@ class StagesData:
     def __repr__(self):
         attrs = ' '.join(f'{attr}={getattr(self, attr)!r}' for attr in self.__slots__)
         return f'{self.__class__.__name__}({attrs})'
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, StagesData):
+            return NotImplemented
+        return (
+                self._direction_to_stages_mapping == other.get_direction_to_stages_mapping()
+                and
+                self._stage_to_direction_mapping == other.get_stage_to_direction_mapping()
+        )
 
     def build(
             self,
@@ -290,7 +261,7 @@ class StagesData:
             self._sort_container(container2)
 
     def _gen_val_as_frozenset(self, container: stages_or_direction_container) -> stages_or_direction_container:
-        for k in container.keys():
+        for k in container:
             fs = frozenset(container[k])
             container[k] = fs
         return container
@@ -304,7 +275,7 @@ class StagesData:
         container |= sorted_dict
         return container
 
-    def get_direction_to_stages_mapping(self) -> MutableMapping[stages_or_direction_num, Set[stages_or_direction_num]]:
+    def get_direction_to_stages_mapping(self) -> stages_or_direction_container:
         return self._direction_to_stages_mapping
 
     def get_stage_to_direction_mapping(self):
@@ -598,7 +569,7 @@ def compare2(
 ):
     copy_first = {k: v for k, v in first.items()}
     copy_second = {k: v for k, v in second.items()}
-    result_has_not_in_first, result_has_not_in_second = {}, {}
+    result_has_not_in_first, result_has_not_in_second = [], []
     stack1 = deque(copy_first.keys())# Направления из Таблицы направлений
     while stack1:
         k1 = stack1.popleft()
@@ -607,31 +578,176 @@ def compare2(
             v2 = copy_second.pop(k1) #v2 default = frozenset[int | float]
             has_not_in_second = v1 - v2
             if has_not_in_second:
-                result_has_not_in_second[k1] = sorted(has_not_in_second)
+                result_has_not_in_second.append((k1, sorted(has_not_in_second)))
+                # result_has_not_in_second[k1] = sorted(has_not_in_second)
         except KeyError:
-            result_has_not_in_second[k1] = sorted(v1)
+            # result_has_not_in_second[k1] = sorted(v1)
+            result_has_not_in_second.append((k1, sorted(v1)))
     stack2 = deque(copy_second)
     while stack2:
         k2 = stack2.popleft()
         v2 = copy_second.pop(k2)
-        result_has_not_in_first[k2] = sorted(v2)
+        # result_has_not_in_first[k2] = sorted(v2)
+        result_has_not_in_first.append((k2, sorted(v2)))
     print(f'result_has_not_in_second: {result_has_not_in_second}')
     print(f'result_has_not_in_first: {result_has_not_in_first}')
     return result_has_not_in_second, result_has_not_in_first
 
 
+@dataclass(slots=True, frozen=True)
+class ResultCompare:
+    direction: stages_or_direction_num
+    missing_stages: Iterable[stages_or_direction_num]
+
+
+class AbstractComparison:
+    def __init__(self, first, second, name=None, compare_immediately=True):
+        self._first = first
+        self._second = second
+        self._name = name
+        self._result_message: Message | None = None
+        if compare_immediately:
+            self.compare()
+
+    @abstractmethod
+    def compare(self):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def create_message(self):
+        raise NotImplementedError()
+
+    def get_first(self):
+        return self._first
+
+    def get_second(self):
+        return self._second
+
+    def get_name(self):
+        return self._name
+
+    def get_result_message(self) -> Message | None:
+        return self._result_message
+
+
+missing_data: TypeAlias = MutableSequence[tuple[stages_or_direction_num, MutableSequence[stages_or_direction_num]]]
+
+
+class ComparisonStages(AbstractComparison, ReprMixin):
+
+    def __init__(
+            self,
+            mapping_from_direction_table: stages_or_direction_container,
+            mapping_from_time_programs_table: stages_or_direction_container,
+            num_time_program: int | None = None,
+            compare_immediately: bool = True
+    ):
+        self._missing_directions_in_table_stages: ResultCompare
+        self._missing_directions_in_table_directions: ResultCompare
+        super().__init__(
+            mapping_from_direction_table,
+            mapping_from_time_programs_table,
+            num_time_program,
+            compare_immediately
+        )
+
+    def compare(self):
+        allowed_to_compare = all(isinstance(obj, MutableMapping) for obj in (self._first, self._second))
+        if not allowed_to_compare:
+            raise TypeError(f'Invalid type attrs "self._first" and "self._second"')
+        if allowed_to_compare:
+            self._missing_directions_in_table_stages, self._missing_directions_in_table_directions = compare3(self._first, self._second)
+        print(f'self._missing_directions_in_table_stages: {self._missing_directions_in_table_stages}')
+        print(f'self._missing_directions_in_table_directions: {self._missing_directions_in_table_directions}')
+
+    def _get_missing_direction_string(self, pp, num_direction, stages):
+        pretty_stages = ','.join(
+            str(num) if num not in stages else f'->{num}<-' for num in sorted(self._first[num_direction])
+        )
+        return f'{pp}) Направление={num_direction}, фазы: {pretty_stages}'
+
+    def create_message(self):
+        # if self._missing_directions_in_table_stages:
+        missing_directions_in_table_stages = "\n".join(
+            self._get_missing_direction_string(i, result_compare.direction, result_compare.missing_stages)
+            for i, result_compare in enumerate(self._missing_directions_in_table_stages, 1)
+        )
+        if missing_directions_in_table_stages:
+            missing_directions_in_table_stages = (
+            f'Направления, которые присутствуют в фазах в столбце '
+            f'"{str(ColNamesDirectionsTable.stages)}"({str(TableNames.directions_table)}), '
+            f'но отсутствуют в таблице фаз(Программа {self._name}):\n'
+            f'{missing_directions_in_table_stages}'
+        )
+        self._result_message = Message(missing_directions_in_table_stages)
+        return self._result_message
+
+
+    def get_missing_directions_in_table_stages(self):
+        return self._missing_directions_in_table_stages
+
+    def get_missing_directions_in_table_directions(self):
+        return self._missing_directions_in_table_stages
+
+
+def compare3(
+    first: stages_or_direction_container,
+    second: stages_or_direction_container
+):
+    copy_first = {k: v for k, v in first.items()}
+    copy_second = {k: v for k, v in second.items()}
+    result_has_not_in_first, result_has_not_in_second = [], []
+    stack1 = deque(copy_first.keys())# Направления из Таблицы направлений
+    while stack1:
+        k1 = stack1.popleft()
+        v1 = copy_first.pop(k1) #v1 default = frozenset[int | float]
+        try:
+            v2 = copy_second.pop(k1) #v2 default = frozenset[int | float]
+            has_not_in_second = v1 - v2
+            if has_not_in_second:
+                result_has_not_in_second.append(ResultCompare(k1, has_not_in_second))
+        except KeyError:
+            if v1:
+                result_has_not_in_second.append(ResultCompare(k1, v1))
+    stack2 = deque(copy_second)
+    while stack2:
+        k2 = stack2.popleft()
+        v2 = copy_second.pop(k2)
+        result_has_not_in_first.append(ResultCompare(k2, v2))
+    print(f'result_has_not_in_second: {result_has_not_in_second}')
+    print(f'result_has_not_in_first: {result_has_not_in_first}')
+    return result_has_not_in_second, result_has_not_in_first
+
 
 def compare_stages_data_for_directions_and_time_programs(
-    directions_mapping: StagesData,
-    time_programs_mapping: Iterable[tuple[int, StagesData]]
+    mapping_from_direction_table: StagesData,
+    mapping_from_time_programs_table: Iterable[tuple[int, StagesData]]
 ):
-    all_errors = []
-    directions_to_stage = directions_mapping.get_direction_to_stages_mapping()
-    for num, stage_data in time_programs_mapping:
-        stage_to_directions = stage_data.get_direction_to_stages_mapping()
-        missing_in_table_stages, missing_in_table_directions = compare2(first=directions_to_stage, second=stage_to_directions)
-        print(f'missing_in_table_stages: {missing_in_table_stages}')
-        print(f'missing_in_table_directions: {missing_in_table_directions}')
+    directions_to_stage_from_direction_table = mapping_from_direction_table.get_direction_to_stages_mapping()
+    for num, stage_data in mapping_from_time_programs_table:
+        directions_to_stage_from_stages_table = stage_data.get_direction_to_stages_mapping()
+        yield ComparisonStages(
+            directions_to_stage_from_direction_table,
+            directions_to_stage_from_stages_table,
+            num
+        )
+
+
+
+# def compare_stages_data_for_directions_and_time_programs(
+#     mapping_from_direction_table: StagesData,
+#     mapping_from_time_programs_table: Iterable[tuple[int, StagesData]]
+# ):
+#     directions_to_stage_from_direction_table = mapping_from_direction_table.get_direction_to_stages_mapping()
+#     for num, stage_data in mapping_from_time_programs_table:
+#         directions_to_stage_from_stages_table = stage_data.get_direction_to_stages_mapping()
+#         missing_in_table_stages, missing_in_table_directions = compare2(first=directions_to_stage_from_direction_table, second=directions_to_stage_from_stages_table)
+#         print(f'missing_in_table_stages: {missing_in_table_stages}')
+#         print(f'missing_in_table_directions: {missing_in_table_directions}')
+#         yield missing_in_table_stages, missing_in_table_directions
+
+
+
 
 
 

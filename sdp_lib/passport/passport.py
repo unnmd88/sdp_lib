@@ -1,6 +1,7 @@
 import pprint
 from collections.abc import MutableSequence, Sequence, MutableMapping, Iterable
 
+from sdp_lib.management_controllers.ssh.swarco_terminal import process_terminal_stdout
 from sdp_lib.passport.base import StagesData, compare, compare_stages_data_for_directions_and_time_programs
 from sdp_lib.passport.directions import DirectionsTable
 from sdp_lib.passport.time_programms import TimeProgramTable, HeadDataRow
@@ -61,11 +62,16 @@ if __name__ == '__main__':
     directions = DirectionsTable(read_file_as_string('directions_example').rstrip())
     stages = TimeProgramTable(read_file_as_string('time_program_example').rstrip())
     pprint.pprint(stages.get_stages_data())
-    print(
-        compare_stages_data_for_directions_and_time_programs(
-            directions.get_stages_data(),
-            [(1, stages.get_stages_data())]
-        )
-    )
+    # print(
+    #     compare_stages_data_for_directions_and_time_programs(
+    #         directions.get_stages_data(),
+    #         [(1, stages.get_stages_data())]
+    #     )
+    # )
+    for comp_stages in compare_stages_data_for_directions_and_time_programs(directions.get_stages_data(),[(1, stages.get_stages_data())]):
+        print(comp_stages)
+        print(comp_stages.create_message().text)
+
+
 
 
