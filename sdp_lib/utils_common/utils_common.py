@@ -4,7 +4,7 @@ import ipaddress
 import random
 import re
 import time
-from collections.abc import Sequence, MutableMapping
+from collections.abc import Sequence, MutableMapping, Iterable
 from datetime import datetime as dt
 from string import ascii_letters
 from typing import Callable, TypeVar, Any
@@ -122,10 +122,13 @@ def get_arg_names(func: Callable):
         return func(*args, **kwargs)
     return wrapper
 
+def stages_as_string(stages: Iterable[str | int | float], sep=',') -> str:
+    return sep.join(str(n) for n in sorted(stages))
+
 
 if __name__ == '__main__':
 
-    print( remove_chars('пн   ,  вт ,с  р ,ч т  ,   пт:', ':', ' '))
+    print(remove_chars('пн   ,  вт ,с  р ,ч т  ,   пт:', ':', ' '))
 
     """
     Программа 1 Тц = 353 с. пн,вт,ср,чт,пт: 

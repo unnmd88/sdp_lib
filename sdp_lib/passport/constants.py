@@ -1,3 +1,4 @@
+import pprint
 from enum import (
     Enum,
     StrEnum,
@@ -5,7 +6,8 @@ from enum import (
     auto,
 
 )
-from itertools import zip_longest
+from itertools import zip_longest, combinations_with_replacement
+from typing import NamedTuple
 
 
 class MessageLevels(StrEnum):
@@ -14,6 +16,21 @@ class MessageLevels(StrEnum):
     warning = 'WARNING'
     error = 'ERROR'
     critical = 'CRITICAL'
+
+
+class MessageCategories(IntEnum):
+    common = 1
+    validation = 2
+    compare_directions_table_to_time_table = 3
+
+
+categories_descriptions = {
+    MessageCategories.validation: ('validation', 'Валидация данных'),
+    MessageCategories.common: ('common', 'Общее'),
+    MessageCategories.compare_directions_table_to_time_table: (
+        ('compare1', 'Сравнение соответствия фаз таблицы направлений с временной таблицей')
+    )
+}
 
 
 class RowNames(StrEnum):
@@ -42,6 +59,10 @@ class DirectionTypes(StrEnum):
     arrow = 'Поворотное'
     always_red = 'Пост. красн'
 
+    @classmethod
+    def get_standard_types(cls):
+        return ', '.join(str(d) for d in cls if d not in {cls.common})
+
 
 class StagesMapping(IntEnum):
     direction_to_stages = 0
@@ -66,6 +87,7 @@ class ColNamesDirectionsTable(StrEnum):
     toov_red = 'Красн.'
     description = 'Примечание'
 
+
 class ColNamesTimeProgramsTable(StrEnum):
     number = 'Программа'
     cycle_time = 'Тц'
@@ -87,9 +109,32 @@ class ModeNames(StrEnum):
     man = 'man'
     central = 'central'
 
+
 class StageTypes(StrEnum):
     main = 'Основная фаза'
     calling = 'Вызывная фаза'
+
+
+# class AllowedComparisonCells(StrEnum):
+#     table_directions_cell_stages = f'{TableNames.directions_table}, ячейка {ColNamesDirectionsTable.stages}'
+#     table_time_program_cell_directions = f'{TableNames.time_program}, ячейка {ColNamesTimeProgramsTable.directions}'
+
+
+class ComparisonDescriptions(StrEnum):
+    directions_table_to_time_table = 'Сравнение направлений и фаз из Таблицы направлений с временной программой'
+    two_directions_table = 'Сравнение двух таблиц направлений'
+    two_time_program_tables = 'Сравнение двух временных программ'
+
+
+class Fields(StrEnum):
+    description = 'description'
+    discrepancies_found = 'discrepancies_found'
+    mappings = 'mappings'
+    common = 'Общие'
+    compare_directions_table_to_time_table = 'Сравнение фаз из таблицы направлений с временной таблицей`'
+    messages = 'messages'
+    category_description = 'category_description'
+    category = 'category'
 
 
 WEEKDAYS = {k: None for k in 'пн,вт,ср,чт,пт,сб,вс'.split(',')}
@@ -142,4 +187,3 @@ default_values = {
 if __name__ == '__main__':
 
     print(WEEKDAYS)
-    print(bool(DirectionTypes('Транспортно')))

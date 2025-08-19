@@ -26,13 +26,14 @@ class Text(StrEnum):
     def get_bad_num(
             cls,
             num_stage: str | int = '',
-            table_name: ColNamesTimeProgramsTable | ColNamesDirectionsTable = ''
+            cell_name: ColNamesTimeProgramsTable | ColNamesDirectionsTable = ''
     ) -> str:
-        return (
-            f'Неверно задан номер "{str(table_name)}": {num_stage}. '
-            f'Допускаются номера в виде целых чисел("1", "2", "6" и т.д) или '
-            f'числа через точку("1.1", "1.2", "4.1" и т.д.)'
-        )
+        return  f'Неверно задан номер в ячейке "{str(cell_name)}": {num_stage}'
+        # return (
+        #     f'Неверно задан номер "{str(table_name)}": {num_stage}. '
+        #     f'Допускаются номера в виде целых чисел("1", "2", "6" и т.д) или '
+        #     f'числа через точку("1.1", "1.2", "4.1" и т.д.)'
+        # )
 
     @classmethod
     def get_bad_val(

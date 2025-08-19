@@ -1,25 +1,26 @@
 import inspect
 import itertools
 import logging
-import pprint
 import re
 from abc import abstractmethod
 from collections import deque
 from dataclasses import dataclass, field
 from functools import cached_property
-from itertools import zip_longest
+from itertools import zip_longest, combinations_with_replacement
 from typing import NamedTuple
 from collections.abc import (
     MutableMapping,
     Iterable,
     Sequence,
     Generator,
-    Set, MutableSequence, Collection
+    Set, MutableSequence, Collection, Container
 )
 from typing import (
     Any,
     TypeAlias
 )
+
+from hyperframe.frame import Frame
 
 from sdp_lib.passport.constants import (
     ColNamesDirectionsTable,
@@ -28,11 +29,11 @@ from sdp_lib.passport.constants import (
     StagesMapping,
     TableNames,
     DirectionTypes,
-    RowNames, MessageLevels
+    RowNames, MessageLevels, MessageCategories, Fields, categories_descriptions, ComparisonDescriptions
 )
 from sdp_lib.passport.mixins import ReprMixin
 from sdp_lib.passport.text_messages import Text
-from sdp_lib.utils_common.utils_common import remove_chars, get_arg_names
+from sdp_lib.utils_common.utils_common import remove_chars, get_arg_names, stages_as_string
 from sdp_lib.passport import logging_config
 
 
@@ -91,6 +92,7 @@ def get_int_or_float(val: str) -> int | float | None:
 
 class Message(NamedTuple):
     text: str
+    category: MessageCategories | int
     level: MessageLevels = MessageLevels.debug
 
 
@@ -110,7 +112,7 @@ def add_record(
     return cnt
 
 
-class Cell(NamedTuple):
+class Cell1(NamedTuple):
     name: ColNamesDirectionsTable | ColNamesTimeProgramsTable | str
     init_val: Any
     default_val: Any
@@ -121,13 +123,13 @@ class Cell(NamedTuple):
 def get_number_cell_data(
     init_val: str | int | float,
     name: ColNamesTimeProgramsTable | ColNamesDirectionsTable
-) -> Cell:
+) -> Cell1:
     default_val, is_valid = None, True
     val = get_int_or_float(init_val)
     if val is None:
         is_valid = False
-        val = None
-    return Cell(name, init_val, default_val, val, is_valid)
+        val = init_val
+    return Cell1(name, init_val, default_val, val, is_valid)
 
 
 def get_cell_data(
@@ -135,8 +137,8 @@ def get_cell_data(
     init_val: Any,
     default_val=None,
     is_valid: bool = True
-) -> Cell:
-    return Cell(name, init_val, default_val, init_val or default_val, is_valid)
+) -> Cell1:
+    return Cell1(name, init_val, default_val, init_val or default_val, is_valid)
 
 
 def get_pretty_string(data: Iterable[Message]):
@@ -171,7 +173,8 @@ class Permissions:
 
     def _check_permission_and_return_flag(self, flag: bool):
         flag = bool(flag)
-        if flag and self._permission_to_set_flag_from_false_to_true is False:
+        if not self._compare_stages and flag and self._permission_to_set_flag_from_false_to_true is False:
+            # return False
             raise AttributeError("can't set attribute from False to True")
         return flag
 
@@ -202,6 +205,20 @@ class MessageStorage:
     def clear_all(self):
         self.errors.clear()
         self.warnings.clear()
+
+    def get_errors_by_categories(self, message_as_text=True):
+        res = {}
+        for msg in self.errors:
+            m = msg.text if message_as_text else msg
+            try:
+                res[int(msg.category)][Fields.messages].append(m)
+            except KeyError:
+                cat, description = categories_descriptions.get(int(msg.category), (None, None))
+                res[cat] = {
+                    str(Fields.category_description): description,
+                    str(Fields.messages): [m]
+                }
+        return res
 
 
 class StagesData:
@@ -234,7 +251,7 @@ class StagesData:
             self,
             data: stages_or_direction_container,
             gen_val_as_frozenset: bool = True,
-            sort: bool = True
+            sort: bool = False
     ):
         if self._mapping_type == StagesMapping.direction_to_stages:
             container1, container2 = self._direction_to_stages_mapping, self._stage_to_direction_mapping
@@ -317,6 +334,14 @@ class AbstractEntity:
         attrs = ' '.join(f'{k}={v!r}' for k, v in self.__dict__.items())
         return f'{self.__class__.__name__}({attrs})'
 
+    @property
+    def data(self):
+        return self._data
+
+    @property
+    def has_errors(self) -> bool:
+        return bool(self._data.err_and_warn.errors)
+
 
 class AbstractTable(AbstractEntity):
     """ Абстрактный базовый класс таблицы паспорта. """
@@ -336,19 +361,24 @@ class AbstractTable(AbstractEntity):
             self._stages_data = None
         self._check_raw_data()
         self._rows: MutableMapping[float, Any] = {}
-        self._rows_with_errors: MutableMapping[float, Any] = {}
         self._build()
+
+    def __iter__(self):
+        return (row for row in self._rows.values())
+
+    def __len__(self):
+        return len(self._rows)
 
     def _build(self):
         self._data.err_and_warn.clear_all()
         rows = self._income_data.rstrip().split('\n')
         if len(rows) <= 1:
-            self._data.err_and_warn.add_errors(Message(Text.income_table_text_rule))
+            self._data.err_and_warn.add_errors(Message(Text.income_table_text_rule, MessageCategories.validation))
             return
         for i, string_data in enumerate(rows):
             row_properties = remove_chars(string_data, ' ').split()
             if len(row_properties) not in self.allowed_cnt_row_props:
-                self._data.err_and_warn.add_errors(Message(Text.income_table_text_rule))
+                self._data.err_and_warn.add_errors(Message(Text.income_table_text_rule, MessageCategories.validation))
                 return
             elif len(row_properties) == 14 and self.name == TableNames.directions_table:
                 t_zz = 0
@@ -360,14 +390,14 @@ class AbstractTable(AbstractEntity):
             elif len(row_properties) == 2 and self.name == TableNames.time_program:
                 num_pp, num_stage, directions,  = i + 1, row_properties[0], row_properties[1]
                 row_properties = [num_pp, num_stage, directions]
-            instance = self.row_class(i, *row_properties)
-            if instance.number.is_valid:
-                key = instance.number.value
-                self._load_row((key, instance))
-            else:
-                key = instance.number.init_val
-                self._load_row_with_err((key, instance))
-        self._set_permission_for_compare_stages()
+            _row = self.row_class(i, *row_properties)
+            self._load_row((_row.number.value, _row))
+            if _row.has_errors:
+                self.data.permissions.set_val_for_compare_stages(False)
+        # print(f'self.data.permissions.compare_stages: {self.data.permissions.compare_stages}')
+        if self.data.permissions.compare_stages:
+            print(f'self._check_permission_for_compare_stages(): {self._check_permission_for_compare_stages()}')
+            self.data.permissions.set_val_for_compare_stages(self._check_permission_for_compare_stages())
         self._load_data_to_stages_data()
 
     def _check_raw_data(self) -> bool:
@@ -377,7 +407,7 @@ class AbstractTable(AbstractEntity):
         """
         if len(self._income_data) < 4:
             self._income_data_errors.add_errors(
-                Message(f'Некорректные данные для обработки и формирования таблицы {self.name}')
+                Message(f'Некорректные данные для обработки и формирования таблицы {self.name}', MessageCategories.validation)
             )
         return self.income_data_is_valid
 
@@ -389,14 +419,6 @@ class AbstractTable(AbstractEntity):
         """
         return add_record(self._rows, args)
 
-    def _load_row_with_err(self, *args: tuple[float, Any]):
-        """
-         Добавляет пару ключ-значение в атрибут self._rows_with_errors.
-        :param args: Каждый элемент args - кортеж из 2 элементов, у которого 0 элемент - ключ, а 1 - значение.
-        :return: Количество добавленных пар в self._rows_with_errors
-        """
-        return add_record(self._rows_with_errors, args)
-
     def _load_data_to_stages_data(self):
         if self._data.allow_compare_stages:
             if self.name == TableNames.directions_table:
@@ -404,9 +426,10 @@ class AbstractTable(AbstractEntity):
             elif self.name == TableNames.time_program:
                 self._stages_data.build({d.number.value: d.directions.get_numbers() for d in self._rows.values()})
 
-    def _set_permission_for_compare_stages(self):
+    def _check_permission_for_compare_stages(self) -> bool:
         if self._stages_data is None or any(instance.allow_compare_stages is False for instance in self._rows.values()):
-            self._data.permissions.set_val_for_compare_stages(False)
+            return False
+        return True
 
     def get_message_storage(self):
         return self._data.err_and_warn
@@ -419,14 +442,23 @@ class AbstractTable(AbstractEntity):
     def income_data_is_valid(self) -> bool:
         return not self._income_data_errors.errors
 
-    def get_rows_with_errors(self) -> MutableMapping[float, Any]:
-        return self._rows_with_errors
-
     def get_all_rows(self) -> MutableMapping[float, Any]:
         return self._rows
 
+    def get_row_by_index(self, index: int):
+        for i, row in enumerate(self._rows.values()):
+            if i == index:
+                return row
+
     def get_stages_data(self) -> StagesData | None:
         return self._stages_data
+
+    def get_data(self) -> BaseEntityData:
+        return self._data
+
+    @property
+    def allow_compare_stages(self):
+        return self._data.allow_compare_stages
 
 
 class StageOrDirectionCell:
@@ -437,10 +469,12 @@ class StageOrDirectionCell:
         '_errors_and_warnings',
         '_sep',
         '_is_always_red',
-        '_stages_or_directions',
+        '_stages_or_directions_f',
+        '_stages_or_directions_string_row',
         '_numbers',
         '_doubles',
-        '_bad_nums'
+        '_bad_nums',
+        '_asc_order'
     )
 
     def __init__(
@@ -449,14 +483,17 @@ class StageOrDirectionCell:
             sep: str = ',',
             always_red_pattern: str | re.Pattern = ''
     ):
+
+        self._stages_or_directions_string_row = stages_or_directions_string
         self._errors_and_warnings = MessageStorage()
         if isinstance(stages_or_directions_string, str):
-            self._stages_or_directions = remove_chars(stages_or_directions_string, ' ')
+            self._stages_or_directions_f = remove_chars(stages_or_directions_string, ' ')
         else:
             raise TypeError(f'{stages_or_directions_string!r} must be a str')
         self._sep = sep
+        self._asc_order = None
         self._is_always_red = bool(
-            re.findall(self._get_always_red_pattern(always_red_pattern), self._stages_or_directions)
+            re.findall(self._get_always_red_pattern(always_red_pattern), self._stages_or_directions_f)
         )
         self._process_income_data()
         # logger.info(self)
@@ -482,7 +519,7 @@ class StageOrDirectionCell:
             return
         if self._errors_and_warnings.add_errors(*self._get_sep_errors()) > 0:
             return
-        nums_as_str = self._stages_or_directions.split(self._sep)
+        nums_as_str = self._stages_or_directions_f.split(self._sep)
         numbers, unique_nums = [], set()
         for number in nums_as_str:
             number_as_int_or_float = get_int_or_float(number)
@@ -495,15 +532,24 @@ class StageOrDirectionCell:
                 unique_nums.add(number_as_int_or_float)
         if self._bad_nums:
             self._errors_and_warnings.add_errors(
-                Message(f'Недопустимые номера({len(self._bad_nums)}): {"; ".join(n for n in self._bad_nums)}')
+                Message(f'Недопустимые номера({len(self._bad_nums)}): {"; ".join(n for n in self._bad_nums)}', MessageCategories.validation)
             )
             return
         try:
-            assert self._sep.join(str(num) for num in numbers) == self._stages_or_directions
+            assert self._sep.join(str(num) for num in numbers) == self._stages_or_directions_f
         except AssertionError:
             logger.critical(self._create_text_error_in_generation_numbers(numbers))
             raise
         self._numbers = frozenset(unique_nums)
+        self._asc_order = self._stages_or_directions_f == ",".join(str(n) for n in sorted(self._numbers))
+        if not self._asc_order:
+            self._errors_and_warnings.add_warnings(
+                Message('Номера не расположены в порядке возрастания', MessageCategories.validation)
+            )
+        for  num, cnt in self._doubles.items():
+            self._errors_and_warnings.add_warnings(
+                Message(f'Найдены дубли. Номер={num}, кол-во={cnt}', MessageCategories.validation)
+            )
 
     def _create_text_error_in_generation_numbers(self, numbers: Iterable[int | float]) -> str:
         generated_numbers = 'Сгенерированные номера:'
@@ -512,22 +558,32 @@ class StageOrDirectionCell:
         return (
             f'Программная ошибка логики: сгенерированные номера не должны различаться со входными:\n'
             f'{generated_numbers:<{indent}} {self._sep.join(str(num) for num in numbers)}\n'
-            f'{income_numbers:<{indent}} {self._stages_or_directions}\n'
+            f'{income_numbers:<{indent}} {self._stages_or_directions_f}\n'
             f'{self}'
         )
 
     def _get_sep_errors(self) -> Generator[Message, Any, None]:
-        if self._stages_or_directions[-1] == self._sep:
-            yield Message(f'Строка не должна заканчиваться разделителем "{self._sep}"')
-        more_than_one_sep_char_in_string = re.findall(self._sep + r'{2,}', self._stages_or_directions )
+        if self._stages_or_directions_f[-1] == self._sep:
+            yield Message(
+                f'Строка не должна заканчиваться разделителем "{self._sep}"', MessageCategories.validation
+            )
+        more_than_one_sep_char_in_string = re.findall(self._sep + r'{2,}', self._stages_or_directions_f)
         if more_than_one_sep_char_in_string:
-            yield Message(f'Найдено более одного разделяющего символа "{self._sep}" подряд.')
+            yield Message(
+                f'Найдено более одного разделяющего символа "{self._sep}" подряд.', MessageCategories.validation
+            )
+
+    def get_stages_or_directions_string_row(self) -> str:
+        return self._stages_or_directions_string_row
 
     def get_errors(self) -> Sequence[Message]:
         return self._errors_and_warnings.errors
 
     def get_numbers(self) -> Set[int | float]:
         return self._numbers
+
+    def get_numbers_as_str(self, sep='') -> str:
+        return stages_as_string(self._numbers, sep or self._sep)
 
     def get_bad_nums(self) -> Sequence[str]:
         return self._bad_nums
@@ -537,6 +593,14 @@ class StageOrDirectionCell:
 
     def get_doubles(self) -> MutableMapping[int | float, int]:
         return self._doubles
+
+    @property
+    def is_asc_order(self):
+        return self._asc_order
+
+    @property
+    def value(self):
+        return self._stages_or_directions_string_row
 
     @property
     def is_valid(self):
@@ -595,26 +659,71 @@ def compare2(
 
 
 @dataclass(slots=True, frozen=True)
-class ResultCompare:
-    direction: stages_or_direction_num
-    missing_stages: Iterable[stages_or_direction_num]
+class NumbersDiscrepancy:
+    number: stages_or_direction_num
+    missing_numbers: Iterable[stages_or_direction_num]
+
+
+class ComparisonExtraData(NamedTuple):
+    num_type: int
+    description: str
+
+
+comparison_directions_and_stages_data = {
+    (TableNames.directions_table, ColNamesDirectionsTable.stages, TableNames.time_program, ColNamesTimeProgramsTable.directions):
+        ComparisonExtraData(1, ComparisonDescriptions.directions_table_to_time_table),
+    (TableNames.directions_table, ColNamesDirectionsTable.stages, TableNames.directions_table, ColNamesDirectionsTable.stages):
+        ComparisonExtraData(2, ComparisonDescriptions.two_directions_table),
+    (TableNames.time_program, ColNamesTimeProgramsTable.directions, TableNames.time_program, ColNamesTimeProgramsTable.directions):
+        ComparisonExtraData(3, ComparisonDescriptions.two_time_program_tables)
+    }
+
+
+class DataSourceComparison(NamedTuple):
+    table_name: TableNames
+    cell_name: ColNamesDirectionsTable | ColNamesTimeProgramsTable
+    name: str
+
+
+def get_comparison_data(src: DataSourceComparison, dst: DataSourceComparison) -> ComparisonExtraData | Iterable[None]:
+    return comparison_directions_and_stages_data.get(
+        (src.table_name, src.cell_name, dst.table_name, dst.cell_name), itertools.repeat(None)
+    )
+
+
+class ComparisonMeta(ReprMixin):
+
+    def __init__(self, name, src: DataSourceComparison, dst: DataSourceComparison):
+        self.name = name
+        self.src = src
+        self.dst = dst
+        self.num_type, self.description = get_comparison_data(src, dst)
 
 
 class AbstractComparison:
-    def __init__(self, first, second, name=None, compare_immediately=True):
+
+    mappings = {k: v for k, v in comparison_directions_and_stages_data.values()}
+    allowed_src_dst_pairs: Container
+
+    def __init__(
+            self,
+            first,
+            second,
+            meta: ComparisonMeta = None,
+            compare_immediately=True
+    ):
+        # if (src, dst) not in self.allowed_src_dst_pairs:
+        #     raise ValueError(f'Pair ({src}, {dst}) not allowed. Use pair from {self.allowed_src_dst_pairs}')
         self._first = first
         self._second = second
-        self._name = name
-        self._result_message: Message | None = None
+        self._meta = meta or ComparisonMeta()
+        self._missing_in_first: MutableSequence[NumbersDiscrepancy] = []
+        self._missing_in_second: MutableSequence[NumbersDiscrepancy] = []
         if compare_immediately:
             self.compare()
 
     @abstractmethod
     def compare(self):
-        raise NotImplementedError()
-
-    @abstractmethod
-    def create_message(self):
         raise NotImplementedError()
 
     def get_first(self):
@@ -623,71 +732,75 @@ class AbstractComparison:
     def get_second(self):
         return self._second
 
-    def get_name(self):
-        return self._name
+    def get_missing_in_first(self) -> MutableSequence[NumbersDiscrepancy]:
+        return self._missing_in_first
 
-    def get_result_message(self) -> Message | None:
-        return self._result_message
+    def get_missing_in_second(self) -> MutableSequence[NumbersDiscrepancy]:
+        return self._missing_in_second
+
+    def get_meta(self) -> ComparisonMeta:
+        return self._meta
+
+    # @property
+    # def src(self):
+    #     return self._src
+    #
+    # @property
+    # def dst(self):
+    #     return self._dst
+    #
+    # @property
+    # def name(self):
+    #     return self._name
+    #
+    # @property
+    # def comparison_type(self):
+    #     return self._comparison_type
+    #
+    # @property
+    # def comparison_description(self):
+    #     return self._comparison_description
+
+    @property
+    def has_inconsistencies(self) -> bool:
+        return bool(self._missing_in_first) or bool(self._missing_in_second)
+
+    def dump(self):
+        return {
+            'src': self._meta.src._asdict(),
+            'dst': self._meta.dst._asdict(),
+            'num_discrepancies': 1,
+            'missing_in_src': {obj.number: sorted(obj.missing_numbers) for obj in self._missing_in_first},
+            'missing_in_dst': {obj.number: sorted(obj.missing_numbers) for obj in self._missing_in_second}
+        }
+
+    # def dump(self):
+    #     return {
+    #         str(Fields.mappings): self.mappings,
+    #         self._comparison_type: {
+    #             str(Fields.description): self._comparison_description,
+    #             str(Fields.discrepancies_found):
+    #         }
+    #     }
 
 
 missing_data: TypeAlias = MutableSequence[tuple[stages_or_direction_num, MutableSequence[stages_or_direction_num]]]
 
 
-class ComparisonStages(AbstractComparison, ReprMixin):
+class ComparisonDirectionsAndStages(AbstractComparison, ReprMixin):
 
-    def __init__(
-            self,
-            mapping_from_direction_table: stages_or_direction_container,
-            mapping_from_time_programs_table: stages_or_direction_container,
-            num_time_program: int | None = None,
-            compare_immediately: bool = True
-    ):
-        self._missing_directions_in_table_stages: ResultCompare
-        self._missing_directions_in_table_directions: ResultCompare
-        super().__init__(
-            mapping_from_direction_table,
-            mapping_from_time_programs_table,
-            num_time_program,
-            compare_immediately
-        )
+    allowed_src_dst_pairs = comparison_directions_and_stages_data
 
     def compare(self):
         allowed_to_compare = all(isinstance(obj, MutableMapping) for obj in (self._first, self._second))
         if not allowed_to_compare:
             raise TypeError(f'Invalid type attrs "self._first" and "self._second"')
         if allowed_to_compare:
-            self._missing_directions_in_table_stages, self._missing_directions_in_table_directions = compare3(self._first, self._second)
-        print(f'self._missing_directions_in_table_stages: {self._missing_directions_in_table_stages}')
-        print(f'self._missing_directions_in_table_directions: {self._missing_directions_in_table_directions}')
-
-    def _get_missing_direction_string(self, pp, num_direction, stages):
-        pretty_stages = ','.join(
-            str(num) if num not in stages else f'->{num}<-' for num in sorted(self._first[num_direction])
-        )
-        return f'{pp}) Направление={num_direction}, фазы: {pretty_stages}'
-
-    def create_message(self):
-        # if self._missing_directions_in_table_stages:
-        missing_directions_in_table_stages = "\n".join(
-            self._get_missing_direction_string(i, result_compare.direction, result_compare.missing_stages)
-            for i, result_compare in enumerate(self._missing_directions_in_table_stages, 1)
-        )
-        if missing_directions_in_table_stages:
-            missing_directions_in_table_stages = (
-            f'Направления, которые присутствуют в фазах в столбце '
-            f'"{str(ColNamesDirectionsTable.stages)}"({str(TableNames.directions_table)}), '
-            f'но отсутствуют в таблице фаз(Программа {self._name}):\n'
-            f'{missing_directions_in_table_stages}'
-        )
-        self._result_message = Message(missing_directions_in_table_stages)
-        return self._result_message
-
-
-    def get_missing_directions_in_table_stages(self):
-        return self._missing_directions_in_table_stages
-
-    def get_missing_directions_in_table_directions(self):
-        return self._missing_directions_in_table_stages
+            res = compare3(self._first, self._second)
+            self._missing_in_first += res[1]
+            self._missing_in_second += res[0]
+        print(f'self._missing_in_first: {self._missing_in_first}')
+        print(f'self._missing_in_second: {self._missing_in_second}')
 
 
 def compare3(
@@ -705,15 +818,15 @@ def compare3(
             v2 = copy_second.pop(k1) #v2 default = frozenset[int | float]
             has_not_in_second = v1 - v2
             if has_not_in_second:
-                result_has_not_in_second.append(ResultCompare(k1, has_not_in_second))
+                result_has_not_in_second.append(NumbersDiscrepancy(k1, has_not_in_second))
         except KeyError:
             if v1:
-                result_has_not_in_second.append(ResultCompare(k1, v1))
-    stack2 = deque(copy_second)
+                result_has_not_in_second.append(NumbersDiscrepancy(k1, v1))
+    stack2 = deque(copy_second.keys())
     while stack2:
         k2 = stack2.popleft()
         v2 = copy_second.pop(k2)
-        result_has_not_in_first.append(ResultCompare(k2, v2))
+        result_has_not_in_first.append(NumbersDiscrepancy(k2, v2))
     print(f'result_has_not_in_second: {result_has_not_in_second}')
     print(f'result_has_not_in_first: {result_has_not_in_first}')
     return result_has_not_in_second, result_has_not_in_first
@@ -726,29 +839,18 @@ def compare_stages_data_for_directions_and_time_programs(
     directions_to_stage_from_direction_table = mapping_from_direction_table.get_direction_to_stages_mapping()
     for num, stage_data in mapping_from_time_programs_table:
         directions_to_stage_from_stages_table = stage_data.get_direction_to_stages_mapping()
-        yield ComparisonStages(
+        yield ComparisonDirectionsAndStages(
             directions_to_stage_from_direction_table,
             directions_to_stage_from_stages_table,
-            num
         )
 
 
-
-# def compare_stages_data_for_directions_and_time_programs(
-#     mapping_from_direction_table: StagesData,
-#     mapping_from_time_programs_table: Iterable[tuple[int, StagesData]]
-# ):
-#     directions_to_stage_from_direction_table = mapping_from_direction_table.get_direction_to_stages_mapping()
-#     for num, stage_data in mapping_from_time_programs_table:
-#         directions_to_stage_from_stages_table = stage_data.get_direction_to_stages_mapping()
-#         missing_in_table_stages, missing_in_table_directions = compare2(first=directions_to_stage_from_direction_table, second=directions_to_stage_from_stages_table)
-#         print(f'missing_in_table_stages: {missing_in_table_stages}')
-#         print(f'missing_in_table_directions: {missing_in_table_directions}')
-#         yield missing_in_table_stages, missing_in_table_directions
-
-
-
-
+@dataclass(frozen=True, slots=True)
+class DirectionBaseProperties:
+    num: int | float | str
+    type: DirectionTypes
+    stages: str
+    errors: list[dict]
 
 
 if __name__ == '__main__':

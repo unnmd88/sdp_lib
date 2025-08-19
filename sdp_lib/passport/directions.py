@@ -1,17 +1,19 @@
 import itertools
+import json
 import logging
 import pprint
 import re
 import time
 from collections import Counter
+from dataclasses import asdict
 from functools import cached_property
 
 from sdp_lib.passport.base import (
     AbstractTable,
-    Cell,
+    Cell1,
     StageOrDirectionCell,
     get_number_cell_data,
-    get_cell_data, AbstractEntity, Message, StagesData,
+    get_cell_data, AbstractEntity, Message, StagesData, DirectionBaseProperties,
 )
 from sdp_lib.passport.constants import (
     DirectionTypes,
@@ -19,7 +21,7 @@ from sdp_lib.passport.constants import (
     default_values,
     StorageNames,
     TableNames,
-    RowNames
+    RowNames, MessageCategories, Fields
 )
 from sdp_lib.passport.mixins import ReprMixin
 from sdp_lib.passport.text_messages import Text
@@ -30,6 +32,10 @@ from sdp_lib.passport import logging_config
 DEBUG = True
 
 logger = logging.getLogger(__name__)
+
+
+standard_directions = {d for d in DirectionTypes}
+print(standard_directions)
 
 
 class DirectionRow(AbstractEntity):
@@ -63,20 +69,17 @@ class DirectionRow(AbstractEntity):
         self.index = index
         self.number = get_number_cell_data(number, ColNamesDirectionsTable.number)
         if not self.number.is_valid:
-            self._data.err_and_warn.add_errors(Message(Text.get_bad_num(number, ColNamesDirectionsTable.number)))
+            self._data.err_and_warn.add_errors(
+                Message(Text.get_bad_num(number, ColNamesDirectionsTable.number), MessageCategories.validation),
+            )
             self._data.permissions.set_val_for_compare_stages(False)
         self.direction_type = self._get_direction_type(direction_type)
         self.stages = StageOrDirectionCell(stages)
         if not self.stages.is_valid:
-            self._data.err_and_warn.add_errors(Message(Text.get_bad_val(stages, ColNamesDirectionsTable.stages)))
+            self._data.err_and_warn.add_errors(
+                Message(Text.get_bad_val(stages, ColNamesDirectionsTable.stages), MessageCategories.validation)
+            )
             self._data.permissions.set_val_for_compare_stages(False)
-        # if self.stages.doubles:
-        #     self._err_and_warn.add_warnings(
-        #         Message(Text.get_has_doubles('направления', ColNamesDirectionsTable.stages, self.stages.doubles))
-        #     )
-        # if self.direction_type == DirectionTypes.always_red and self.stages.numbers:
-        #     self._err_and_warn.add_errors(Message(Text.always_red_must_be_empty))
-        #     self._actions.set_val_for_compare_stages(False)
         self.traffic_lights = get_cell_data(ColNamesDirectionsTable.traffic_lights, traffic_lights)
         self.t_green_ext = self._get_prom_tact_time(ColNamesDirectionsTable.t_green_ext, t_green_ext)
         self.t_flashing_green = self._get_prom_tact_time(ColNamesDirectionsTable.t_flashing_green, t_flashing_green)
@@ -91,7 +94,7 @@ class DirectionRow(AbstractEntity):
         self.description = get_cell_data(ColNamesDirectionsTable.description, description, '')
         # self._direction_type_is_standard = self.direction_type_is_standard
 
-    def _get_direction_type(self, init_val: str | DirectionTypes) -> Cell:
+    def _get_direction_type(self, init_val: str | DirectionTypes) -> Cell1:
         default_val, is_valid = DirectionTypes.common, True
         if re.findall(self.ALWAYS_RED, init_val):
             val = DirectionTypes.always_red
@@ -101,32 +104,67 @@ class DirectionRow(AbstractEntity):
                 DirectionTypes(init_val)
             except ValueError:
                 is_valid = False
-                self._data.err_and_warn.add_warnings(Message(
-                    f'Задан нестандартный тип направления: {init_val}. '
-                    f'Стандартные типы: {[str(direction) for direction in DirectionTypes]}'
-                ))
+                self._data.err_and_warn.add_warnings(
+                    Message(
+                        f'Задан нестандартный тип направления: {init_val}. '
+                        f'Стандартные типы: {DirectionTypes.get_standard_types()}',
+                        MessageCategories.validation
+                    )
+                )
         else:
             val = default_val
-        return Cell(ColNamesDirectionsTable.direction_type, init_val, default_val, val, is_valid)
+        return Cell1(ColNamesDirectionsTable.direction_type, init_val, default_val, val, is_valid)
 
-    def _get_prom_tact_time(self, col_name: ColNamesDirectionsTable, init_val) -> Cell:
+    def _get_prom_tact_time(self, col_name: ColNamesDirectionsTable, init_val) -> Cell1:
         default_val = default_values.get((self.direction_type, col_name))
         if init_val is None:
             val = default_val
         else:
             val = init_val
-        return Cell(col_name, init_val, default_val, val)
+        return Cell1(col_name, init_val, default_val, val)
 
     @cached_property
     def direction_type_is_standard(self) -> bool:
         try:
-            return bool(DirectionTypes(self.direction_type))
+            return bool(DirectionTypes(self.direction_type.value))
         except ValueError:
             return False
 
     @property
     def allow_compare_stages(self) -> bool:
         return  self._data.allow_compare_stages
+
+    def dump_to_dict(self):
+        return {
+            'number': {
+                'value': self.number.value,
+                'is_valid_num': self.number.is_valid,
+            },
+            'type': {
+                'value': str(self.direction_type.value),
+                'is_standard': self.direction_type_is_standard
+            },
+            'stages': {
+                'string': self.stages.get_stages_or_directions_string_row(),
+                'bad_nums': self.stages.get_bad_nums(),
+                'doubles': self.stages.get_doubles(),
+                'asc_order': self.stages.is_asc_order,
+                'formatted_string': self.stages.get_numbers_as_str(),
+                'is_always_red': self.stages.is_always_red
+            },
+            'traffic_lights': None,
+            't_green_ext': None,
+            't_green_flashing': None,
+            't_yellow': None,
+            't_red': None,
+            't_red_yellow': None,
+            't_z': None,
+            't_zz': None,
+            't_always_red': self.stages.is_always_red,
+            'toov_green': None,
+            'toov_red': None,
+            'errors': self.data.err_and_warn.get_errors_by_categories()
+        }
 
 
 class DirectionsTable(AbstractTable, ReprMixin):
@@ -157,16 +195,26 @@ def display_directions(raw_data: str = None) -> DirectionsTable:
         raw_data = '1\tТранспортное\t1,8,1,9\n2\tТранспортное\t1,2\n3\tТранспортное\t4\n4\tПоворотное\t2,3,4\n5\tТранспортное\t3,6,7,8,9,10\n6\tТранспортное\t5,6,7,10\n7\tТранспортное\t4,5,8,9\n8\tТранспортное\t1,2,3,4\n9\tПешеходное\t2,3\n10\tТранспортное\t1,5,6,7,8,9,10\n11\tПешеходное\t1,2,3,4,5,6,8,9\n12\tТранспортное\t2,3,4,5,6,7,10\n13\tТранспортное\t6,7,10\n14\tТранспортное\t1\n15\tПоворотное\t5,6,7,10\n16\tТранспортное\t5,6,7,8,9,10\n17\tТранспортное\t2,3,4\n18\tТранспортное\t7,10\n19\tТранспортное\t3,4,5,8,9,10\n20\tПешеходное\t3\n21\tТранспортное\t1,2,3,4\n22\tПешеходное\t1,2,3,4,5,8,9\n23\tТранспортное\t6,7\n24\tТранспортное\tПост.краси.\n'.rstrip()
     start_time = time.perf_counter()
     grp = DirectionRow(0, '12s', direction_type='Пост красн.', stages='1,3,4,43')
+    print(grp.data.err_and_warn.get_errors_by_categories())
     logger.debug(grp)
     print('-*-' * 100)
     directions_table = DirectionsTable(raw_data)
     # print(directions_table)
-    pprint.pprint(directions_table.get_all_rows())
+    for k, v in directions_table.get_all_rows().items():
+        print(f'num: {k}, instance: {v}')
+    # for k, v in itertools.chain(directions_table.get_stages_data().get_direction_to_stages_mapping().items(),
+    #                              directions_table.get_stages_data().get_stage_to_direction_mapping().items()):
+    #     print(f'{k:<4}: {v}')
+    for d in directions_table:
+        print(json.dumps(d.dump_to_dict(), indent=4, ensure_ascii=False))
+        if d.number.value == 1:
+            with open('example_direction_as_json.json', 'w', encoding='utf-8') as f:
+                f.write(json.dumps(d.dump_to_dict(), indent=4, ensure_ascii=False))
+
     print(f'Время составило: {time.perf_counter() - start_time}')
-    for k, v in itertools.chain(directions_table.get_stages_data().get_direction_to_stages_mapping().items(),
-                                 directions_table.get_stages_data().get_stage_to_direction_mapping().items()):
-        print(f'{k:<4}: {v}')
+
     return directions_table
+
 
 
 if __name__ == '__main__':
@@ -174,7 +222,7 @@ if __name__ == '__main__':
 
     display_directions(read_file_as_string('directions_example'))
 
-
+    # print(json.dumps(asdict(obj), indent=4, ensure_ascii=False))
 
 
 
