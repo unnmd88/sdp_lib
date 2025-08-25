@@ -112,7 +112,7 @@ def add_record(
     return cnt
 
 
-class Cell1(NamedTuple):
+class Cell(NamedTuple):
     name: ColNamesDirectionsTable | ColNamesTimeProgramsTable | str
     init_val: Any
     default_val: Any
@@ -123,22 +123,22 @@ class Cell1(NamedTuple):
 def get_number_cell_data(
     init_val: str | int | float,
     name: ColNamesTimeProgramsTable | ColNamesDirectionsTable
-) -> Cell1:
+) -> Cell:
     default_val, is_valid = None, True
     val = get_int_or_float(init_val)
     if val is None:
         is_valid = False
         val = init_val
-    return Cell1(name, init_val, default_val, val, is_valid)
+    return Cell(name, init_val, default_val, val, is_valid)
 
 
-def get_cell_data(
+def get_cell(
     name: str,
     init_val: Any,
     default_val=None,
     is_valid: bool = True
-) -> Cell1:
-    return Cell1(name, init_val, default_val, init_val or default_val, is_valid)
+) -> Cell:
+    return Cell(name, init_val, default_val, init_val or default_val, is_valid)
 
 
 def get_pretty_string(data: Iterable[Message]):
@@ -322,7 +322,7 @@ class BaseEntityData:
         return self.permissions.compare_stages
 
 
-class AbstractEntity:
+class AbstractPassportEntity:
     """ Абстрактный класс любой сущности паспорта(Row, Table и т.д.)"""
 
     name: RowNames | TableNames
@@ -343,7 +343,14 @@ class AbstractEntity:
         return bool(self._data.err_and_warn.errors)
 
 
-class AbstractTable(AbstractEntity):
+class AbstractRow(AbstractPassportEntity):
+
+    @abstractmethod
+    def dump_to_dict(self):
+        ...
+
+
+class AbstractTable(AbstractPassportEntity):
     """ Абстрактный базовый класс таблицы паспорта. """
 
     allowed_cnt_row_props: set
@@ -368,6 +375,10 @@ class AbstractTable(AbstractEntity):
 
     def __len__(self):
         return len(self._rows)
+
+    @abstractmethod
+    def dump_to_dict(self):
+        ...
 
     def _build(self):
         self._data.err_and_warn.clear_all()
@@ -491,7 +502,7 @@ class StageOrDirectionCell:
         else:
             raise TypeError(f'{stages_or_directions_string!r} must be a str')
         self._sep = sep
-        self._asc_order = None
+        self._asc_order = False
         self._is_always_red = bool(
             re.findall(self._get_always_red_pattern(always_red_pattern), self._stages_or_directions_f)
         )
@@ -679,13 +690,14 @@ comparison_directions_and_stages_data = {
     }
 
 
-class DataSourceComparison(NamedTuple):
+class SourceComparisonMeta(NamedTuple):
     table_name: TableNames
     cell_name: ColNamesDirectionsTable | ColNamesTimeProgramsTable
-    name: str
+    name: str = None
+    number: int = None
 
 
-def get_comparison_data(src: DataSourceComparison, dst: DataSourceComparison) -> ComparisonExtraData | Iterable[None]:
+def get_comparison_data(src: SourceComparisonMeta, dst: SourceComparisonMeta) -> ComparisonExtraData | Iterable[None]:
     return comparison_directions_and_stages_data.get(
         (src.table_name, src.cell_name, dst.table_name, dst.cell_name), itertools.repeat(None)
     )
@@ -693,7 +705,7 @@ def get_comparison_data(src: DataSourceComparison, dst: DataSourceComparison) ->
 
 class ComparisonMeta(ReprMixin):
 
-    def __init__(self, name, src: DataSourceComparison, dst: DataSourceComparison):
+    def __init__(self, name, src: SourceComparisonMeta, dst: SourceComparisonMeta):
         self.name = name
         self.src = src
         self.dst = dst
@@ -716,7 +728,7 @@ class AbstractComparison:
         #     raise ValueError(f'Pair ({src}, {dst}) not allowed. Use pair from {self.allowed_src_dst_pairs}')
         self._first = first
         self._second = second
-        self._meta = meta or ComparisonMeta()
+        self._meta = meta or ComparisonMeta(None, None, None)
         self._missing_in_first: MutableSequence[NumbersDiscrepancy] = []
         self._missing_in_second: MutableSequence[NumbersDiscrepancy] = []
         if compare_immediately:
@@ -762,14 +774,13 @@ class AbstractComparison:
     #     return self._comparison_description
 
     @property
-    def has_inconsistencies(self) -> bool:
-        return bool(self._missing_in_first) or bool(self._missing_in_second)
+    def has_discrepancy(self) -> bool:
+        return bool(self._missing_in_first or self._missing_in_second)
 
     def dump(self):
         return {
-            'src': self._meta.src._asdict(),
-            'dst': self._meta.dst._asdict(),
-            'num_discrepancies': 1,
+            'src_meta': self._meta.src._asdict(),
+            'dst_meta': self._meta.dst._asdict(),
             'missing_in_src': {obj.number: sorted(obj.missing_numbers) for obj in self._missing_in_first},
             'missing_in_dst': {obj.number: sorted(obj.missing_numbers) for obj in self._missing_in_second}
         }
@@ -796,12 +807,12 @@ class ComparisonDirectionsAndStages(AbstractComparison, ReprMixin):
         if not allowed_to_compare:
             raise TypeError(f'Invalid type attrs "self._first" and "self._second"')
         if allowed_to_compare:
-            res = compare3(self._first, self._second)
+            res = compare4(self._first, self._second)
+            print(res)
             self._missing_in_first += res[1]
             self._missing_in_second += res[0]
         print(f'self._missing_in_first: {self._missing_in_first}')
         print(f'self._missing_in_second: {self._missing_in_second}')
-
 
 def compare3(
     first: stages_or_direction_container,
@@ -809,6 +820,10 @@ def compare3(
 ):
     copy_first = {k: v for k, v in first.items()}
     copy_second = {k: v for k, v in second.items()}
+    print(f'first: {first}')
+    print(f'second: {second}')
+    print(f'copy_first: {copy_first}')
+    print(f'copy_second: {copy_second}')
     result_has_not_in_first, result_has_not_in_second = [], []
     stack1 = deque(copy_first.keys())# Направления из Таблицы направлений
     while stack1:
@@ -823,6 +838,7 @@ def compare3(
             if v1:
                 result_has_not_in_second.append(NumbersDiscrepancy(k1, v1))
     stack2 = deque(copy_second.keys())
+    print(f'copy_second: {copy_second}')
     while stack2:
         k2 = stack2.popleft()
         v2 = copy_second.pop(k2)
@@ -830,6 +846,48 @@ def compare3(
     print(f'result_has_not_in_second: {result_has_not_in_second}')
     print(f'result_has_not_in_first: {result_has_not_in_first}')
     return result_has_not_in_second, result_has_not_in_first
+
+
+def compare4(
+    first: stages_or_direction_container,
+    second: stages_or_direction_container
+):
+    def get_discrepancies(src, dst):
+        discrepancies = []
+        for k, v in src.items():
+            try:
+                missing_nums = v - dst[k]
+                if missing_nums:
+                    discrepancies.append(NumbersDiscrepancy(k, missing_nums))
+            except KeyError:
+                if v:
+                    discrepancies.append(NumbersDiscrepancy(k, v))
+        return discrepancies
+    print(f'result_has_not_in_second: {get_discrepancies(first, second)}')
+    print(f'result_has_not_in_first: {get_discrepancies(second, first)}')
+    return get_discrepancies(first, second), get_discrepancies(second, first)
+    # result_missing_in_first, result_missing_in_second = [], []
+
+    # for k, v in copy_first.items():
+    #     try:
+    #         has_not_in_second = v - copy_second[k]
+    #         if has_not_in_second:
+    #             result_missing_in_second.append(NumbersDiscrepancy(k, has_not_in_second))
+    #     except KeyError:
+    #         if v:
+    #             result_missing_in_second.append(NumbersDiscrepancy(k, v))
+    # for k, v in copy_second.items():
+    #     try:
+    #         has_not_in_first = v - copy_first[k]
+    #         if has_not_in_first:
+    #             result_missing_in_first.append(NumbersDiscrepancy(k, has_not_in_first))
+    #     except KeyError:
+    #         if v:
+    #             result_missing_in_first.append(NumbersDiscrepancy(k, v))
+
+    # print(f'result_has_not_in_second: {result_missing_in_second}')
+    # print(f'result_has_not_in_first: {result_missing_in_first}')
+    # return result_missing_in_second, result_missing_in_first
 
 
 def compare_stages_data_for_directions_and_time_programs(

@@ -10,10 +10,10 @@ from functools import cached_property
 
 from sdp_lib.passport.base import (
     AbstractTable,
-    Cell1,
+    Cell,
     StageOrDirectionCell,
     get_number_cell_data,
-    get_cell_data, AbstractEntity, Message, StagesData, DirectionBaseProperties,
+    get_cell, AbstractPassportEntity, Message, StagesData, DirectionBaseProperties, AbstractRow,
 )
 from sdp_lib.passport.constants import (
     DirectionTypes,
@@ -34,11 +34,11 @@ DEBUG = True
 logger = logging.getLogger(__name__)
 
 
-standard_directions = {d for d in DirectionTypes}
-print(standard_directions)
+# standard_directions = {d for d in DirectionTypes}
+# print(standard_directions)
 
 
-class DirectionRow(AbstractEntity):
+class DirectionRow(AbstractRow):
 
     name = RowNames.direction
 
@@ -80,7 +80,7 @@ class DirectionRow(AbstractEntity):
                 Message(Text.get_bad_val(stages, ColNamesDirectionsTable.stages), MessageCategories.validation)
             )
             self._data.permissions.set_val_for_compare_stages(False)
-        self.traffic_lights = get_cell_data(ColNamesDirectionsTable.traffic_lights, traffic_lights)
+        self.traffic_lights = get_cell(ColNamesDirectionsTable.traffic_lights, traffic_lights)
         self.t_green_ext = self._get_prom_tact_time(ColNamesDirectionsTable.t_green_ext, t_green_ext)
         self.t_flashing_green = self._get_prom_tact_time(ColNamesDirectionsTable.t_flashing_green, t_flashing_green)
         self.t_yellow =  self._get_prom_tact_time(ColNamesDirectionsTable.t_yellow, t_yellow)
@@ -89,12 +89,11 @@ class DirectionRow(AbstractEntity):
         self.t_z =  self._get_prom_tact_time(ColNamesDirectionsTable.t_z, t_z)
         self.t_zz =  self._get_prom_tact_time(ColNamesDirectionsTable.t_zz, t_zz)
         self.always_red = self.stages.is_always_red
-        self.toov_red = get_cell_data(ColNamesDirectionsTable.toov_red, toov_red)
-        self.toov_green= get_cell_data(ColNamesDirectionsTable.toov_green, toov_green)
-        self.description = get_cell_data(ColNamesDirectionsTable.description, description, '')
-        # self._direction_type_is_standard = self.direction_type_is_standard
+        self.toov_red = get_cell(ColNamesDirectionsTable.toov_red, toov_red)
+        self.toov_green= get_cell(ColNamesDirectionsTable.toov_green, toov_green)
+        self.description = get_cell(ColNamesDirectionsTable.description, description, '')
 
-    def _get_direction_type(self, init_val: str | DirectionTypes) -> Cell1:
+    def _get_direction_type(self, init_val: str | DirectionTypes) -> Cell:
         default_val, is_valid = DirectionTypes.common, True
         if re.findall(self.ALWAYS_RED, init_val):
             val = DirectionTypes.always_red
@@ -113,15 +112,15 @@ class DirectionRow(AbstractEntity):
                 )
         else:
             val = default_val
-        return Cell1(ColNamesDirectionsTable.direction_type, init_val, default_val, val, is_valid)
+        return Cell(ColNamesDirectionsTable.direction_type, init_val, default_val, val, is_valid)
 
-    def _get_prom_tact_time(self, col_name: ColNamesDirectionsTable, init_val) -> Cell1:
+    def _get_prom_tact_time(self, col_name: ColNamesDirectionsTable, init_val) -> Cell:
         default_val = default_values.get((self.direction_type, col_name))
         if init_val is None:
             val = default_val
         else:
             val = init_val
-        return Cell1(col_name, init_val, default_val, val)
+        return Cell(col_name, init_val, default_val, val)
 
     @cached_property
     def direction_type_is_standard(self) -> bool:
@@ -136,33 +135,27 @@ class DirectionRow(AbstractEntity):
 
     def dump_to_dict(self):
         return {
-            'number': {
-                'value': self.number.value,
-                'is_valid_num': self.number.is_valid,
+            str(Fields.number): self.number._asdict(),
+            str(Fields.direction): self.direction_type._asdict(),
+            str(Fields.stages): {
+                str(Fields.cell_value): self.stages.get_stages_or_directions_string_row(),
+                str(Fields.bad_nums): self.stages.get_bad_nums(),
+                str(Fields.doubles): self.stages.get_doubles(),
+                str(Fields.asc_order): self.stages.is_asc_order,
+                str(Fields.formatted_string): self.stages.get_numbers_as_str(),
+                str(Fields.is_always_red): self.stages.is_always_red
             },
-            'type': {
-                'value': str(self.direction_type.value),
-                'is_standard': self.direction_type_is_standard
-            },
-            'stages': {
-                'string': self.stages.get_stages_or_directions_string_row(),
-                'bad_nums': self.stages.get_bad_nums(),
-                'doubles': self.stages.get_doubles(),
-                'asc_order': self.stages.is_asc_order,
-                'formatted_string': self.stages.get_numbers_as_str(),
-                'is_always_red': self.stages.is_always_red
-            },
-            'traffic_lights': None,
-            't_green_ext': None,
-            't_green_flashing': None,
-            't_yellow': None,
-            't_red': None,
-            't_red_yellow': None,
-            't_z': None,
-            't_zz': None,
-            't_always_red': self.stages.is_always_red,
-            'toov_green': None,
-            'toov_red': None,
+            str(Fields.traffic_lights): self.traffic_lights._asdict(),
+            str(Fields.t_green_ext): self.t_green_ext._asdict(),
+            str(Fields.t_green_flashing): self.t_flashing_green._asdict(),
+            str(Fields.t_yellow): self.t_yellow._asdict(),
+            str(Fields.t_red): self.t_red._asdict(),
+            str(Fields.t_red_yellow): self.t_red_yellow._asdict(),
+            str(Fields.t_z): self.t_z._asdict(),
+            str(Fields.t_zz): self.t_zz._asdict(),
+            str(Fields.t_always_red): self.stages.is_always_red,
+            str(Fields.toov_green): self.toov_green._asdict(),
+            str(Fields.toov_red): self.toov_red._asdict(),
             'errors': self.data.err_and_warn.get_errors_by_categories()
         }
 
@@ -188,6 +181,11 @@ class DirectionsTable(AbstractTable, ReprMixin):
 
     def get_stages_data(self) -> StagesData:
         return self._stages_data
+
+    def dump_to_dict(self):
+        return {'directions': [r.dump_to_dict() for r in self._rows.values()]}
+
+
 
 
 def display_directions(raw_data: str = None) -> DirectionsTable:

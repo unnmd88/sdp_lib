@@ -3,8 +3,8 @@ import re
 import time
 from collections.abc import MutableMapping
 
-from sdp_lib.passport.base import AbstractTable, Cell1, get_number_cell_data, AbstractEntity, Message, \
-    StageOrDirectionCell
+from sdp_lib.passport.base import AbstractTable, Cell, get_number_cell_data, AbstractPassportEntity, Message, \
+    StageOrDirectionCell, AbstractRow
 from sdp_lib.passport.constants import ColNamesTimeProgramsTable, WEEKDAYS, TableNames, RowNames, ModeNames
 from sdp_lib.passport.mixins import ReprMixin
 
@@ -12,7 +12,7 @@ from sdp_lib.passport.text_messages import Text
 
 
 
-class StageRow(AbstractEntity, ReprMixin):
+class StageRow(AbstractRow, ReprMixin):
 
     name = RowNames.stage
 
@@ -69,7 +69,7 @@ class StageRow(AbstractEntity, ReprMixin):
         return self._data.permissions.compare_stages
 
 
-class HeadDataRow(AbstractEntity, ReprMixin):
+class HeadTimeProgramRow(AbstractPassportEntity, ReprMixin):
 
     name = RowNames.head_time_table
 
@@ -89,7 +89,7 @@ class HeadDataRow(AbstractEntity, ReprMixin):
         except ValueError:
             self._data.err_and_warn.add_errors(Message(f'Номер программы не является числом: {init_val!r}.'))
             val = None
-        return Cell1(ColNamesTimeProgramsTable.number, init_val, default_val, val)
+        return Cell(ColNamesTimeProgramsTable.number, init_val, default_val, val)
 
     def _get_weekdays(self, init_val: str):
         default_val = None
@@ -108,7 +108,7 @@ class HeadDataRow(AbstractEntity, ReprMixin):
                     )
                     break
                 val = init_val
-        return Cell1(ColNamesTimeProgramsTable.number, init_val, default_val, val, is_valid)
+        return Cell(ColNamesTimeProgramsTable.number, init_val, default_val, val, is_valid)
 
     def _extra_init_and_check_data(self):
         pass
@@ -126,7 +126,7 @@ class TimeProgramTable(AbstractTable, ReprMixin):
     def __init__(
             self,
             income_data: str,
-            head_data: HeadDataRow = HeadDataRow(1),
+            head_data: HeadTimeProgramRow = HeadTimeProgramRow(1),
             mode: ModeNames = None
     ):
         super().__init__(income_data)
@@ -173,7 +173,7 @@ def display_time_programs(raw_data: str = None) -> TimeProgramTable:
     # print(grp)
     # print('-*-' * 100)
 
-    time_program_table = TimeProgramTable(raw_data, HeadDataRow(1))
+    time_program_table = TimeProgramTable(raw_data, HeadTimeProgramRow(1))
     tables = TimeProgramTables(time_program_table)
     for t in tables:
         print(f't: {t}')
