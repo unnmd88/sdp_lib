@@ -4,7 +4,7 @@ import logging
 import re
 from abc import abstractmethod
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from functools import cached_property
 from itertools import zip_longest, combinations_with_replacement
 from typing import NamedTuple
@@ -20,7 +20,6 @@ from typing import (
     TypeAlias
 )
 
-from hyperframe.frame import Frame
 
 from sdp_lib.passport.constants import (
     ColNamesDirectionsTable,
@@ -113,7 +112,7 @@ def add_record(
 
 
 class Cell(NamedTuple):
-    name: ColNamesDirectionsTable | ColNamesTimeProgramsTable | str
+    cell_name: ColNamesDirectionsTable | ColNamesTimeProgramsTable | str
     init_val: Any
     default_val: Any
     value: Any
@@ -345,16 +344,34 @@ class AbstractPassportEntity:
 
 class AbstractRow(AbstractPassportEntity):
 
-    @abstractmethod
-    def dump_to_dict(self):
-        ...
+    def __init__(self):
+        super().__init__()
+        self.index: int = None
+        self._cells: Sequence = []
 
+    # @abstractmethod
+    # def dump_to_dict(self):
+    #     ...
+
+    def dump_to_dict(self):
+        chain = itertools.chain(
+            ((str(Fields.index), self.index), ),
+            ((k, v.value) for k, v in asdict(self._cells).items()),
+            ((str(Fields.errors), self.data.err_and_warn.get_errors_by_categories()), )
+
+        )
+        return {k: v for k, v in chain}
+
+    @property
+    def cells(self):
+        return self._cells
 
 class AbstractTable(AbstractPassportEntity):
     """ Абстрактный базовый класс таблицы паспорта. """
 
     allowed_cnt_row_props: set
     row_class: Any
+    key_name: str
 
     def __init__(self, income_data: str):
         super().__init__()
@@ -365,7 +382,7 @@ class AbstractTable(AbstractPassportEntity):
         elif self.name == TableNames.time_program:
             self._stages_data = StagesData(StagesMapping.stage_to_direction)
         else:
-            self._stages_data = None
+            raise ValueError(f'attr cls.name <{self.name}> is not allowed.')
         self._check_raw_data()
         self._rows: MutableMapping[float, Any] = {}
         self._build()
@@ -376,9 +393,16 @@ class AbstractTable(AbstractPassportEntity):
     def __len__(self):
         return len(self._rows)
 
-    @abstractmethod
-    def dump_to_dict(self):
-        ...
+
+    def get_rows_data(self) -> MutableSequence[dict]:
+        return [row.dump_to_dict() for row in self._rows.values()]
+
+    def dump_to_dict(self) -> dict:
+        return {
+            str(Fields.max_stage): self.get_max_stage(),
+            str(Fields.max_direction): self.get_max_direction_num(),
+            str(self.key_name): self.get_rows_data(),
+        }
 
     def _build(self):
         self._data.err_and_warn.clear_all()
@@ -470,6 +494,12 @@ class AbstractTable(AbstractPassportEntity):
     @property
     def allow_compare_stages(self):
         return self._data.allow_compare_stages
+
+    def get_max_direction_num(self) -> float:
+        return self._stages_data.max_direction
+
+    def get_max_stage(self) -> float:
+        return self._stages_data.max_stage
 
 
 class StageOrDirectionCell:
@@ -674,6 +704,9 @@ class NumbersDiscrepancy:
     number: stages_or_direction_num
     missing_numbers: Iterable[stages_or_direction_num]
 
+    def get_sorted_missing_numbers(self, key=None):
+        return sorted(self.missing_numbers, key=key)
+
 
 class ComparisonExtraData(NamedTuple):
     num_type: int
@@ -731,6 +764,7 @@ class AbstractComparison:
         self._meta = meta or ComparisonMeta(None, None, None)
         self._missing_in_first: MutableSequence[NumbersDiscrepancy] = []
         self._missing_in_second: MutableSequence[NumbersDiscrepancy] = []
+        self._comparison_is_done = False
         if compare_immediately:
             self.compare()
 
@@ -753,46 +787,22 @@ class AbstractComparison:
     def get_meta(self) -> ComparisonMeta:
         return self._meta
 
-    # @property
-    # def src(self):
-    #     return self._src
-    #
-    # @property
-    # def dst(self):
-    #     return self._dst
-    #
-    # @property
-    # def name(self):
-    #     return self._name
-    #
-    # @property
-    # def comparison_type(self):
-    #     return self._comparison_type
-    #
-    # @property
-    # def comparison_description(self):
-    #     return self._comparison_description
-
     @property
     def has_discrepancy(self) -> bool:
         return bool(self._missing_in_first or self._missing_in_second)
 
+    def _get_sorted_nums(self, src: MutableSequence[NumbersDiscrepancy]) -> dict[stages_or_direction_num, MutableSequence[stages_or_direction_num]]:
+        return {obj.number: obj.get_sorted_missing_numbers() for obj in src}
+
     def dump(self):
         return {
-            'src_meta': self._meta.src._asdict(),
-            'dst_meta': self._meta.dst._asdict(),
-            'missing_in_src': {obj.number: sorted(obj.missing_numbers) for obj in self._missing_in_first},
-            'missing_in_dst': {obj.number: sorted(obj.missing_numbers) for obj in self._missing_in_second}
+            str(Fields.comparison_is_done): self._comparison_is_done,
+            str(Fields.has_discrepancy): self.has_discrepancy,
+            str(Fields.src_num): self._meta.src.number,
+            str(Fields.dst_num): self._meta.dst.number,
+            str(Fields.missing_in_src): self._get_sorted_nums(self._missing_in_first),
+            str(Fields.missing_in_dst): self._get_sorted_nums(self._missing_in_second)
         }
-
-    # def dump(self):
-    #     return {
-    #         str(Fields.mappings): self.mappings,
-    #         self._comparison_type: {
-    #             str(Fields.description): self._comparison_description,
-    #             str(Fields.discrepancies_found):
-    #         }
-    #     }
 
 
 missing_data: TypeAlias = MutableSequence[tuple[stages_or_direction_num, MutableSequence[stages_or_direction_num]]]
@@ -806,11 +816,8 @@ class ComparisonDirectionsAndStages(AbstractComparison, ReprMixin):
         allowed_to_compare = all(isinstance(obj, MutableMapping) for obj in (self._first, self._second))
         if not allowed_to_compare:
             raise TypeError(f'Invalid type attrs "self._first" and "self._second"')
-        if allowed_to_compare:
-            res = compare4(self._first, self._second)
-            print(res)
-            self._missing_in_first += res[1]
-            self._missing_in_second += res[0]
+        self._missing_in_second, self._missing_in_first = compare4(self._first, self._second)
+        self._comparison_is_done = True
         print(f'self._missing_in_first: {self._missing_in_first}')
         print(f'self._missing_in_second: {self._missing_in_second}')
 
@@ -866,28 +873,6 @@ def compare4(
     print(f'result_has_not_in_second: {get_discrepancies(first, second)}')
     print(f'result_has_not_in_first: {get_discrepancies(second, first)}')
     return get_discrepancies(first, second), get_discrepancies(second, first)
-    # result_missing_in_first, result_missing_in_second = [], []
-
-    # for k, v in copy_first.items():
-    #     try:
-    #         has_not_in_second = v - copy_second[k]
-    #         if has_not_in_second:
-    #             result_missing_in_second.append(NumbersDiscrepancy(k, has_not_in_second))
-    #     except KeyError:
-    #         if v:
-    #             result_missing_in_second.append(NumbersDiscrepancy(k, v))
-    # for k, v in copy_second.items():
-    #     try:
-    #         has_not_in_first = v - copy_first[k]
-    #         if has_not_in_first:
-    #             result_missing_in_first.append(NumbersDiscrepancy(k, has_not_in_first))
-    #     except KeyError:
-    #         if v:
-    #             result_missing_in_first.append(NumbersDiscrepancy(k, v))
-
-    # print(f'result_has_not_in_second: {result_missing_in_second}')
-    # print(f'result_has_not_in_first: {result_missing_in_first}')
-    # return result_missing_in_second, result_missing_in_first
 
 
 def compare_stages_data_for_directions_and_time_programs(

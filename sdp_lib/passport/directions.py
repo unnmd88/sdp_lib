@@ -1,11 +1,8 @@
-import itertools
 import json
 import logging
-import pprint
 import re
 import time
 from collections import Counter
-from dataclasses import asdict
 from functools import cached_property
 
 from sdp_lib.passport.base import (
@@ -13,7 +10,9 @@ from sdp_lib.passport.base import (
     Cell,
     StageOrDirectionCell,
     get_number_cell_data,
-    get_cell, AbstractPassportEntity, Message, StagesData, DirectionBaseProperties, AbstractRow,
+    get_cell,
+    Message,
+    AbstractRow,
 )
 from sdp_lib.passport.constants import (
     DirectionTypes,
@@ -21,7 +20,9 @@ from sdp_lib.passport.constants import (
     default_values,
     StorageNames,
     TableNames,
-    RowNames, MessageCategories, Fields
+    RowNames,
+    MessageCategories,
+    Fields
 )
 from sdp_lib.passport.mixins import ReprMixin
 from sdp_lib.passport.text_messages import Text
@@ -32,10 +33,6 @@ from sdp_lib.passport import logging_config
 DEBUG = True
 
 logger = logging.getLogger(__name__)
-
-
-# standard_directions = {d for d in DirectionTypes}
-# print(standard_directions)
 
 
 class DirectionRow(AbstractRow):
@@ -135,6 +132,7 @@ class DirectionRow(AbstractRow):
 
     def dump_to_dict(self):
         return {
+            str(Fields.index): self.index,
             str(Fields.number): self.number._asdict(),
             str(Fields.direction): self.direction_type._asdict(),
             str(Fields.stages): {
@@ -153,10 +151,11 @@ class DirectionRow(AbstractRow):
             str(Fields.t_red_yellow): self.t_red_yellow._asdict(),
             str(Fields.t_z): self.t_z._asdict(),
             str(Fields.t_zz): self.t_zz._asdict(),
-            str(Fields.t_always_red): self.stages.is_always_red,
+            str(Fields.always_red): self.stages.is_always_red,
             str(Fields.toov_green): self.toov_green._asdict(),
             str(Fields.toov_red): self.toov_red._asdict(),
-            'errors': self.data.err_and_warn.get_errors_by_categories()
+            str(Fields.description): self.description._asdict(),
+            str(Fields.errors): self.data.err_and_warn.get_errors_by_categories()
         }
 
 
@@ -165,27 +164,19 @@ class DirectionsTable(AbstractTable, ReprMixin):
     name = TableNames.directions_table
     allowed_cnt_row_props = {1, 3, 14, 15}
     row_class = DirectionRow
+    key_name = Fields.directions
 
     def __init__(self, income_data: str):
         super().__init__(income_data)
-        self._direction_type_counter = Counter(str(direction.direction_type) for direction in self._rows.values())
-
-    def get_max_direction_num(self) -> float:
-        return self._stages_data.max_direction
-
-    def get_max_stage(self) -> float:
-        return self._stages_data.max_stage
+        self._direction_type_counter = Counter(str(direction.direction_type.value) for direction in self._rows.values())
 
     def get_direction_types_cnt(self):
         return self._direction_type_counter
 
-    def get_stages_data(self) -> StagesData:
-        return self._stages_data
-
-    def dump_to_dict(self):
-        return {'directions': [r.dump_to_dict() for r in self._rows.values()]}
-
-
+    def dump_to_dict(self) -> dict:
+        return super().dump_to_dict() | {
+            str(Fields.directions_by_type): {k: v for k, v in self._direction_type_counter.items()}
+        }
 
 
 def display_directions(raw_data: str = None) -> DirectionsTable:
@@ -204,10 +195,10 @@ def display_directions(raw_data: str = None) -> DirectionsTable:
     #                              directions_table.get_stages_data().get_stage_to_direction_mapping().items()):
     #     print(f'{k:<4}: {v}')
     for d in directions_table:
-        print(json.dumps(d.dump_to_dict(), indent=4, ensure_ascii=False))
+        print(json.dumps(d.as_dict(), indent=4, ensure_ascii=False))
         if d.number.value == 1:
             with open('example_direction_as_json.json', 'w', encoding='utf-8') as f:
-                f.write(json.dumps(d.dump_to_dict(), indent=4, ensure_ascii=False))
+                f.write(json.dumps(d.as_dict(), indent=4, ensure_ascii=False))
 
     print(f'Время составило: {time.perf_counter() - start_time}')
 

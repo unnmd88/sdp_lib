@@ -1,6 +1,7 @@
 import functools
 import inspect
 import ipaddress
+import json
 import random
 import re
 import time
@@ -125,6 +126,17 @@ def get_arg_names(func: Callable):
 def stages_as_string(stages: Iterable[str | int | float], sep=',') -> str:
     return sep.join(str(n) for n in sorted(stages))
 
+def sorting_storage(storage: Iterable):
+    return sorted(storage)
+
+def get_as_json(data: dict, filename: str = None):
+    data = json.dumps(data, ensure_ascii=False, indent=4)
+    if isinstance(filename, str):
+        filename =  filename if filename.endswith('.json') else f'{filename}.json'
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write(data)
+    else:
+        print(data)
 
 if __name__ == '__main__':
 

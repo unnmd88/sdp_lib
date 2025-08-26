@@ -1,18 +1,34 @@
 import json
-import pprint
 import time
-from collections.abc import MutableSequence, Sequence, MutableMapping, Iterable
-from dataclasses import dataclass, asdict
+from collections.abc import (
+    MutableSequence,
+    Sequence
+)
+from dataclasses import (
+    dataclass,
+    asdict
+)
 from functools import cached_property
 from typing import Any
 
-from sdp_lib.passport.base import StagesData, compare, compare_stages_data_for_directions_and_time_programs, \
-    ComparisonDirectionsAndStages, DirectionBaseProperties, SourceComparisonMeta, ComparisonMeta
-from sdp_lib.passport.constants import DirectionTypes, Fields, TableNames, \
-    ColNamesDirectionsTable, ColNamesTimeProgramsTable, ComparisonDescriptions
+from sdp_lib.passport.base import (
+    ComparisonDirectionsAndStages,
+    SourceComparisonMeta,
+    ComparisonMeta
+)
+from sdp_lib.passport.constants import (
+    Fields,
+    TableNames,
+    ColNamesDirectionsTable,
+    ColNamesTimeProgramsTable,
+    ComparisonDescriptions
+)
 from sdp_lib.passport.directions import DirectionsTable
-from sdp_lib.passport.time_programms import TimeProgramTable, HeadTimeProgramRow
-from sdp_lib.utils_common.utils_common import read_file_as_string, stages_as_string, write_data_to_file
+from sdp_lib.passport.time_programms import (
+    TimeProgramTable,
+    HeadTimeProgramRow
+)
+from sdp_lib.utils_common.utils_common import read_file_as_string, get_as_json
 
 
 @dataclass
@@ -26,15 +42,17 @@ class ComparisonResults:
     dst_meta: dict
     comparison_results: Sequence[dict]
 
-    @cached_property
-    def as_dict(self):
-        return asdict(self)
 
-    @cached_property
-    def as_json(self):
-        return json.dumps(asdict(self), indent=4, ensure_ascii=False)
+@dataclass(frozen=True, slots=True)
+class PassportData:
+    numCO: str
+    address: str
+    direction_table: DirectionsTable
+    time_program_tables: Sequence[TimeProgramTable]
+
 
 class Passport:
+
     def __init__(
             self,
             *,
@@ -47,7 +65,7 @@ class Passport:
         self._address = address
         self._directions_table = directions_table
         self._time_program_tables = time_program_tables_data
-
+        self._state = {}
 
     def __repr__(self):
         return (
@@ -110,18 +128,6 @@ class Passport:
         return next(self.compare_direction_table_and_time_programs(range(0, 1)))
 
     def result_compare_direction_table_and_time_programs(self) -> ComparisonResults:
-        results = []
-        for num_program, comp_res in self.compare_direction_table_and_time_programs():
-            curr = {
-                str(Fields.has_discrepancy): comp_res.has_discrepancy,
-                # str(Fields.time_program): num_program,
-                'src_num': comp_res.get_meta().src.number,
-                'dst_num': comp_res.get_meta().dst.number,
-                str(Fields.missing_in_src): {obj.number: sorted(obj.missing_numbers) for obj in comp_res.get_missing_in_first()},
-                str(Fields.missing_in_dst): {obj.number: sorted(obj.missing_numbers) for obj in comp_res.get_missing_in_second()}
-            }
-            results.append(curr)
-
         return ComparisonResults(
             str(ComparisonDescriptions.directions_table_to_time_table),
             'Направление',
@@ -136,9 +142,8 @@ class Passport:
                 str(Fields.table_name): str(TableNames.time_program),
                 str(Fields.cell_name): str(ColNamesTimeProgramsTable.directions)
             },
-            results
+            [obj.dump() for _, obj in self.compare_direction_table_and_time_programs()]
         )
-
         # return {
         #     str(Fields.description): "Сравнение направлений и фаз из Таблицы направлений с временной программой",
         #     str(Fields.missing_keys): "Направления",
@@ -154,49 +159,36 @@ class Passport:
         #     str(Fields.comparison_results): results
         # }
 
-    def dump_to_dict(self):
+    @cached_property
+    def as_dict(self) -> dict[str, Any]:
         return {
-            'numCO': self._name,
-            'address': self._address,
-            'direction_table': self._directions_table.dump_to_dict(),
-            'time_program_tables': [],
-            'services':
-                {
-                    'comparisons': {
-                        'mappings': {
-                            '1': str(ComparisonDescriptions.directions_table_to_time_table),
-                            '2': None,
-                            '3': None
-                        },
-                        "1": self.result_compare_direction_table_and_time_programs().as_dict
-                    }
-                }
+            str(Fields.numCO): self._name,
+            str(Fields.address): self._address,
+            str(Fields.direction_table):
+                self._directions_table.dump_to_dict() if self._directions_table is not None else None,
+            str(Fields.time_program_tables):
+                {obj.get_number(): obj.dump_to_dict() for obj in self._time_program_tables}
         }
-
 
 if __name__ == '__main__':
     start_time = time.perf_counter()
-    directions_table = DirectionsTable(read_file_as_string('_mock_data/directions_example1').rstrip())
+    d_directions_table = DirectionsTable(read_file_as_string('_mock_data/directions_example1').rstrip())
     time_program_table1 = TimeProgramTable(read_file_as_string('_mock_data/time_program_example1').rstrip(), HeadTimeProgramRow(1))
     time_program_table2 = TimeProgramTable(read_file_as_string('_mock_data/time_program_example2').rstrip(), HeadTimeProgramRow(2))
     passport = Passport(
-        directions_table=directions_table,
+        directions_table=d_directions_table,
         time_program_tables_data=[time_program_table1, time_program_table2],
     )
 
     try:
         print(passport.result_compare_direction_table_and_time_programs())
-        # print(passport.result_compare_direction_table_and_time_programs().as_json)
-        with open('compare_result.json', 'w', encoding='utf-8') as f:
-            f.write(passport.result_compare_direction_table_and_time_programs().as_json)
+        get_as_json(asdict(passport.result_compare_direction_table_and_time_programs()), 'compare_result.json')
     except ValueError:
         pass
 
-    with open('directions_table.json', 'w', encoding='utf-8') as f:
-        f.write(json.dumps(passport.get_directions_table().dump_to_dict(), ensure_ascii=False, indent=4))
+    get_as_json(passport.get_directions_table().dump_to_dict (), 'directions_table.json')
+    get_as_json(passport.as_dict, 'passport_example')
 
-    with open('passport_example.json', 'w', encoding='utf-8') as f:
-        f.write(json.dumps(passport.dump_to_dict(), ensure_ascii=False, indent=4))
 
     print(f'Время составило: {time.perf_counter() - start_time}')
 

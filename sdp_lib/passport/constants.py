@@ -1,13 +1,7 @@
-import pprint
 from enum import (
-    Enum,
     StrEnum,
     IntEnum,
-    auto,
-
 )
-from itertools import zip_longest, combinations_with_replacement
-from typing import NamedTuple
 
 
 class MessageLevels(StrEnum):
@@ -100,7 +94,13 @@ class ColNamesTimeProgramsTable(StrEnum):
     t_osn = 'Тосн'
     t_sdvig = 'Тсдвиг'
     t_min = 'Тмин'
+    t_max1 = 'Тмакс1'
+    t_max2 = 'Тмакс2'
     stage_type = 'Тип фазы'
+
+    req_condition = 'req_condition'
+    ext_condition = 'ext_condition'
+    term_condition = 'term_condition'
 
 
 class ModeNames(StrEnum):
@@ -115,11 +115,6 @@ class StageTypes(StrEnum):
     calling = 'Вызывная фаза'
 
 
-# class AllowedComparisonCells(StrEnum):
-#     table_directions_cell_stages = f'{TableNames.directions_table}, ячейка {ColNamesDirectionsTable.stages}'
-#     table_time_program_cell_directions = f'{TableNames.time_program}, ячейка {ColNamesTimeProgramsTable.directions}'
-
-
 class ComparisonDescriptions(StrEnum):
     directions_table_to_time_table = 'Сравнение направлений и фаз из Таблицы направлений с временной программой'
     two_directions_table = 'Сравнение двух таблиц направлений'
@@ -128,8 +123,13 @@ class ComparisonDescriptions(StrEnum):
 
 class Fields(StrEnum):
     number = 'number'
+    numCO = 'numCO'
+    address = 'address'
+    direction_table = 'direction_table'
+    time_program_tables = 'time_program_tables'
     is_valid = 'is_valid'
     direction = 'direction'
+    directions= 'directions'
     stages = 'stages'
     is_standard = 'is_standard'
     cell_value = 'cell_value'
@@ -150,9 +150,16 @@ class Fields(StrEnum):
     # values_in_missing_container = 'values_in_missing_container'
     # src_meta = 'src_meta'
     # dst_meta = 'dst_meta'
+    max_stage = 'max_stage'
+    max_direction = 'max_direction'
+    directions_by_type = 'directions_by_type'
     table_name = 'table_name'
     cell_name = 'cell_name'
     comparison_results = 'comparison_results'
+    comparison_is_done = 'comparison_is_done'
+    index = 'index'
+    src_num = 'src_num'
+    dst_num = 'dst_num'
     bad_nums =  'bad_nums'
     doubles =  'doubles'
     asc_order =  'asc_order'
@@ -167,10 +174,22 @@ class Fields(StrEnum):
     t_red_yellow = 't_red_yellow'
     t_z = 't_z'
     t_zz = 't_zz'
-    t_always_red = 't_always_red'
+    always_red = 't_always_red'
     toov_green = 'toov_green'
     toov_red = 'toov_red'
 
+    num_pp = 'num_pp'
+    weekdays = 'weekdays'
+    t_osn = 't_osn'
+    t_sdvig = 't_sdvi'
+    t_min_ft = 't_min_ft'
+    stage_type = 'stage_type'
+    t_min_va = 't_min_va'
+    t_max1_va = 't_max1_va'
+    t_max2_va = 't_max2_va'
+    req_condition = 'req_condition'
+    ext_condition = 'ext_condition'
+    term_condition = 'term_condition'
 
 
 WEEKDAYS = {k: None for k in 'пн,вт,ср,чт,пт,сб,вс'.split(',')}

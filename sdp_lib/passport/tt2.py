@@ -20,6 +20,7 @@ doc = Document('СО_2426_Путилковское_шоссе,Нерис_Сал�
 print(doc.tables)
 print(doc.tables[0].table_direction)
 
+
 def find_directions_table(row):
     j = repr("|".join(c.text for c in row.cells))
     print([c.text for c in row.cells])
