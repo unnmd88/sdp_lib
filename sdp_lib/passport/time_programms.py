@@ -5,16 +5,18 @@ import re
 import time
 from collections.abc import MutableMapping
 from dataclasses import dataclass, asdict
+from functools import cached_property
+from typing import MutableSequence
 
 from sdp_lib.passport.base import (
     AbstractTableWithStages,
     Cell,
-    get_number_cell_data,
+    get_cell_with_value_as_number_,
 
     Message,
     StageOrDirectionCell,
     AbstractRow,
-    get_cell
+    get_cell, TableRow
 )
 from sdp_lib.passport.constants import (
     ColNamesTimeProgramsTable,
@@ -29,14 +31,14 @@ from sdp_lib.passport.mixins import ReprMixin
 
 from sdp_lib.passport.text_messages import Text
 from sdp_lib.passport import logging_config
-from sdp_lib.utils_common.utils_common import read_file_as_string, get_as_json
+from sdp_lib.utils_common.utils_common import read_file_as_string, to_json, timed
 
 DEBUG = True
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class StageRowCells:
     num_pp: Cell
     number: Cell
@@ -52,107 +54,6 @@ class StageRowCells:
     req_condition: Cell
     ext_condition: Cell
     term_condition: Cell
-
-
-
-# class StageRow(AbstractRow, ReprMixin):
-#
-#     name = RowNames.stage
-#
-#     REST_STAGE = re.compile(r'покоя|крас|-', re.IGNORECASE)
-#
-#     def __init__(
-#             self,
-#             index: int,
-#             num_pp: int | str,
-#             num_stage: int | str,
-#             directions: str,
-#             weekdays: str = '',
-#             t_osn: str = '',
-#             t_sdvig: str = '',
-#             t_min_ft: str = '',
-#             stage_type: str = '',
-#             t_min_va: str = '',
-#             t_max1_va: str = '',
-#             t_max2_va: str = '',
-#             req_condition: str = '',
-#             ext_condition: str = '',
-#             term_condition: str = ''
-#
-#     ):
-#         super().__init__()
-#         self.index = index
-#         self._cells = StageRowCells(
-#             get_number_cell_data(num_pp, ColNamesTimeProgramsTable.num_pp),
-#             get_number_cell_data(num_stage, ColNamesTimeProgramsTable.num_stage),
-#             StageOrDirectionCell(directions),
-#             get_cell(ColNamesTimeProgramsTable.weekdays, weekdays),
-#             get_cell(ColNamesTimeProgramsTable.t_osn, t_osn),
-#             get_cell(ColNamesTimeProgramsTable.t_sdvig, t_sdvig),
-#             get_cell(ColNamesTimeProgramsTable.t_min, t_min_ft),
-#             get_cell(ColNamesTimeProgramsTable.stage_type, stage_type),
-#             get_cell(ColNamesTimeProgramsTable.t_min, t_min_va),
-#             get_cell(ColNamesTimeProgramsTable.t_max1, t_max1_va),
-#             get_cell(ColNamesTimeProgramsTable.t_max2, t_max2_va),
-#             get_cell(ColNamesTimeProgramsTable.req_condition, req_condition),
-#             get_cell(ColNamesTimeProgramsTable.ext_condition, ext_condition),
-#             get_cell(ColNamesTimeProgramsTable.term_condition, term_condition),
-#         )
-#
-#         self.num_pp = get_number_cell_data(num_pp, ColNamesTimeProgramsTable.num_pp)
-#         if not self.num_pp.is_valid:
-#             self._data.add_warnings(Message(Text.bad_num_pp, MessageCategories.validation))
-#         self.number = get_number_cell_data(num_stage, ColNamesTimeProgramsTable.num_stage)
-#         if not self.number.is_valid:
-#             self._data.add_errors(Message(Text.get_bad_num(num_stage, ColNamesTimeProgramsTable.num_stage), MessageCategories.validation))
-#             self._data.permissions.set_val_for_compare_stages(False)
-#         self.directions = StageOrDirectionCell(directions)
-#         if not self.directions.is_valid:
-#             self._data.err_and_warn.add_errors(Message(Text.get_bad_val(directions, ColNamesTimeProgramsTable.directions), MessageCategories.validation))
-#             self._data.permissions.set_val_for_compare_stages(False)
-#         self.weekdays = get_cell(ColNamesTimeProgramsTable.weekdays, weekdays)
-#         self.t_osn = get_cell(ColNamesTimeProgramsTable.weekdays, t_osn)
-#         self.t_sdvig = get_cell(ColNamesTimeProgramsTable.weekdays, t_sdvig)
-#         self.t_min_ft = get_cell(ColNamesTimeProgramsTable.weekdays, t_min_ft)
-#         self.stage_type = get_cell(ColNamesTimeProgramsTable.weekdays, stage_type)
-#         self.t_min_va = get_cell(ColNamesTimeProgramsTable.weekdays, t_min_va)
-#         self.t_max1_va = get_cell(ColNamesTimeProgramsTable.weekdays, t_max1_va)
-#         self.t_max2_va = get_cell(ColNamesTimeProgramsTable.weekdays, t_max2_va)
-#         self.req_condition = get_cell(ColNamesTimeProgramsTable.weekdays, req_condition)
-#         self.ext_condition = get_cell(ColNamesTimeProgramsTable.weekdays, ext_condition)
-#         self.term_condition = get_cell(ColNamesTimeProgramsTable.weekdays, term_condition)
-#
-#
-#
-#     @property
-#     def allow_compare_stages(self) -> bool:
-#         return self._data.permissions.compare_stages
-#
-#     def dump_to_dict(self):
-#         return {
-#             str(Fields.index): self.index,
-#             str(Fields.num_pp): self.num_pp._asdict(),
-#             str(Fields.number): self.number._asdict(),
-#             str(Fields.directions): {
-#                 str(Fields.cell_value): self.directions.get_stages_or_directions_string_row(),
-#                 str(Fields.bad_nums): self.directions.get_bad_nums(),
-#                 str(Fields.doubles): self.directions.get_doubles(),
-#                 str(Fields.asc_order): self.directions.is_asc_order,
-#                 str(Fields.formatted_string): self.directions.get_numbers_as_str(),
-#                 str(Fields.is_always_red): self.directions.is_always_red
-#             },
-#             str(Fields.weekdays): self.weekdays._asdict(),
-#             str(Fields.t_osn): self.t_osn._asdict(),
-#             str(Fields.t_min_ft): self.t_min_va._asdict(),
-#             str(Fields.stage_type): self.stage_type._asdict(),
-#             str(Fields.t_min_va): self.t_max1_va._asdict(),
-#             str(Fields.t_max1_va): self.t_max1_va._asdict(),
-#             str(Fields.t_max2_va): self.t_max2_va._asdict(),
-#             str(Fields.req_condition): self.req_condition._asdict(),
-#             str(Fields.ext_condition): self.ext_condition._asdict(),
-#             str(Fields.term_condition): self.term_condition._asdict(),
-#             str(Fields.errors): self.data.err_and_warn.get_errors_by_categories()
-#         }
 
 
 class StageRow(AbstractRow, ReprMixin):
@@ -182,8 +83,8 @@ class StageRow(AbstractRow, ReprMixin):
     ):
         super().__init__(index)
         self._cells = StageRowCells(
-            get_number_cell_data(num_pp, ColNamesTimeProgramsTable.num_pp),
-            get_number_cell_data(num_stage, ColNamesTimeProgramsTable.num_stage),
+            get_cell_with_value_as_number_(num_pp, ColNamesTimeProgramsTable.num_pp),
+            get_cell_with_value_as_number_(num_stage, ColNamesTimeProgramsTable.num_stage),
             StageOrDirectionCell(directions),
             get_cell(ColNamesTimeProgramsTable.weekdays, weekdays),
             get_cell(ColNamesTimeProgramsTable.t_osn, t_osn),
@@ -205,33 +106,6 @@ class StageRow(AbstractRow, ReprMixin):
         if not self._cells.directions.is_valid:
             self._extra_data.err_and_warn.add_errors(Message(Text.get_bad_val(directions, ColNamesTimeProgramsTable.directions), MessageCategories.validation))
             self._extra_data.permissions.set_val_for_compare_stages(False)
-
-
-    # def dump_to_dict(self):
-    #     return {
-    #         str(Fields.index): self.index,
-    #         str(Fields.num_pp): self.num_pp._asdict(),
-    #         str(Fields.number): self.number._asdict(),
-    #         str(Fields.directions): {
-    #             str(Fields.cell_value): self.directions.get_stages_or_directions_string_row(),
-    #             str(Fields.bad_nums): self.directions.get_bad_nums(),
-    #             str(Fields.doubles): self.directions.get_doubles(),
-    #             str(Fields.asc_order): self.directions.is_asc_order,
-    #             str(Fields.formatted_string): self.directions.get_numbers_as_str(),
-    #             str(Fields.is_always_red): self.directions.is_always_red
-    #         },
-    #         str(Fields.weekdays): self.weekdays._asdict(),
-    #         str(Fields.t_osn): self.t_osn._asdict(),
-    #         str(Fields.t_min_ft): self.t_min_va._asdict(),
-    #         str(Fields.stage_type): self.stage_type._asdict(),
-    #         str(Fields.t_min_va): self.t_max1_va._asdict(),
-    #         str(Fields.t_max1_va): self.t_max1_va._asdict(),
-    #         str(Fields.t_max2_va): self.t_max2_va._asdict(),
-    #         str(Fields.req_condition): self.req_condition._asdict(),
-    #         str(Fields.ext_condition): self.ext_condition._asdict(),
-    #         str(Fields.term_condition): self.term_condition._asdict(),
-    #         str(Fields.errors): self.data.err_and_warn.get_errors_by_categories()
-    #     }
 
 
 class HeadTimeProgramRow(AbstractRow, ReprMixin):
@@ -303,20 +177,19 @@ class TimeProgramTable(AbstractTableWithStages, ReprMixin):
         return self._head_data.get_table_number()
 
 
-
+@timed
 def display_time_programs(raw_data: str = None):
     if raw_data is None:
         data_as_string = read_file_as_string('_mock_data/time_program_example1')
     else:
         data_as_string = raw_data
 
-    start_time = time.perf_counter()
-    time_program_table = TimeProgramTable(data_as_string, HeadTimeProgramRow(1))
+    tp_table = TimeProgramTable(data_as_string, HeadTimeProgramRow(1))
 
-    print(time_program_table.dump_to_dict())
-    print(get_as_json(time_program_table.dump_to_dict()))
+    print(tp_table.dump_to_dict())
+    print(to_json(tp_table.dump_to_dict()))
 
-    return time_program_table
+    return tp_table
 
 
 
@@ -324,8 +197,5 @@ if __name__ == '__main__':
     r = re.compile('\d{2}:\d{2}:\d{2}-\d{2}:\d{2}:\d{2}')
     print(re.findall(r, '07:00:00-11:00:00'))
     row1 = StageRow(0,'1', '1', '1,2,4,5')
-    get_as_json(row1.dump_to_dict())
-
     display_time_programs()
 
-    # display_time_programs(_data2)

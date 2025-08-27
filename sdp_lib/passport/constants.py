@@ -122,6 +122,7 @@ class ComparisonDescriptions(StrEnum):
 
 
 class Fields(StrEnum):
+    income_data = 'income_data'
     number = 'number'
     numCO = 'numCO'
     address = 'address'
@@ -130,6 +131,7 @@ class Fields(StrEnum):
     is_valid = 'is_valid'
     direction = 'direction'
     directions= 'directions'
+    direction_type_is_standard = 'direction_type_is_standard'
     stages = 'stages'
     is_standard = 'is_standard'
     cell_value = 'cell_value'

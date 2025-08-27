@@ -16,10 +16,10 @@ T = TypeVar('T')
 def timed(func: Callable):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        start_time = time.time()
-        print(f'func__name: {func.__name__}')
+        start_time = time.perf_counter()
+        print(f'func: {func.__name__}')
         func(*args, **kwargs)
-        print(f'Время работы: {time.time() - start_time}')
+        print(f'Время работы: {time.perf_counter() - start_time}')
         return func
     return wrapper
 
@@ -111,9 +111,16 @@ def remove_chars(string, *args: str) -> str:
             pattern += char
     return re.sub('[' + pattern + spaces + ']', '', string)
 
-def read_file_as_string(filepath) -> str:
+def read_file_as_string(filepath, rstrip=True, lstrip=True) -> str:
     with open(filepath, encoding='utf-8') as f:
-        return ''.join(line for line in f)
+        string = ''.join(line for line in f)
+        if rstrip and lstrip:
+            string = string.lstrip().rstrip()
+        elif rstrip:
+            string = string.rstrip()
+        elif lstrip:
+            string = string.lstrip()
+        return string
 
 def get_arg_names(func: Callable):
     @functools.wraps(func)
@@ -129,14 +136,13 @@ def stages_as_string(stages: Iterable[str | int | float], sep=',') -> str:
 def sorting_storage(storage: Iterable):
     return sorted(storage)
 
-def get_as_json(data: dict, filename: str = None):
+def to_json(data: dict, file: str = None):
     data = json.dumps(data, ensure_ascii=False, indent=4)
-    if isinstance(filename, str):
-        filename =  filename if filename.endswith('.json') else f'{filename}.json'
-        with open(filename, 'w', encoding='utf-8') as f:
+    if isinstance(file, str):
+        file =  file if file.endswith('.json') else f'{file}.json'
+        with open(file, 'w', encoding='utf-8') as f:
             f.write(data)
-    else:
-        print(data)
+    return data
 
 if __name__ == '__main__':
 

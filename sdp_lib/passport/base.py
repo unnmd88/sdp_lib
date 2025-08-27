@@ -28,7 +28,7 @@ from sdp_lib.passport.constants import (
     StagesMapping,
     TableNames,
     DirectionTypes,
-    RowNames, MessageLevels, MessageCategories, Fields, categories_descriptions, ComparisonDescriptions
+    RowNames, MessageLevels, MessageCategories, Fields, categories_descriptions, ComparisonDescriptions, default_values
 )
 from sdp_lib.passport.mixins import ReprMixin, EntityNameMixin
 from sdp_lib.passport.text_messages import Text
@@ -119,7 +119,16 @@ class Cell(NamedTuple):
     is_valid: bool = True
 
 
-def get_number_cell_data(
+def get_cell(
+    name: str,
+    init_val: Any,
+    default_val=None,
+    is_valid: bool = True
+) -> Cell:
+    return Cell(name, init_val, default_val, init_val or default_val, is_valid)
+
+
+def get_cell_with_value_as_number_(
     init_val: str | int | float,
     name: ColNamesTimeProgramsTable | ColNamesDirectionsTable
 ) -> Cell:
@@ -131,13 +140,13 @@ def get_number_cell_data(
     return Cell(name, init_val, default_val, val, is_valid)
 
 
-def get_cell(
-    name: str,
-    init_val: Any,
-    default_val=None,
-    is_valid: bool = True
-) -> Cell:
-    return Cell(name, init_val, default_val, init_val or default_val, is_valid)
+def get_cell_with_value_as_prom_tact_time(direction_type: DirectionTypes, col_name: ColNamesDirectionsTable, init_val) -> Cell:
+    default_val = default_values.get((direction_type, col_name))
+    if init_val is None:
+        val = default_val
+    else:
+        val = init_val
+    return Cell(col_name, init_val, default_val, val)
 
 
 def get_pretty_string(data: Iterable[Message]):
@@ -379,15 +388,21 @@ class AbstractRow(EntityNameMixin):
     def __len__(self):
         return len(self._cells)
 
+    def __eq__(self, other):
+        return self._cells == other
+
     def dump_to_dict(self):
         instance = self._cells
         chain = itertools.chain(
             ((str(Fields.index), self.index), ),
             ((field_name.name, getattr(instance, field_name.name).value) for field_name in fields(instance)),
             ((str(Fields.errors), self._extra_data.err_and_warn.get_errors_by_categories()),)
-
         )
         return {k: v for k, v in chain}
+
+    @cached_property
+    def extra_data(self) -> BaseEntityData:
+        return self._extra_data
 
     @property
     def has_errors(self) -> bool:
@@ -429,26 +444,46 @@ class AbstractTableWithStages(EntityNameMixin):
             self._stages_data = None
             raise ValueError(f'attr cls.name <{self.name}> is not allowed.')
         self._check_raw_data()
-        # self._rows: MutableMapping[float, Any] = {}
         self._rows: MutableSequence[TableRow] = []
         self._build()
 
-    def iter_rows(self) -> Generator[TableRow, Any, None]:
+    def __iter__(self):
         return (row for row in self._rows)
 
+    def __getitem__(self, item):
+        return self._rows[item]
+        # return self._rows[item]
+
+    def __eq__(self, other):
+        return self._income_data == other
+
+    def iter_rows(self) -> Generator[TableRow, Any, None]:
+        """ Возвращает итератор по всем строкам таблицы. """
+        return iter(self)
+
     def get_rows_data(self) -> MutableSequence[dict]:
+        """
+        Возвращает список из словарей, где каждый словарь - данные ячеек строки таблицы.
+        Key в словаре - имя ячейки, а value - данные.
+        """
         return [row.dump_to_dict() for row in self._rows]
 
     def dump_to_dict(self) -> dict:
+        """ Возвращает словарь с данными всех таблицы. """
         return {
+            str(Fields.income_data): {
+                str(Fields.is_valid): self.income_data_is_valid,
+                str(Fields.errors): self._income_data_errors.get_errors_by_categories(),
+            },
             str(Fields.max_stage): self.get_max_stage(),
             str(Fields.max_direction): self.get_max_direction_num(),
             str(self.key_name): self.get_rows_data(),
         }
 
     def _build(self):
+        """ Строит таблицу на основе self._income_data. """
         self._extra_data.err_and_warn.clear_all()
-        rows = self._income_data.rstrip().split('\n')
+        rows = self._income_data.lstrip().rstrip().split('\n')
         if len(rows) <= 1:
             self._extra_data.err_and_warn.add_errors(Message(Text.income_table_text_rule, MessageCategories.validation))
             return
@@ -484,7 +519,7 @@ class AbstractTableWithStages(EntityNameMixin):
         """
         if len(self._income_data) < 4:
             self._income_data_errors.add_errors(
-                Message(f'Некорректные данные для обработки и формирования таблицы {self.name}', MessageCategories.validation)
+                Message(f'Некорректные входные данные для обработки и формирования таблицы <{self.name}>', MessageCategories.validation)
             )
         return self.income_data_is_valid
 

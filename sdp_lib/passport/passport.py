@@ -28,7 +28,7 @@ from sdp_lib.passport.time_programms import (
     TimeProgramTable,
     HeadTimeProgramRow
 )
-from sdp_lib.utils_common.utils_common import read_file_as_string, get_as_json
+from sdp_lib.utils_common.utils_common import read_file_as_string, to_json, timed
 
 
 @dataclass
@@ -170,27 +170,29 @@ class Passport:
                 {obj.get_number(): obj.dump_to_dict() for obj in self._time_program_tables}
         }
 
-if __name__ == '__main__':
-    start_time = time.perf_counter()
-    d_directions_table = DirectionsTable(read_file_as_string('_mock_data/directions_example1').rstrip())
-    time_program_table1 = TimeProgramTable(read_file_as_string('_mock_data/time_program_example1').rstrip(), HeadTimeProgramRow(1))
-    time_program_table2 = TimeProgramTable(read_file_as_string('_mock_data/time_program_example2').rstrip(), HeadTimeProgramRow(2))
-    passport = Passport(
-        directions_table=d_directions_table,
-        time_program_tables_data=[time_program_table1, time_program_table2],
-    )
+@timed
+def display():
+    dt = DirectionsTable(read_file_as_string('_mock_data/directions_example1'))
+    tp1 = TimeProgramTable(read_file_as_string('_mock_data/time_program_example1'), HeadTimeProgramRow(1))
+    tp2 = TimeProgramTable(read_file_as_string('_mock_data/time_program_example2'), HeadTimeProgramRow(2))
+
+    passport = Passport(directions_table=dt, time_program_tables_data=[tp1, tp2])
 
     try:
         print(passport.result_compare_direction_table_and_time_programs())
-        get_as_json(asdict(passport.result_compare_direction_table_and_time_programs()), 'compare_result.json')
+        print(to_json(asdict(passport.result_compare_direction_table_and_time_programs()), 'compare_result.json'))
     except ValueError:
-        pass
+        print('!! ValueError !!')
 
-    get_as_json(passport.get_directions_table().dump_to_dict (), 'directions_table.json')
-    get_as_json(passport.as_dict, 'passport_example')
+    to_json(passport.get_directions_table().dump_to_dict (), 'directions_table.json')
+    to_json(passport.as_dict, 'passport_example')
+
+if __name__ == '__main__':
+
+    display()
 
 
-    print(f'Время составило: {time.perf_counter() - start_time}')
+
 
 
 
