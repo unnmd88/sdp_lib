@@ -4,10 +4,10 @@ import logging
 import re
 from abc import abstractmethod
 from collections import deque
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field, asdict, astuple, fields
 from functools import cached_property
 from itertools import zip_longest, combinations_with_replacement
-from typing import NamedTuple
+from typing import NamedTuple, TypeVar, Type
 from collections.abc import (
     MutableMapping,
     Iterable,
@@ -30,7 +30,7 @@ from sdp_lib.passport.constants import (
     DirectionTypes,
     RowNames, MessageLevels, MessageCategories, Fields, categories_descriptions, ComparisonDescriptions
 )
-from sdp_lib.passport.mixins import ReprMixin
+from sdp_lib.passport.mixins import ReprMixin, EntityNameMixin
 from sdp_lib.passport.text_messages import Text
 from sdp_lib.utils_common.utils_common import remove_chars, get_arg_names, stages_as_string
 from sdp_lib.passport import logging_config
@@ -96,7 +96,7 @@ class Message(NamedTuple):
 
 
 def add_record(
-    container: MutableSequence[Message] | MutableMapping[float, Any],
+    container: MutableSequence | MutableMapping,
     records: Iterable[str | Message] | Iterable[tuple[float, Any]]
 ) -> int:
     cnt = 0
@@ -320,61 +320,105 @@ class BaseEntityData:
     def allow_compare_stages(self) -> bool:
         return self.permissions.compare_stages
 
-
-class AbstractPassportEntity:
-    """ Абстрактный класс любой сущности паспорта(Row, Table и т.д.)"""
-
-    name: RowNames | TableNames
-
-    def __init__(self):
-        self._data = BaseEntityData(self.name)
-
-    def __repr__(self):
-        attrs = ' '.join(f'{k}={v!r}' for k, v in self.__dict__.items())
-        return f'{self.__class__.__name__}({attrs})'
-
-    @property
-    def data(self):
-        return self._data
-
     @property
     def has_errors(self) -> bool:
-        return bool(self._data.err_and_warn.errors)
+        return bool(self.err_and_warn.errors)
 
 
-class AbstractRow(AbstractPassportEntity):
+# class AbstractPassportEntity:
+#     """ Абстрактный класс любой сущности паспорта(Row, Table и т.д.)"""
+#
+#     name: RowNames | TableNames
+#
+#     def __init__(self):
+#         self._extra_data = BaseEntityData(self.name)
+#
+#     def __repr__(self):
+#         attrs = ' '.join(f'{k}={v!r}' for k, v in self.__dict__.items())
+#         return f'{self.__class__.__name__}({attrs})'
+#
+#     @property
+#     def extra_data(self):
+#         return self._extra_data
+#
+#     @property
+#     def has_errors(self) -> bool:
+#         return bool(self._extra_data.err_and_warn.errors)
+#
+#
+# class ExtraData(ReprMixin):
+#     """ Абстрактный класс любой сущности паспорта(Row, Table и т.д.)"""
+#
+#     def __init__(self, entity_name: RowNames | TableNames):
+#         self.entity_name = entity_name
+#         self._data = BaseEntityData(self.entity_name)
+#
+#     @property
+#     def data(self):
+#         return self._data
+#
+#     @property
+#     def has_errors(self) -> bool:
+#         return bool(self._data.err_and_warn.errors)
 
-    def __init__(self):
-        super().__init__()
-        self.index: int = None
-        self._cells: Sequence = []
 
-    # @abstractmethod
-    # def dump_to_dict(self):
-    #     ...
+class AbstractRow(EntityNameMixin):
+
+    def __init__(self, index: int):
+        self._extra_data = BaseEntityData(self.name)
+        self.index = index
+        self._cells = ... # instance of Dataclass
+
+    def __iter__(self):
+        instance = self._cells
+        return (getattr(instance, field_name.name) for field_name in fields(instance))
+
+    def __getitem__(self, item) -> Cell:
+        return self._cells[item]
+
+    def __len__(self):
+        return len(self._cells)
 
     def dump_to_dict(self):
+        instance = self._cells
         chain = itertools.chain(
             ((str(Fields.index), self.index), ),
-            ((k, v.value) for k, v in asdict(self._cells).items()),
-            ((str(Fields.errors), self.data.err_and_warn.get_errors_by_categories()), )
+            ((field_name.name, getattr(instance, field_name.name).value) for field_name in fields(instance)),
+            ((str(Fields.errors), self._extra_data.err_and_warn.get_errors_by_categories()),)
 
         )
         return {k: v for k, v in chain}
 
     @property
+    def has_errors(self) -> bool:
+        return self._extra_data.has_errors
+
+    @property
     def cells(self):
+        """ Возвращает экземпляр реализованного класса dataclass. """
         return self._cells
 
-class AbstractTable(AbstractPassportEntity):
+    def iter_cells(self):
+        return iter(self)
+
+    @property
+    def allow_compare_stages(self) -> bool:
+        return self._extra_data.permissions.compare_stages
+
+
+TableRow = TypeVar('TableRow', bound=AbstractRow)
+
+
+class AbstractTableWithStages(EntityNameMixin):
     """ Абстрактный базовый класс таблицы паспорта. """
 
     allowed_cnt_row_props: set
-    row_class: Any
+    row_class: Type[TableRow]
     key_name: str
 
     def __init__(self, income_data: str):
         super().__init__()
+        self._extra_data = BaseEntityData(self.name)
         self._income_data = income_data
         self._income_data_errors = MessageStorage(StorageNames.income_data)
         if self.name == TableNames.directions_table:
@@ -382,20 +426,18 @@ class AbstractTable(AbstractPassportEntity):
         elif self.name == TableNames.time_program:
             self._stages_data = StagesData(StagesMapping.stage_to_direction)
         else:
+            self._stages_data = None
             raise ValueError(f'attr cls.name <{self.name}> is not allowed.')
         self._check_raw_data()
-        self._rows: MutableMapping[float, Any] = {}
+        # self._rows: MutableMapping[float, Any] = {}
+        self._rows: MutableSequence[TableRow] = []
         self._build()
 
-    def __iter__(self):
-        return (row for row in self._rows.values())
-
-    def __len__(self):
-        return len(self._rows)
-
+    def iter_rows(self) -> Generator[TableRow, Any, None]:
+        return (row for row in self._rows)
 
     def get_rows_data(self) -> MutableSequence[dict]:
-        return [row.dump_to_dict() for row in self._rows.values()]
+        return [row.dump_to_dict() for row in self._rows]
 
     def dump_to_dict(self) -> dict:
         return {
@@ -405,15 +447,15 @@ class AbstractTable(AbstractPassportEntity):
         }
 
     def _build(self):
-        self._data.err_and_warn.clear_all()
+        self._extra_data.err_and_warn.clear_all()
         rows = self._income_data.rstrip().split('\n')
         if len(rows) <= 1:
-            self._data.err_and_warn.add_errors(Message(Text.income_table_text_rule, MessageCategories.validation))
+            self._extra_data.err_and_warn.add_errors(Message(Text.income_table_text_rule, MessageCategories.validation))
             return
         for i, string_data in enumerate(rows):
             row_properties = remove_chars(string_data, ' ').split()
             if len(row_properties) not in self.allowed_cnt_row_props:
-                self._data.err_and_warn.add_errors(Message(Text.income_table_text_rule, MessageCategories.validation))
+                self._extra_data.err_and_warn.add_errors(Message(Text.income_table_text_rule, MessageCategories.validation))
                 return
             elif len(row_properties) == 14 and self.name == TableNames.directions_table:
                 t_zz = 0
@@ -423,16 +465,16 @@ class AbstractTable(AbstractPassportEntity):
                     num, direction_type, stages = str(i + 1), DirectionTypes.common, row_properties[0]
                     row_properties = [num, direction_type, stages]
             elif len(row_properties) == 2 and self.name == TableNames.time_program:
-                num_pp, num_stage, directions,  = i + 1, row_properties[0], row_properties[1]
+                num_pp, num_stage, directions = i + 1, row_properties[0], row_properties[1]
                 row_properties = [num_pp, num_stage, directions]
             _row = self.row_class(i, *row_properties)
-            self._load_row((_row.number.value, _row))
+            self._load_row(_row)
             if _row.has_errors:
-                self.data.permissions.set_val_for_compare_stages(False)
+                self._extra_data.permissions.set_val_for_compare_stages(False)
         # print(f'self.data.permissions.compare_stages: {self.data.permissions.compare_stages}')
-        if self.data.permissions.compare_stages:
+        if self._extra_data.permissions.compare_stages:
             print(f'self._check_permission_for_compare_stages(): {self._check_permission_for_compare_stages()}')
-            self.data.permissions.set_val_for_compare_stages(self._check_permission_for_compare_stages())
+            self._extra_data.permissions.set_val_for_compare_stages(self._check_permission_for_compare_stages())
         self._load_data_to_stages_data()
 
     def _check_raw_data(self) -> bool:
@@ -455,19 +497,19 @@ class AbstractTable(AbstractPassportEntity):
         return add_record(self._rows, args)
 
     def _load_data_to_stages_data(self):
-        if self._data.allow_compare_stages:
+        if self._extra_data.allow_compare_stages:
             if self.name == TableNames.directions_table:
-                self._stages_data.build({d.number.value: d.stages.get_numbers() for d in self._rows.values()})
+                self._stages_data.build({row.cells.number.value: row.cells.stages.get_numbers() for row in self._rows})
             elif self.name == TableNames.time_program:
-                self._stages_data.build({d.number.value: d.directions.get_numbers() for d in self._rows.values()})
+                self._stages_data.build({row.cells.number.value: row.cells.directions.get_numbers() for row in self._rows})
 
     def _check_permission_for_compare_stages(self) -> bool:
-        if self._stages_data is None or any(instance.allow_compare_stages is False for instance in self._rows.values()):
+        if self._stages_data is None or any(instance.allow_compare_stages is False for instance in self._rows):
             return False
         return True
 
     def get_message_storage(self):
-        return self._data.err_and_warn
+        return self._extra_data.err_and_warn
 
     def get_income_data(self):
         """ Возвращает входные данные. """
@@ -477,23 +519,19 @@ class AbstractTable(AbstractPassportEntity):
     def income_data_is_valid(self) -> bool:
         return not self._income_data_errors.errors
 
-    def get_all_rows(self) -> MutableMapping[float, Any]:
+    @cached_property
+    def rows(self) -> MutableSequence[TableRow]:
         return self._rows
-
-    def get_row_by_index(self, index: int):
-        for i, row in enumerate(self._rows.values()):
-            if i == index:
-                return row
 
     def get_stages_data(self) -> StagesData | None:
         return self._stages_data
 
-    def get_data(self) -> BaseEntityData:
-        return self._data
+    def get_extra_data(self) -> BaseEntityData:
+        return self._extra_data
 
     @property
     def allow_compare_stages(self):
-        return self._data.allow_compare_stages
+        return self._extra_data.allow_compare_stages
 
     def get_max_direction_num(self) -> float:
         return self._stages_data.max_direction
@@ -652,53 +690,6 @@ class StageOrDirectionCell:
         return self._is_always_red
 
 
-def compare(
-    first: stages_or_direction_container,
-    second: stages_or_direction_container
-):
-    result_has_not_in_second = {}
-    result_has_not_in_first = {}
-    for k in first:
-        has_not_in_second = first[k] - second[k]
-        has_not_in_first = second[k] - first[k]
-        if has_not_in_first:
-            result_has_not_in_first[k] = has_not_in_first
-        if has_not_in_second:
-            result_has_not_in_second[k] = has_not_in_second
-    return result_has_not_in_second, result_has_not_in_first
-
-
-def compare2(
-    first: stages_or_direction_container,
-    second: stages_or_direction_container
-):
-    copy_first = {k: v for k, v in first.items()}
-    copy_second = {k: v for k, v in second.items()}
-    result_has_not_in_first, result_has_not_in_second = [], []
-    stack1 = deque(copy_first.keys())# Направления из Таблицы направлений
-    while stack1:
-        k1 = stack1.popleft()
-        v1 = copy_first.pop(k1) #v1 default = frozenset[int | float]
-        try:
-            v2 = copy_second.pop(k1) #v2 default = frozenset[int | float]
-            has_not_in_second = v1 - v2
-            if has_not_in_second:
-                result_has_not_in_second.append((k1, sorted(has_not_in_second)))
-                # result_has_not_in_second[k1] = sorted(has_not_in_second)
-        except KeyError:
-            # result_has_not_in_second[k1] = sorted(v1)
-            result_has_not_in_second.append((k1, sorted(v1)))
-    stack2 = deque(copy_second)
-    while stack2:
-        k2 = stack2.popleft()
-        v2 = copy_second.pop(k2)
-        # result_has_not_in_first[k2] = sorted(v2)
-        result_has_not_in_first.append((k2, sorted(v2)))
-    print(f'result_has_not_in_second: {result_has_not_in_second}')
-    print(f'result_has_not_in_first: {result_has_not_in_first}')
-    return result_has_not_in_second, result_has_not_in_first
-
-
 @dataclass(slots=True, frozen=True)
 class NumbersDiscrepancy:
     number: stages_or_direction_num
@@ -821,39 +812,6 @@ class ComparisonDirectionsAndStages(AbstractComparison, ReprMixin):
         print(f'self._missing_in_first: {self._missing_in_first}')
         print(f'self._missing_in_second: {self._missing_in_second}')
 
-def compare3(
-    first: stages_or_direction_container,
-    second: stages_or_direction_container
-):
-    copy_first = {k: v for k, v in first.items()}
-    copy_second = {k: v for k, v in second.items()}
-    print(f'first: {first}')
-    print(f'second: {second}')
-    print(f'copy_first: {copy_first}')
-    print(f'copy_second: {copy_second}')
-    result_has_not_in_first, result_has_not_in_second = [], []
-    stack1 = deque(copy_first.keys())# Направления из Таблицы направлений
-    while stack1:
-        k1 = stack1.popleft()
-        v1 = copy_first.pop(k1) #v1 default = frozenset[int | float]
-        try:
-            v2 = copy_second.pop(k1) #v2 default = frozenset[int | float]
-            has_not_in_second = v1 - v2
-            if has_not_in_second:
-                result_has_not_in_second.append(NumbersDiscrepancy(k1, has_not_in_second))
-        except KeyError:
-            if v1:
-                result_has_not_in_second.append(NumbersDiscrepancy(k1, v1))
-    stack2 = deque(copy_second.keys())
-    print(f'copy_second: {copy_second}')
-    while stack2:
-        k2 = stack2.popleft()
-        v2 = copy_second.pop(k2)
-        result_has_not_in_first.append(NumbersDiscrepancy(k2, v2))
-    print(f'result_has_not_in_second: {result_has_not_in_second}')
-    print(f'result_has_not_in_first: {result_has_not_in_first}')
-    return result_has_not_in_second, result_has_not_in_first
-
 
 def compare4(
     first: stages_or_direction_container,
@@ -897,34 +855,18 @@ class DirectionBaseProperties:
 
 
 if __name__ == '__main__':
-
     stages = StageOrDirectionCell('1,2,3,,4,3,')
     print(stages)
-
     stages2 = StageOrDirectionCell('пост. кр')
     print(stages2)
-
     stages3 = StageOrDirectionCell('1ю3ю4.4,')
     print(stages3)
-
     stages4 = StageOrDirectionCell('1,2,7e, 8.2 ')
     print(stages4)
     print(stages4.is_valid)
 
-    d1 = {
-        1: frozenset([1, 2, 3]),
-        2: frozenset([3, 4, 5]),
-        3: frozenset([6, 7, 8]),
 
-    }
 
-    d2 = {
-        1: frozenset([1, 2, 3]),
-        2: frozenset([3, 4, 5]),
-        3: frozenset([6, 7, 8, 9]),
-    }
-    print(d1.keys() == d2.keys())
-    compare(d1, d2)
 
 
 

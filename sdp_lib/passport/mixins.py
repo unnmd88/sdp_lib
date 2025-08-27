@@ -1,4 +1,4 @@
-
+from sdp_lib.passport.constants import RowNames, TableNames
 
 
 class ReprMixin:
@@ -19,6 +19,11 @@ class D(ReprMixin):
     def __init__(self):
         self._x = 1
         self._y = 122
+
+
+class EntityNameMixin:
+
+    name: RowNames | TableNames
 
 
 

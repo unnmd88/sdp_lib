@@ -6,7 +6,7 @@ from collections import Counter
 from functools import cached_property
 
 from sdp_lib.passport.base import (
-    AbstractTable,
+    AbstractTableWithStages,
     Cell,
     StageOrDirectionCell,
     get_number_cell_data,
@@ -62,21 +62,21 @@ class DirectionRow(AbstractRow):
             description: str = '',
     ):
         super().__init__()
-        self._data.err_and_warn.set_name(StorageNames.direction)
+        self._extra_data.err_and_warn.set_name(StorageNames.direction)
         self.index = index
         self.number = get_number_cell_data(number, ColNamesDirectionsTable.number)
         if not self.number.is_valid:
-            self._data.err_and_warn.add_errors(
+            self._extra_data.err_and_warn.add_errors(
                 Message(Text.get_bad_num(number, ColNamesDirectionsTable.number), MessageCategories.validation),
             )
-            self._data.permissions.set_val_for_compare_stages(False)
+            self._extra_data.permissions.set_val_for_compare_stages(False)
         self.direction_type = self._get_direction_type(direction_type)
         self.stages = StageOrDirectionCell(stages)
         if not self.stages.is_valid:
-            self._data.err_and_warn.add_errors(
+            self._extra_data.err_and_warn.add_errors(
                 Message(Text.get_bad_val(stages, ColNamesDirectionsTable.stages), MessageCategories.validation)
             )
-            self._data.permissions.set_val_for_compare_stages(False)
+            self._extra_data.permissions.set_val_for_compare_stages(False)
         self.traffic_lights = get_cell(ColNamesDirectionsTable.traffic_lights, traffic_lights)
         self.t_green_ext = self._get_prom_tact_time(ColNamesDirectionsTable.t_green_ext, t_green_ext)
         self.t_flashing_green = self._get_prom_tact_time(ColNamesDirectionsTable.t_flashing_green, t_flashing_green)
@@ -100,7 +100,7 @@ class DirectionRow(AbstractRow):
                 DirectionTypes(init_val)
             except ValueError:
                 is_valid = False
-                self._data.err_and_warn.add_warnings(
+                self._extra_data.err_and_warn.add_warnings(
                     Message(
                         f'Задан нестандартный тип направления: {init_val}. '
                         f'Стандартные типы: {DirectionTypes.get_standard_types()}',
@@ -126,40 +126,36 @@ class DirectionRow(AbstractRow):
         except ValueError:
             return False
 
-    @property
-    def allow_compare_stages(self) -> bool:
-        return  self._data.allow_compare_stages
-
-    def dump_to_dict(self):
-        return {
-            str(Fields.index): self.index,
-            str(Fields.number): self.number._asdict(),
-            str(Fields.direction): self.direction_type._asdict(),
-            str(Fields.stages): {
-                str(Fields.cell_value): self.stages.get_stages_or_directions_string_row(),
-                str(Fields.bad_nums): self.stages.get_bad_nums(),
-                str(Fields.doubles): self.stages.get_doubles(),
-                str(Fields.asc_order): self.stages.is_asc_order,
-                str(Fields.formatted_string): self.stages.get_numbers_as_str(),
-                str(Fields.is_always_red): self.stages.is_always_red
-            },
-            str(Fields.traffic_lights): self.traffic_lights._asdict(),
-            str(Fields.t_green_ext): self.t_green_ext._asdict(),
-            str(Fields.t_green_flashing): self.t_flashing_green._asdict(),
-            str(Fields.t_yellow): self.t_yellow._asdict(),
-            str(Fields.t_red): self.t_red._asdict(),
-            str(Fields.t_red_yellow): self.t_red_yellow._asdict(),
-            str(Fields.t_z): self.t_z._asdict(),
-            str(Fields.t_zz): self.t_zz._asdict(),
-            str(Fields.always_red): self.stages.is_always_red,
-            str(Fields.toov_green): self.toov_green._asdict(),
-            str(Fields.toov_red): self.toov_red._asdict(),
-            str(Fields.description): self.description._asdict(),
-            str(Fields.errors): self.data.err_and_warn.get_errors_by_categories()
-        }
+    # def dump_to_dict(self):
+    #     return {
+    #         str(Fields.index): self.index,
+    #         str(Fields.number): self.number._asdict(),
+    #         str(Fields.direction): self.direction_type._asdict(),
+    #         str(Fields.stages): {
+    #             str(Fields.cell_value): self.stages.get_stages_or_directions_string_row(),
+    #             str(Fields.bad_nums): self.stages.get_bad_nums(),
+    #             str(Fields.doubles): self.stages.get_doubles(),
+    #             str(Fields.asc_order): self.stages.is_asc_order,
+    #             str(Fields.formatted_string): self.stages.get_numbers_as_str(),
+    #             str(Fields.is_always_red): self.stages.is_always_red
+    #         },
+    #         str(Fields.traffic_lights): self.traffic_lights._asdict(),
+    #         str(Fields.t_green_ext): self.t_green_ext._asdict(),
+    #         str(Fields.t_green_flashing): self.t_flashing_green._asdict(),
+    #         str(Fields.t_yellow): self.t_yellow._asdict(),
+    #         str(Fields.t_red): self.t_red._asdict(),
+    #         str(Fields.t_red_yellow): self.t_red_yellow._asdict(),
+    #         str(Fields.t_z): self.t_z._asdict(),
+    #         str(Fields.t_zz): self.t_zz._asdict(),
+    #         str(Fields.always_red): self.stages.is_always_red,
+    #         str(Fields.toov_green): self.toov_green._asdict(),
+    #         str(Fields.toov_red): self.toov_red._asdict(),
+    #         str(Fields.description): self.description._asdict(),
+    #         str(Fields.errors): self.data.err_and_warn.get_errors_by_categories()
+    #     }
 
 
-class DirectionsTable(AbstractTable, ReprMixin):
+class DirectionsTable(AbstractTableWithStages, ReprMixin):
 
     name = TableNames.directions_table
     allowed_cnt_row_props = {1, 3, 14, 15}
@@ -168,7 +164,7 @@ class DirectionsTable(AbstractTable, ReprMixin):
 
     def __init__(self, income_data: str):
         super().__init__(income_data)
-        self._direction_type_counter = Counter(str(direction.direction_type.value) for direction in self._rows.values())
+        self._direction_type_counter = Counter(str(direction.direction_type.value) for direction in self._rows)
 
     def get_direction_types_cnt(self):
         return self._direction_type_counter
@@ -184,12 +180,12 @@ def display_directions(raw_data: str = None) -> DirectionsTable:
         raw_data = '1\tТранспортное\t1,8,1,9\n2\tТранспортное\t1,2\n3\tТранспортное\t4\n4\tПоворотное\t2,3,4\n5\tТранспортное\t3,6,7,8,9,10\n6\tТранспортное\t5,6,7,10\n7\tТранспортное\t4,5,8,9\n8\tТранспортное\t1,2,3,4\n9\tПешеходное\t2,3\n10\tТранспортное\t1,5,6,7,8,9,10\n11\tПешеходное\t1,2,3,4,5,6,8,9\n12\tТранспортное\t2,3,4,5,6,7,10\n13\tТранспортное\t6,7,10\n14\tТранспортное\t1\n15\tПоворотное\t5,6,7,10\n16\tТранспортное\t5,6,7,8,9,10\n17\tТранспортное\t2,3,4\n18\tТранспортное\t7,10\n19\tТранспортное\t3,4,5,8,9,10\n20\tПешеходное\t3\n21\tТранспортное\t1,2,3,4\n22\tПешеходное\t1,2,3,4,5,8,9\n23\tТранспортное\t6,7\n24\tТранспортное\tПост.краси.\n'.rstrip()
     start_time = time.perf_counter()
     grp = DirectionRow(0, '12s', direction_type='Пост красн.', stages='1,3,4,43')
-    print(grp.data.err_and_warn.get_errors_by_categories())
+    print(grp.extra_data.err_and_warn.get_errors_by_categories())
     logger.debug(grp)
     print('-*-' * 100)
     directions_table = DirectionsTable(raw_data)
     # print(directions_table)
-    for k, v in directions_table.get_all_rows().items():
+    for k, v in directions_table.rows().items():
         print(f'num: {k}, instance: {v}')
     # for k, v in itertools.chain(directions_table.get_stages_data().get_direction_to_stages_mapping().items(),
     #                              directions_table.get_stages_data().get_stage_to_direction_mapping().items()):
