@@ -334,43 +334,6 @@ class BaseEntityData:
         return bool(self.err_and_warn.errors)
 
 
-# class AbstractPassportEntity:
-#     """ Абстрактный класс любой сущности паспорта(Row, Table и т.д.)"""
-#
-#     name: RowNames | TableNames
-#
-#     def __init__(self):
-#         self._extra_data = BaseEntityData(self.name)
-#
-#     def __repr__(self):
-#         attrs = ' '.join(f'{k}={v!r}' for k, v in self.__dict__.items())
-#         return f'{self.__class__.__name__}({attrs})'
-#
-#     @property
-#     def extra_data(self):
-#         return self._extra_data
-#
-#     @property
-#     def has_errors(self) -> bool:
-#         return bool(self._extra_data.err_and_warn.errors)
-#
-#
-# class ExtraData(ReprMixin):
-#     """ Абстрактный класс любой сущности паспорта(Row, Table и т.д.)"""
-#
-#     def __init__(self, entity_name: RowNames | TableNames):
-#         self.entity_name = entity_name
-#         self._data = BaseEntityData(self.entity_name)
-#
-#     @property
-#     def data(self):
-#         return self._data
-#
-#     @property
-#     def has_errors(self) -> bool:
-#         return bool(self._data.err_and_warn.errors)
-
-
 class AbstractRow(EntityNameMixin):
 
     def __init__(self, index: int):
@@ -506,9 +469,7 @@ class AbstractTableWithStages(EntityNameMixin):
             self._load_row(_row)
             if _row.has_errors:
                 self._extra_data.permissions.set_val_for_compare_stages(False)
-        # print(f'self.data.permissions.compare_stages: {self.data.permissions.compare_stages}')
         if self._extra_data.permissions.compare_stages:
-            print(f'self._check_permission_for_compare_stages(): {self._check_permission_for_compare_stages()}')
             self._extra_data.permissions.set_val_for_compare_stages(self._check_permission_for_compare_stages())
         self._load_data_to_stages_data()
 
@@ -610,7 +571,6 @@ class StageOrDirectionCell:
             re.findall(self._get_always_red_pattern(always_red_pattern), self._stages_or_directions_f)
         )
         self._process_income_data()
-        # logger.info(self)
 
     def __repr__(self):
         attrs = ' '.join(f'{attr}={getattr(self, attr)!r}' for attr in self.__slots__)
@@ -783,8 +743,6 @@ class AbstractComparison:
             meta: ComparisonMeta = None,
             compare_immediately=True
     ):
-        # if (src, dst) not in self.allowed_src_dst_pairs:
-        #     raise ValueError(f'Pair ({src}, {dst}) not allowed. Use pair from {self.allowed_src_dst_pairs}')
         self._first = first
         self._second = second
         self._meta = meta or ComparisonMeta(None, None, None)
@@ -842,13 +800,13 @@ class ComparisonDirectionsAndStages(AbstractComparison, ReprMixin):
         allowed_to_compare = all(isinstance(obj, MutableMapping) for obj in (self._first, self._second))
         if not allowed_to_compare:
             raise TypeError(f'Invalid type attrs "self._first" and "self._second"')
-        self._missing_in_second, self._missing_in_first = compare4(self._first, self._second)
+        self._missing_in_second, self._missing_in_first = compare(self._first, self._second)
         self._comparison_is_done = True
-        print(f'self._missing_in_first: {self._missing_in_first}')
-        print(f'self._missing_in_second: {self._missing_in_second}')
+        # print(f'self._missing_in_first: {self._missing_in_first}')
+        # print(f'self._missing_in_second: {self._missing_in_second}')
 
 
-def compare4(
+def compare(
     first: stages_or_direction_container,
     second: stages_or_direction_container
 ):
@@ -863,8 +821,6 @@ def compare4(
                 if v:
                     discrepancies.append(NumbersDiscrepancy(k, v))
         return discrepancies
-    print(f'result_has_not_in_second: {get_discrepancies(first, second)}')
-    print(f'result_has_not_in_first: {get_discrepancies(second, first)}')
     return get_discrepancies(first, second), get_discrepancies(second, first)
 
 

@@ -1,10 +1,8 @@
 import json
 import logging
 import re
-import time
 from collections import Counter
 from dataclasses import dataclass
-from functools import cached_property
 
 from sdp_lib.passport.base import (
     AbstractTableWithStages,
