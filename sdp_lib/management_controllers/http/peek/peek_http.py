@@ -54,7 +54,7 @@ class PeekWebHosts(HttpHosts):
         super().__init__(ipv4=ipv4, host_id=host_id, session=session)
         self._semaphore = asyncio.Semaphore(value=6)
         self._request_response_data_get_states.set_parse_method(
-            self._request_response_data_get_states.parser_obj.main_page_parser.parse
+            self._request_response_data_get_states.parser_obj.main_page_parser.sort
         )
 
     @cached_property
@@ -73,7 +73,7 @@ class PeekWebHosts(HttpHosts):
                     protocol=self.protocol,
                     add_to_response_storage=True,
                     parser_obj=parser,
-                    parser=parser.parse,
+                    parser=parser.sort,
                     coro=method(self._base_url + route, self._semaphore)
                 )
 

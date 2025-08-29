@@ -18,9 +18,9 @@ def timed(func: Callable):
     def wrapper(*args, **kwargs):
         start_time = time.perf_counter()
         print(f'func: {func.__name__}')
-        func(*args, **kwargs)
+        res = func(*args, **kwargs)
         print(f'Время работы: {time.perf_counter() - start_time}')
-        return func
+        return res
     return wrapper
 
 def get_curr_datetime(sep: str = ':') -> str:
