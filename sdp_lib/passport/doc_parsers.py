@@ -1,18 +1,11 @@
 import re
-from collections import deque
 from collections.abc import MutableSequence
-from dataclasses import dataclass
 from enum import IntEnum
 from typing import NamedTuple
 
 from docx import Document
 from docx.table import Table
 
-from sdp_lib.passport.constants import Fields, TableNames
-from sdp_lib.passport.directions import (
-    DirectionsTable,
-    DirectionRow
-)
 from sdp_lib.passport.mixins import ReprMixin
 
 

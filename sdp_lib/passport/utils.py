@@ -1,18 +1,10 @@
-import operator
 from collections.abc import (
-    MutableMapping, Collection, MutableSequence, Iterable, Sequence, Container, MutableSet, Generator
-)
-from dataclasses import (
-    dataclass,
-    field
+    MutableSequence, Iterable
 )
 from typing import (
-    TypeAlias,
-    Type, TypeVar, Any,
-)
+    TypeVar, )
 
-from sdp_lib.passport.base import get_int_or_float
-from sdp_lib.passport.constants import StagesMapping
+from sdp_lib.passport.passport1.base import get_int_or_float
 from sdp_lib.passport.storages import Message
 
 Numbers = int | float

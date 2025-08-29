@@ -20,6 +20,7 @@ from typing import (
     TypeAlias
 )
 
+from docx.table import _Row, _Rows, Table
 
 from sdp_lib.passport.constants import (
     ColNamesDirectionsTable,
@@ -308,6 +309,7 @@ class StagesData:
 
     @property
     def max_stage(self) -> int | float:
+        print(f'self._stage_to_direction_mapping:  {self._stage_to_direction_mapping}')
         return max(self._stage_to_direction_mapping)
 
     @property
@@ -336,14 +338,14 @@ class BaseEntityData:
 
 class AbstractRow(EntityNameMixin):
 
-    def __init__(self, index: int):
+    def __init__(self, index: int, row: _Row):
+        self._row = row
         self._extra_data = BaseEntityData(self.name)
         self.index = index
         self._cells = ... # instance of Dataclass
 
     def __iter__(self):
-        instance = self._cells
-        return (getattr(instance, field_name.name) for field_name in fields(instance))
+        return (el for el in self._cells)
 
     def __getitem__(self, item) -> Cell:
         return self._cells[item]
@@ -355,10 +357,10 @@ class AbstractRow(EntityNameMixin):
         return self._cells == other
 
     def dump_to_dict(self):
-        instance = self._cells
         chain = itertools.chain(
             ((str(Fields.index), self.index), ),
-            ((field_name.name, getattr(instance, field_name.name).value) for field_name in fields(instance)),
+            # ((field_name.name, getattr(instance, field_name.name).value) for field_name in fields(instance)),
+            (((field_name, _field.value) for field_name, _field  in zip(self._cells._fields, self._cells))),
             ((str(Fields.errors), self._extra_data.err_and_warn.get_errors_by_categories()),)
         )
         return {k: v for k, v in chain}
@@ -393,12 +395,14 @@ class AbstractTableWithStages(EntityNameMixin):
     allowed_cnt_row_props: set
     row_class: Type[TableRow]
     key_name: str
+    start_vals_row: int
 
-    def __init__(self, income_data: str):
-        super().__init__()
+    def __init__(self, index: int, rows: Sequence[_Row]):
         self._extra_data = BaseEntityData(self.name)
-        self._income_data = income_data
-        self._income_data_errors = MessageStorage(StorageNames.income_data)
+        self._index = index
+        self._rows_docx = rows
+        self._rows = [self.row_class(i, row) for i, row in enumerate(self._rows_docx) if i >= self.start_vals_row]
+        print(f'self._rows: {self._rows}')
         if self.name == TableNames.directions_table:
             self._stages_data = StagesData(StagesMapping.direction_to_stages)
         elif self.name == TableNames.time_program:
@@ -406,9 +410,11 @@ class AbstractTableWithStages(EntityNameMixin):
         else:
             self._stages_data = None
             raise ValueError(f'attr cls.name <{self.name}> is not allowed.')
-        self._check_raw_data()
-        self._rows: MutableSequence[TableRow] = []
-        self._build()
+        print(f'self._stages_data:  {self._stages_data}')
+        print(f'self._extra_data.permissions:  {self._extra_data.permissions}')
+        if self._extra_data.permissions.compare_stages:
+            self._extra_data.permissions.set_val_for_compare_stages(self._check_permission_for_compare_stages())
+        self._load_data_to_stages_data()
 
     def __iter__(self):
         return (row for row in self._rows)
@@ -416,9 +422,6 @@ class AbstractTableWithStages(EntityNameMixin):
     def __getitem__(self, item):
         return self._rows[item]
         # return self._rows[item]
-
-    def __eq__(self, other):
-        return self._income_data == other
 
     def iter_rows(self) -> Generator[TableRow, Any, None]:
         """ Возвращает итератор по всем строкам таблицы. """
@@ -434,10 +437,6 @@ class AbstractTableWithStages(EntityNameMixin):
     def dump_to_dict(self) -> dict:
         """ Возвращает словарь с данными всех таблицы. """
         return {
-            str(Fields.income_data): {
-                str(Fields.is_valid): self.income_data_is_valid,
-                str(Fields.errors): self._income_data_errors.get_errors_by_categories(),
-            },
             str(Fields.max_stage): self.get_max_stage(),
             str(Fields.max_direction): self.get_max_direction_num(),
             str(self.key_name): self.get_rows_data(),
@@ -493,27 +492,24 @@ class AbstractTableWithStages(EntityNameMixin):
         return add_record(self._rows, args)
 
     def _load_data_to_stages_data(self):
+        print(f'self._extra_data.allow_compare_stages: {self._extra_data.allow_compare_stages}')
         if self._extra_data.allow_compare_stages:
             if self.name == TableNames.directions_table:
+                print(f'self._stages_data: {self._stages_data}')
                 self._stages_data.build({row.cells.number.value: row.cells.stages.get_numbers() for row in self._rows})
+                print(f'self._stages_data: {self._stages_data}')
             elif self.name == TableNames.time_program:
                 self._stages_data.build({row.cells.number.value: row.cells.directions.get_numbers() for row in self._rows})
 
     def _check_permission_for_compare_stages(self) -> bool:
+        for rrr in self._rows:
+            print(rrr.allow_compare_stages)
         if self._stages_data is None or any(instance.allow_compare_stages is False for instance in self._rows):
             return False
         return True
 
     def get_message_storage(self):
         return self._extra_data.err_and_warn
-
-    def get_income_data(self):
-        """ Возвращает входные данные. """
-        return self._income_data
-
-    @property
-    def income_data_is_valid(self) -> bool:
-        return not self._income_data_errors.errors
 
     @cached_property
     def rows(self) -> MutableSequence[TableRow]:
@@ -637,7 +633,7 @@ class StageOrDirectionCell:
         )
 
     def _get_sep_errors(self) -> Generator[Message, Any, None]:
-        if self._stages_or_directions_f[-1] == self._sep:
+        if self._stages_or_directions_f and self._stages_or_directions_f[-1] == self._sep:
             yield Message(
                 f'Строка не должна заканчиваться разделителем "{self._sep}"', MessageCategories.validation
             )

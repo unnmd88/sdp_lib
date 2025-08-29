@@ -1,14 +1,8 @@
-import itertools
 import logging
-import pprint
 import re
-import time
-from collections.abc import MutableMapping
-from dataclasses import dataclass, asdict
-from functools import cached_property
-from typing import MutableSequence
+from dataclasses import dataclass
 
-from sdp_lib.passport.base import (
+from sdp_lib.passport.passport1.base import (
     AbstractTableWithStages,
     Cell,
     get_cell_with_value_as_number_,
@@ -16,7 +10,7 @@ from sdp_lib.passport.base import (
     Message,
     StageOrDirectionCell,
     AbstractRow,
-    get_cell, TableRow
+    get_cell
 )
 from sdp_lib.passport.constants import (
     ColNamesTimeProgramsTable,
@@ -30,7 +24,6 @@ from sdp_lib.passport.constants import (
 from sdp_lib.passport.mixins import ReprMixin
 
 from sdp_lib.passport.text_messages import Text
-from sdp_lib.passport import logging_config
 from sdp_lib.utils_common.utils_common import read_file_as_string, to_json, timed
 
 DEBUG = True
@@ -180,7 +173,7 @@ class TimeProgramTable(AbstractTableWithStages, ReprMixin):
 @timed
 def display_time_programs(raw_data: str = None):
     if raw_data is None:
-        data_as_string = read_file_as_string('_mock_data/time_program_example1')
+        data_as_string = read_file_as_string('../_mock_data/time_program_example1')
     else:
         data_as_string = raw_data
 

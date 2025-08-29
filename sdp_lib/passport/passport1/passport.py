@@ -1,5 +1,3 @@
-import json
-import time
 from collections.abc import (
     MutableSequence,
     Sequence
@@ -8,10 +6,9 @@ from dataclasses import (
     dataclass,
     asdict
 )
-from functools import cached_property
 from typing import Any
 
-from sdp_lib.passport.base import (
+from sdp_lib.passport.passport1.base import (
     ComparisonDirectionsAndStages,
     SourceComparisonMeta,
     ComparisonMeta
@@ -23,8 +20,8 @@ from sdp_lib.passport.constants import (
     ColNamesTimeProgramsTable,
     ComparisonDescriptions
 )
-from sdp_lib.passport.directions import DirectionsTable
-from sdp_lib.passport.time_programms import (
+from sdp_lib.passport.passport1.directions import DirectionsTable
+from sdp_lib.passport.passport1.time_programms import (
     TimeProgramTable,
     HeadTimeProgramRow
 )
@@ -158,15 +155,16 @@ class Passport:
 
 @timed
 def display():
-    dt = DirectionsTable(read_file_as_string('_mock_data/directions_example1'))
-    tp1 = TimeProgramTable(read_file_as_string('_mock_data/time_program_example1'), HeadTimeProgramRow(1))
-    tp2 = TimeProgramTable(read_file_as_string('_mock_data/time_program_example2'), HeadTimeProgramRow(2))
+    dt = DirectionsTable(read_file_as_string('../_mock_data/directions_example1'))
+    tp1 = TimeProgramTable(read_file_as_string('../_mock_data/time_program_example1'), HeadTimeProgramRow(1))
+    tp2 = TimeProgramTable(read_file_as_string('../_mock_data/time_program_example2'), HeadTimeProgramRow(2))
 
     passport = Passport(directions_table=dt, time_program_tables_data=[tp1, tp2])
 
     try:
         print(passport.compare_direction_table_to_all_time_programs_and_get_result())
-        print(to_json(asdict(passport.compare_direction_table_to_all_time_programs_and_get_result()), 'compare_result.json'))
+        print(to_json(asdict(passport.compare_direction_table_to_all_time_programs_and_get_result()),
+                      'compare_result.json'))
     except ValueError:
         print('!! ValueError !!')
 

@@ -1,20 +1,12 @@
 import re
-from collections import deque
 from collections.abc import MutableSequence, Set, Sequence
-from dataclasses import dataclass
-from enum import IntEnum, StrEnum, Enum
+from enum import IntEnum, Enum
 from typing import NamedTuple
 
 from docx import Document
 from docx.table import Table
 
-from sdp_lib.passport.constants import Fields, TableNames
-from sdp_lib.passport.directions import (
-    DirectionsTable,
-    DirectionRow
-)
 from sdp_lib.passport.mixins import ReprMixin
-from sdp_lib.utils_common.utils_common import timed
 
 
 class TableCategories(IntEnum):
@@ -49,6 +41,15 @@ class DocTablesMeta(ReprMixin):
     def __len__(self):
         return len(self._tables)
 
+    @property
+    def directions(self) -> int:
+        return self._directions
+
+    @property
+    def va_tables(self) -> MutableSequence[int]:
+        return self._va
+
+    @property
     def num_tables(self) -> int:
         return len(self._tables)
 
@@ -160,6 +161,8 @@ def _display_all_tables(doc_x):
     """ Выводит на экран данные всех таблиц doc(x) файла. """
     for table in doc_x.tables:
         print(f'-- Start Table --')
+        print(f'table.rows: {list(table.rows)}')
+        print(f'table.row: {table.rows}')
         print(f'len(rows): {len(table.rows)}')
         print(f'len(cells): {len(table.rows[0].cells)}')
         for i, row in enumerate(table.rows):

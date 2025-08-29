@@ -1,10 +1,9 @@
-import json
 import logging
 import re
 from collections import Counter
 from dataclasses import dataclass
 
-from sdp_lib.passport.base import (
+from sdp_lib.passport.passport1.base import (
     AbstractTableWithStages,
     Cell,
     StageOrDirectionCell,
@@ -16,7 +15,6 @@ from sdp_lib.passport.base import (
 from sdp_lib.passport.constants import (
     DirectionTypes,
     ColNamesDirectionsTable,
-    default_values,
     StorageNames,
     TableNames,
     RowNames,
@@ -26,8 +24,6 @@ from sdp_lib.passport.constants import (
 from sdp_lib.passport.mixins import ReprMixin
 from sdp_lib.passport.text_messages import Text
 from sdp_lib.utils_common.utils_common import read_file_as_string, timed, to_json
-from sdp_lib.passport import logging_config
-
 
 DEBUG = True
 
@@ -167,7 +163,7 @@ class DirectionsTable(AbstractTableWithStages, ReprMixin):
 @timed
 def display_directions(raw_data: str = None) -> DirectionsTable:
     if raw_data is None:
-        data_as_string = read_file_as_string('_mock_data/directions_example1')
+        data_as_string = read_file_as_string('../_mock_data/directions_example1')
     else:
         data_as_string = raw_data
     grp = DirectionRow(0, '12s', direction_type='Пост красн.', stages='1,3,4,43')
