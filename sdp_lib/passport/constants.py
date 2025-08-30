@@ -47,6 +47,7 @@ class StorageNames(StrEnum):
 
 
 class DirectionTypes(StrEnum):
+    empty = ''
     common = 'Направление'
     vehicle = 'Транспортное'
     pedestrian = 'Пешеходное'
@@ -55,7 +56,8 @@ class DirectionTypes(StrEnum):
 
     @classmethod
     def get_standard_types(cls):
-        return ', '.join(str(d) for d in cls if d not in {cls.common})
+        return {str(d) for d in cls if d not in {cls.common, cls.empty}}
+        # return ', '.join(str(d) for d in cls if d not in {cls.common, cls.empty})
 
 
 class StagesMapping(IntEnum):
@@ -143,6 +145,7 @@ class Fields(StrEnum):
     compare_directions_table_to_time_table = 'Сравнение фаз из таблицы направлений с временной таблицей`'
     messages = 'messages'
     errors = 'errors'
+    cells_values = 'cells_values'
     category_description = 'category_description'
     category = 'category'
     time_program = 'time_program'

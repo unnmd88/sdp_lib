@@ -7,6 +7,8 @@ from docx import Document
 from docx.table import Table
 
 from sdp_lib.passport.mixins import ReprMixin
+from sdp_lib.passport.passport2.base import InitData
+from sdp_lib.passport.passport2.directions import DirectionsTable, DirectionRow
 
 
 class TableCategories(IntEnum):
@@ -92,8 +94,31 @@ row1 = ['№ фазы', 'Направления', 'Направления', 'У�
 
 
 class DirectionTablePatterns(Enum):
-    row0_cell0 = re.compile('^№\s*нап', re.IGNORECASE)
-    row0_cell1 = re.compile('^тип\s*направления', re.IGNORECASE)
+    row1_cell0  = re.compile('^№\s*нап', re.IGNORECASE)
+    row1_cell1  = re.compile('^тип\s*направления', re.IGNORECASE)
+    row1_cell2  = re.compile('^фазы.*кот.*направ', re.IGNORECASE)
+    row1_cell3  = re.compile('^светоф', re.IGNORECASE)
+    row1_cell4  = re.compile('^Тзд', re.IGNORECASE)
+    row1_cell5  = re.compile('^Тзм', re.IGNORECASE)
+    row1_cell6  = re.compile('^Тж', re.IGNORECASE)
+    row1_cell7  = re.compile('^Тк', re.IGNORECASE)
+    row1_cell8  = re.compile('^Ткж', re.IGNORECASE)
+    row1_cell9  = re.compile('^Тз', re.IGNORECASE)
+    row1_cell10 = re.compile('^Тзз', re.IGNORECASE)
+    row1_cell11 = re.compile('.+крас', re.IGNORECASE)
+    row1_cell12 = re.compile('^Крас', re.IGNORECASE)
+    row1_cell13 = re.compile('^Зел', re.IGNORECASE)
+    row1_cell14 = re.compile('', re.IGNORECASE)
+
+    @classmethod
+    def get_patterns_len(cls, length: int):
+        if length == 15:
+            for pattern in cls:
+                yield pattern.value
+        elif length == 14:
+            for i, pattern in enumerate(cls):
+                if i != 10:
+                    yield pattern.value
 
 
 class TimeProgramFtPatterns(Enum):
@@ -108,12 +133,34 @@ class TimeProgramVaPatterns(Enum):
     row1_cell10 = re.compile('макс.*2',  re.IGNORECASE)
 
 
+
+class _TableMeta:
+    result: bool
+    is_standard: bool = False
+
+
+class InvalidCellName(NamedTuple):
+    pos: int
+    name: str
+
+
 def _check_is_directions_table(rows) -> bool:
     return bool(
         14 <= len(rows[0].cells) <= 15
-        and re.search(DirectionTablePatterns.row0_cell0.value, rows[0].cells[0].text) is not None
-        and re.search(DirectionTablePatterns.row0_cell1.value, rows[0].cells[1].text) is not None
+        and re.search(DirectionTablePatterns.row1_cell0.value, rows[1].cells[0].text) is not None
+        and re.search(DirectionTablePatterns.row1_cell1.value, rows[1].cells[1].text) is not None
     )
+
+def _check_directions_table_is_standard(row):
+    for i, data in enumerate(zip(DirectionTablePatterns.get_patterns_len(len(row.cells)), row.cells)):
+        pattern, cell = data
+        print(f'cell.text: {cell.text}')
+        if re.search(pattern, cell.text) is None:
+            yield InvalidCellName(i, cell.text)
+
+    # return all(
+    #     re.search(p, s.text) for p, s in zip(DirectionTablePatterns.get_patterns_len(len(row.cells)), row.cells)
+    # )
 
 
 def _check_is_time_program_table_ft(rows) -> bool:
@@ -157,6 +204,52 @@ def sort(tables: MutableSequence[Table]) -> DocTablesMeta:
     return DocTablesMeta(tables_meta)
 
 
+
+# def build_direction_table(direction_table: Table):
+#     if ''.join(cell.text for cell in direction_table.rows[0]) == ''.join(cell.text for cell in direction_table.rows[0]):
+#         is_standard = True
+#     pattern1 = ''.join(cell.text for cell in direction_table.rows[0])
+#     pattern2 =
+
+def build_directions_table(index, table: Table):
+    rows = table.rows
+    dt = DirectionsTable(index, table, [])
+    for i, row in enumerate(rows):
+        values = [InitData(i, v.text) for i, v in enumerate(row.cells)]
+        curr_row = DirectionRow(
+            i,
+            row,
+            all(not v.value for v in values),
+            i <= 2,
+            *values
+        )
+        print(curr_row)
+
+
+
+
+
+def build_tables(tables: MutableSequence[Table]):
+    directions = None
+    tp = []
+
+    for i, table in enumerate(tables):
+        t_rows = table.rows
+        entity = None
+        if _check_is_directions_table(t_rows):
+            bad_names = list(_check_directions_table_is_standard(t_rows[1]))
+            print(f'bad_names: {bad_names}')
+            build_directions_table(i, table)
+            entity = TableCategories.directions
+        elif _check_is_time_program_table_ft(t_rows):
+            entity = TableCategories.time_program_ft
+        elif _check_is_time_program_table_va(t_rows):
+            entity = TableCategories.time_program_va
+
+    return
+
+
+
 def _display_all_tables(doc_x):
     """ Выводит на экран данные всех таблиц doc(x) файла. """
     for table in doc_x.tables:
@@ -171,9 +264,10 @@ def _display_all_tables(doc_x):
 
 
 if __name__ == '__main__':
-    doc = Document('/home/auser/Downloads/СО 20250006 ул. Островитянова,д, 15.docx')
+    doc = Document('C://Programms//py.projects//sdp_lib//sdp_lib//passport//СО_2094_ул_Островитянова_ул_Ак_Волгина (2).docx')
     # print(doc.tables)
     _display_all_tables(doc)
-    print(sort(doc.tables))
+    build_tables(doc.tables)
+    # print(sort(doc.tables))
 
 

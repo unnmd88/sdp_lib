@@ -5,7 +5,7 @@ from typing import IO
 from docx.table import Table
 from docx import Document
 
-from sdp_lib.passport2.doc_parsers.tables_sorter import sort
+from sdp_lib.passport.passport2.doc_parsers.tables_sorting import sort
 
 
 def parse_tables(tables: MutableSequence[Table]):

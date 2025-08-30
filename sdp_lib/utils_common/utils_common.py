@@ -144,10 +144,16 @@ def to_json(data: dict, file: str = None):
             f.write(data)
     return data
 
+def get_max_or_default_if_target_is_empty(target: Iterable, returned_default_val=None):
+    print(f'target: {target}')
+    return max(target, default=returned_default_val)
+
+
 if __name__ == '__main__':
 
-    print(remove_chars('пн   ,  вт ,с  р ,ч т  ,   пт:', ':', ' '))
 
+    print(remove_chars('пн   ,  вт ,с  р ,ч т  ,   пт:', ':', ' '))
+    print(get_max_or_default_if_target_is_empty([]))
     """
     Программа 1 Тц = 353 с. пн,вт,ср,чт,пт: 
 

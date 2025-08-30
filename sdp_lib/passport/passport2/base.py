@@ -33,7 +33,8 @@ from sdp_lib.passport.constants import (
 )
 from sdp_lib.passport.mixins import ReprMixin, EntityNameMixin
 from sdp_lib.passport.text_messages import Text
-from sdp_lib.utils_common.utils_common import remove_chars, get_arg_names, stages_as_string
+from sdp_lib.utils_common.utils_common import remove_chars, get_arg_names, stages_as_string, \
+    get_max_or_default_if_target_is_empty
 from sdp_lib.passport import logging_config
 
 
@@ -113,7 +114,7 @@ def add_record(
 
 
 class Cell(NamedTuple):
-    cell_name: ColNamesDirectionsTable | ColNamesTimeProgramsTable | str
+    pos: int | None
     init_val: Any
     default_val: Any
     value: Any
@@ -121,33 +122,39 @@ class Cell(NamedTuple):
 
 
 def get_cell(
-    name: str,
+    pos: int | None,
     init_val: Any,
-    default_val=None,
+    default_val="",
     is_valid: bool = True
 ) -> Cell:
-    return Cell(name, init_val, default_val, init_val or default_val, is_valid)
+    return Cell(pos, init_val, default_val, init_val or default_val, is_valid)
 
 
 def get_cell_with_value_as_number_(
+    pos: int | None,
     init_val: str | int | float,
-    name: ColNamesTimeProgramsTable | ColNamesDirectionsTable
 ) -> Cell:
-    default_val, is_valid = None, True
+    default_val, is_valid = "", True
     val = get_int_or_float(init_val)
     if val is None:
         is_valid = False
         val = init_val
-    return Cell(name, init_val, default_val, val, is_valid)
+    return Cell(pos, init_val, default_val, val, is_valid)
 
 
-def get_cell_with_value_as_prom_tact_time(direction_type: DirectionTypes, col_name: ColNamesDirectionsTable, init_val) -> Cell:
+def get_cell_with_value_as_prom_tact_time(
+        pos: int | None,
+        init_val,
+        direction_type: DirectionTypes,
+        col_name: ColNamesDirectionsTable,
+
+) -> Cell:
     default_val = default_values.get((direction_type, col_name))
     if init_val is None:
         val = default_val
     else:
         val = init_val
-    return Cell(col_name, init_val, default_val, val)
+    return Cell(pos, init_val, default_val, val)
 
 
 def get_pretty_string(data: Iterable[Message]):
@@ -307,14 +314,18 @@ class StagesData:
     def get_stage_to_direction_mapping(self):
         return self._stage_to_direction_mapping
 
+    def _get_max_or_none(self, target):
+        return None if not target else max(target)
+
     @property
     def max_stage(self) -> int | float:
         print(f'self._stage_to_direction_mapping:  {self._stage_to_direction_mapping}')
-        return max(self._stage_to_direction_mapping)
+        return get_max_or_default_if_target_is_empty( self._stage_to_direction_mapping)
 
     @property
     def max_direction(self) -> int | float:
-        return max(self._direction_to_stages_mapping)
+        return get_max_or_default_if_target_is_empty(self._direction_to_stages_mapping)
+        # return max(self._direction_to_stages_mapping)
 
 
 @dataclass(slots=True, frozen=True)
@@ -336,13 +347,28 @@ class BaseEntityData:
         return bool(self.err_and_warn.errors)
 
 
+class RowData:
+    def __init__(self, row_name: RowNames):
+        self._name = row_name
+        self._extra_data = BaseEntityData(self._name)
+
+
+class InitData(NamedTuple):
+    pos: int = None
+    value: str = ''
+
+
 class AbstractRow(EntityNameMixin):
 
-    def __init__(self, index: int, row: _Row):
+    def __init__(self, index: int, row: _Row, is_empty: bool, is_header: bool):
         self._row = row
         self._extra_data = BaseEntityData(self.name)
         self.index = index
         self._cells = ... # instance of Dataclass
+        self._is_empty = is_empty
+        self._is_header = is_header
+        if self._is_empty or self._is_header:
+            self._extra_data.permissions.set_val_for_compare_stages(False)
 
     def __iter__(self):
         return (el for el in self._cells)
@@ -356,11 +382,25 @@ class AbstractRow(EntityNameMixin):
     def __eq__(self, other):
         return self._cells == other
 
+    @property
+    def is_empty(self):
+        return self._is_empty
+
+    @property
+    def is_header(self):
+        return self._is_header
+
+    @abstractmethod
+    def _get_values_to_set_in_cells(self) -> Iterable:
+        """ Итерируемый объект со значениями для формирования self._cells. """
+        ...
+
     def dump_to_dict(self):
         chain = itertools.chain(
             ((str(Fields.index), self.index), ),
             # ((field_name.name, getattr(instance, field_name.name).value) for field_name in fields(instance)),
-            (((field_name, _field.value) for field_name, _field  in zip(self._cells._fields, self._cells))),
+            (((field_name, _field.value) for field_name, _field  in zip(self._cells._fields, self._cells, strict=True))),
+            ((str(Fields.cells_values), [cell.value or "" for cell in self._cells]),),
             ((str(Fields.errors), self._extra_data.err_and_warn.get_errors_by_categories()),)
         )
         return {k: v for k, v in chain}
@@ -386,6 +426,8 @@ class AbstractRow(EntityNameMixin):
         return self._extra_data.permissions.compare_stages
 
 
+
+
 TableRow = TypeVar('TableRow', bound=AbstractRow)
 
 
@@ -397,12 +439,13 @@ class AbstractTableWithStages(EntityNameMixin):
     key_name: str
     start_vals_row: int
 
-    def __init__(self, index: int, rows: Sequence[_Row]):
+    def __init__(self, index: int, rows: Table, rows2: MutableSequence[TableRow]):
         self._extra_data = BaseEntityData(self.name)
         self._index = index
-        self._rows_docx = rows
-        self._rows = [self.row_class(i, row) for i, row in enumerate(self._rows_docx) if i >= self.start_vals_row]
-        print(f'self._rows: {self._rows}')
+        self._table_docx = rows
+        # self._rows = [self.row_class(i, row) for i, row in enumerate(self._rows_docx) if i >= self.start_vals_row]
+        self._rows = rows2
+        print(f'!self._rows: {self._rows}')
         if self.name == TableNames.directions_table:
             self._stages_data = StagesData(StagesMapping.direction_to_stages)
         elif self.name == TableNames.time_program:
@@ -410,11 +453,12 @@ class AbstractTableWithStages(EntityNameMixin):
         else:
             self._stages_data = None
             raise ValueError(f'attr cls.name <{self.name}> is not allowed.')
+        # print(f'self._stages_data:  {self._stages_data}')
+        # print(f'self._extra_data.permissions:  {self._extra_data.permissions}')
+        # if self._extra_data.permissions.compare_stages:
+        #     self._extra_data.permissions.set_val_for_compare_stages(self._check_permission_for_compare_stages())
+        # self._load_data_to_stages_data()
         print(f'self._stages_data:  {self._stages_data}')
-        print(f'self._extra_data.permissions:  {self._extra_data.permissions}')
-        if self._extra_data.permissions.compare_stages:
-            self._extra_data.permissions.set_val_for_compare_stages(self._check_permission_for_compare_stages())
-        self._load_data_to_stages_data()
 
     def __iter__(self):
         return (row for row in self._rows)
@@ -465,7 +509,7 @@ class AbstractTableWithStages(EntityNameMixin):
                 num_pp, num_stage, directions = i + 1, row_properties[0], row_properties[1]
                 row_properties = [num_pp, num_stage, directions]
             _row = self.row_class(i, *row_properties)
-            self._load_row(_row)
+            self.load_row(_row)
             if _row.has_errors:
                 self._extra_data.permissions.set_val_for_compare_stages(False)
         if self._extra_data.permissions.compare_stages:
@@ -483,7 +527,7 @@ class AbstractTableWithStages(EntityNameMixin):
             )
         return self.income_data_is_valid
 
-    def _load_row(self, *args: tuple[float, Any]) -> int:
+    def load_row(self, *args: tuple[float, Any]) -> int:
         """
          Добавляет пару ключ-значение в атрибут self._rows.
         :param args: Каждый элемент args - кортеж из 2 элементов, у которого 0 элемент - ключ, а 1 - значение.
@@ -492,19 +536,16 @@ class AbstractTableWithStages(EntityNameMixin):
         return add_record(self._rows, args)
 
     def _load_data_to_stages_data(self):
-        print(f'self._extra_data.allow_compare_stages: {self._extra_data.allow_compare_stages}')
         if self._extra_data.allow_compare_stages:
             if self.name == TableNames.directions_table:
-                print(f'self._stages_data: {self._stages_data}')
-                self._stages_data.build({row.cells.number.value: row.cells.stages.get_numbers() for row in self._rows})
-                print(f'self._stages_data: {self._stages_data}')
+                self._stages_data.build({row.cells.number.value: row.cells.stages.get_numbers() for row in self._rows if row.allow_compare_stages})
             elif self.name == TableNames.time_program:
-                self._stages_data.build({row.cells.number.value: row.cells.directions.get_numbers() for row in self._rows})
+                self._stages_data.build({row.cells.number.value: row.cells.directions.get_numbers() for row in self._rows if row.allow_compare_stages})
 
     def _check_permission_for_compare_stages(self) -> bool:
-        for rrr in self._rows:
-            print(rrr.allow_compare_stages)
-        if self._stages_data is None or any(instance.allow_compare_stages is False for instance in self._rows):
+        if self._stages_data is None or any(
+                instance.allow_compare_stages is False for instance in self._rows if not instance.is_empty
+        ):
             return False
         return True
 
@@ -542,6 +583,7 @@ class StageOrDirectionCell:
         '_is_always_red',
         '_stages_or_directions_f',
         '_stages_or_directions_string_row',
+        '_pos',
         '_numbers',
         '_doubles',
         '_bad_nums',
@@ -550,11 +592,12 @@ class StageOrDirectionCell:
 
     def __init__(
             self,
+            pos: int | None,
             stages_or_directions_string: str,
             sep: str = ',',
             always_red_pattern: str | re.Pattern = ''
     ):
-
+        self._pos = pos
         self._stages_or_directions_string_row = stages_or_directions_string
         self._errors_and_warnings = MessageStorage()
         if isinstance(stages_or_directions_string, str):
@@ -572,6 +615,10 @@ class StageOrDirectionCell:
         attrs = ' '.join(f'{attr}={getattr(self, attr)!r}' for attr in self.__slots__)
         return f'{self.__class__.__name__}({attrs})'
 
+    @property
+    def pos(self):
+        return self._pos
+
     def _get_always_red_pattern(self, income_data: str | re.Pattern) -> re.Pattern:
         if not income_data:
             pattern = self.common_always_red_pattern
@@ -585,7 +632,7 @@ class StageOrDirectionCell:
 
     def _process_income_data(self):
         self._numbers, self._doubles, self._bad_nums = frozenset(), {}, []
-        if self._is_always_red:
+        if self._is_always_red or not self._stages_or_directions_f:
             return
         if self._errors_and_warnings.add_errors(*self._get_sep_errors()) > 0:
             return
