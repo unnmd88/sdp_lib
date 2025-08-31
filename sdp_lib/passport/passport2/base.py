@@ -5,6 +5,7 @@ import re
 from abc import abstractmethod
 from collections import deque
 from dataclasses import dataclass, field, asdict, astuple, fields
+from enum import Enum
 from functools import cached_property
 from itertools import zip_longest, combinations_with_replacement
 from typing import NamedTuple, TypeVar, Type
@@ -115,10 +116,219 @@ def add_record(
 
 class Cell(NamedTuple):
     pos: int | None
-    init_val: Any
-    default_val: Any
+    # init_val: Any
     value: Any
+    default_val: Any = ''
     is_valid: bool = True
+
+
+
+class Patterns(Enum):
+    always_red = re.compile(r'кр|-|пок', re.IGNORECASE)
+    standard_directions = re.compile('Транспортное|Поворотное|Пешеходное|общ.*тр|пос.*крас', re.IGNORECASE)
+
+
+class DirectionTypeCell(ReprMixin):
+
+    def __init__(self, pos, value, default_val='', is_valid=True):
+        self._pos = pos
+        self._value = value
+        self._default_val = default_val
+        self._is_valid = is_valid
+
+
+    @cached_property
+    def is_standard(self):
+        return re.search(Patterns.standard_directions.value, self._value) is not None
+
+    @cached_property
+    def pos(self):
+        return self._pos
+
+    @cached_property
+    def value(self):
+        return self._value
+
+    @cached_property
+    def default_val(self):
+        return self._default_val
+
+    @cached_property
+    def is_valid(self):
+        return self._is_valid
+
+
+class StageOrDirectionNumsCell:
+
+    common_always_red_pattern = re.compile(r'кр|покоя|крас', re.IGNORECASE)
+
+    __slots__ = (
+        '_errors_and_warnings',
+        '_sep',
+        '_is_always_red',
+        '_stages_or_directions_f',
+        '_stages_or_directions_string_row',
+        '_pos',
+        '_numbers',
+        '_doubles',
+        '_bad_nums',
+        '_asc_order'
+    )
+
+    def __init__(
+            self,
+            pos: int | None,
+            value: str,
+            sep: str = ',',
+            always_red_pattern: str | re.Pattern = ''
+    ):
+        self._pos = pos
+        self._stages_or_directions_string_row = value
+        self._errors_and_warnings = MessageStorage()
+        if isinstance(value, str):
+            self._stages_or_directions_f = remove_chars(value, ' ')
+        else:
+            raise TypeError(f'{value!r} must be a str')
+        self._sep = sep
+        self._asc_order = False
+        self._is_always_red = bool(
+            re.findall(self._get_always_red_pattern(always_red_pattern), self._stages_or_directions_f)
+        )
+        self._process_income_data()
+
+    def __repr__(self):
+        attrs = ' '.join(f'{attr}={getattr(self, attr)!r}' for attr in self.__slots__)
+        return f'{self.__class__.__name__}({attrs})'
+
+    @property
+    def pos(self):
+        return self._pos
+
+    def _get_always_red_pattern(self, income_data: str | re.Pattern) -> re.Pattern:
+        if not income_data:
+            pattern = self.common_always_red_pattern
+        elif isinstance(income_data, re.Pattern):
+            pattern = income_data
+        elif isinstance(income_data, str):
+            pattern = re.compile(income_data)
+        else:
+            raise ValueError(f'attr always_red_pattern must be a str or re.Pattern')
+        return pattern
+
+    def _process_income_data(self):
+        self._numbers, self._doubles, self._bad_nums = frozenset(), {}, []
+        if self._is_always_red or not self._stages_or_directions_f:
+            return
+        if self._errors_and_warnings.add_errors(*self._get_sep_errors()) > 0:
+            return
+        nums_as_str = self._stages_or_directions_f.split(self._sep)
+        numbers, unique_nums = [], set()
+        for number in nums_as_str:
+            number_as_int_or_float = get_int_or_float(number)
+            if number_as_int_or_float is None:
+                self._bad_nums.append(number)
+            else:
+                if number_as_int_or_float in unique_nums:
+                    self._doubles[number_as_int_or_float] = self._doubles.get(number_as_int_or_float, 0) + 1
+                numbers.append(number_as_int_or_float)
+                unique_nums.add(number_as_int_or_float)
+        if self._bad_nums:
+            self._errors_and_warnings.add_errors(
+                Message(f'Недопустимые номера({len(self._bad_nums)}): {"; ".join(n for n in self._bad_nums)}', MessageCategories.validation)
+            )
+            return
+        try:
+            assert self._sep.join(str(num) for num in numbers) == self._stages_or_directions_f
+        except AssertionError:
+            logger.critical(self._create_text_error_in_generation_numbers(numbers))
+            raise
+        self._numbers = frozenset(unique_nums)
+        self._asc_order = self._stages_or_directions_f == ",".join(str(n) for n in sorted(self._numbers))
+        if not self._asc_order:
+            self._errors_and_warnings.add_warnings(
+                Message('Номера не расположены в порядке возрастания', MessageCategories.validation)
+            )
+        for  num, cnt in self._doubles.items():
+            self._errors_and_warnings.add_warnings(
+                Message(f'Найдены дубли. Номер={num}, кол-во={cnt}', MessageCategories.validation)
+            )
+
+    def _create_text_error_in_generation_numbers(self, numbers: Iterable[int | float]) -> str:
+        generated_numbers = 'Сгенерированные номера:'
+        income_numbers = 'Входная строка с номерами:'
+        indent = max(len(generated_numbers), len(income_numbers))
+        return (
+            f'Программная ошибка логики: сгенерированные номера не должны различаться со входными:\n'
+            f'{generated_numbers:<{indent}} {self._sep.join(str(num) for num in numbers)}\n'
+            f'{income_numbers:<{indent}} {self._stages_or_directions_f}\n'
+            f'{self}'
+        )
+
+    def _get_sep_errors(self) -> Generator[Message, Any, None]:
+        if self._stages_or_directions_f and self._stages_or_directions_f[-1] == self._sep:
+            yield Message(
+                f'Строка не должна заканчиваться разделителем "{self._sep}"', MessageCategories.validation
+            )
+        more_than_one_sep_char_in_string = re.findall(self._sep + r'{2,}', self._stages_or_directions_f)
+        if more_than_one_sep_char_in_string:
+            yield Message(
+                f'Найдено более одного разделяющего символа "{self._sep}" подряд.', MessageCategories.validation
+            )
+
+    def get_stages_or_directions_string_row(self) -> str:
+        return self._stages_or_directions_string_row
+
+    def get_errors(self) -> Sequence[Message]:
+        return self._errors_and_warnings.errors
+
+    def get_numbers(self) -> Set[int | float]:
+        return self._numbers
+
+    def get_numbers_as_str(self, sep='') -> str:
+        return stages_as_string(self._numbers, sep or self._sep)
+
+    def get_bad_nums(self) -> Sequence[str]:
+        return self._bad_nums
+
+    def get_numbers_as_int_or_float(self) -> Set[str]:
+        return self._numbers
+
+    def get_doubles(self) -> MutableMapping[int | float, int]:
+        return self._doubles
+
+    @property
+    def is_asc_order(self):
+        return self._asc_order
+
+    @property
+    def value(self):
+        return self._stages_or_directions_string_row
+
+    @property
+    def is_valid(self):
+        return not self._errors_and_warnings.errors and not self._bad_nums
+
+    @property
+    def is_always_red(self) -> bool:
+        return self._is_always_red
+
+
+class DirectionRowCells(NamedTuple):
+    number: Cell
+    direction_type: Cell
+    stages: StageOrDirectionNumsCell
+    traffic_lights: Cell
+    t_green_ext: Cell
+    t_flashing_green: Cell
+    t_yellow: Cell
+    t_red: Cell
+    t_red_yellow: Cell
+    t_z: Cell
+    t_zz: Cell
+    always_red: Cell
+    toov_red: Cell
+    toov_green: Cell
+    description: Cell
 
 
 def get_cell(
@@ -439,13 +649,21 @@ class AbstractTableWithStages(EntityNameMixin):
     key_name: str
     start_vals_row: int
 
-    def __init__(self, index: int, rows: Table, rows2: MutableSequence[TableRow]):
+    def __init__(
+            self,
+            index: int,
+            rows: Table,
+            head_rows: MutableSequence[TableRow],
+            data_rows: MutableSequence[TableRow],
+    ):
         self._extra_data = BaseEntityData(self.name)
         self._index = index
         self._table_docx = rows
         # self._rows = [self.row_class(i, row) for i, row in enumerate(self._rows_docx) if i >= self.start_vals_row]
-        self._rows = rows2
-        print(f'!self._rows: {self._rows}')
+        self._head_rows = head_rows
+        self._data_rows = data_rows
+        print(f'!self._head_rows: {self._head_rows}')
+        print(f'!self._data_rows: {self._data_rows}')
         if self.name == TableNames.directions_table:
             self._stages_data = StagesData(StagesMapping.direction_to_stages)
         elif self.name == TableNames.time_program:
@@ -466,6 +684,12 @@ class AbstractTableWithStages(EntityNameMixin):
     def __getitem__(self, item):
         return self._rows[item]
         # return self._rows[item]
+
+    def load_head_rows(self, *args):
+        return add_record(self._head_rows, args)
+
+    def load_data_rows(self, *args):
+        return add_record(self._data_rows, args)
 
     def iter_rows(self) -> Generator[TableRow, Any, None]:
         """ Возвращает итератор по всем строкам таблицы. """
@@ -573,159 +797,7 @@ class AbstractTableWithStages(EntityNameMixin):
         return self._stages_data.max_stage
 
 
-class StageOrDirectionCell:
 
-    common_always_red_pattern = re.compile(r'кр|покоя|крас', re.IGNORECASE)
-
-    __slots__ = (
-        '_errors_and_warnings',
-        '_sep',
-        '_is_always_red',
-        '_stages_or_directions_f',
-        '_stages_or_directions_string_row',
-        '_pos',
-        '_numbers',
-        '_doubles',
-        '_bad_nums',
-        '_asc_order'
-    )
-
-    def __init__(
-            self,
-            pos: int | None,
-            stages_or_directions_string: str,
-            sep: str = ',',
-            always_red_pattern: str | re.Pattern = ''
-    ):
-        self._pos = pos
-        self._stages_or_directions_string_row = stages_or_directions_string
-        self._errors_and_warnings = MessageStorage()
-        if isinstance(stages_or_directions_string, str):
-            self._stages_or_directions_f = remove_chars(stages_or_directions_string, ' ')
-        else:
-            raise TypeError(f'{stages_or_directions_string!r} must be a str')
-        self._sep = sep
-        self._asc_order = False
-        self._is_always_red = bool(
-            re.findall(self._get_always_red_pattern(always_red_pattern), self._stages_or_directions_f)
-        )
-        self._process_income_data()
-
-    def __repr__(self):
-        attrs = ' '.join(f'{attr}={getattr(self, attr)!r}' for attr in self.__slots__)
-        return f'{self.__class__.__name__}({attrs})'
-
-    @property
-    def pos(self):
-        return self._pos
-
-    def _get_always_red_pattern(self, income_data: str | re.Pattern) -> re.Pattern:
-        if not income_data:
-            pattern = self.common_always_red_pattern
-        elif isinstance(income_data, re.Pattern):
-            pattern = income_data
-        elif isinstance(income_data, str):
-            pattern = re.compile(income_data)
-        else:
-            raise ValueError(f'attr always_red_pattern must be a str or re.Pattern')
-        return pattern
-
-    def _process_income_data(self):
-        self._numbers, self._doubles, self._bad_nums = frozenset(), {}, []
-        if self._is_always_red or not self._stages_or_directions_f:
-            return
-        if self._errors_and_warnings.add_errors(*self._get_sep_errors()) > 0:
-            return
-        nums_as_str = self._stages_or_directions_f.split(self._sep)
-        numbers, unique_nums = [], set()
-        for number in nums_as_str:
-            number_as_int_or_float = get_int_or_float(number)
-            if number_as_int_or_float is None:
-                self._bad_nums.append(number)
-            else:
-                if number_as_int_or_float in unique_nums:
-                    self._doubles[number_as_int_or_float] = self._doubles.get(number_as_int_or_float, 0) + 1
-                numbers.append(number_as_int_or_float)
-                unique_nums.add(number_as_int_or_float)
-        if self._bad_nums:
-            self._errors_and_warnings.add_errors(
-                Message(f'Недопустимые номера({len(self._bad_nums)}): {"; ".join(n for n in self._bad_nums)}', MessageCategories.validation)
-            )
-            return
-        try:
-            assert self._sep.join(str(num) for num in numbers) == self._stages_or_directions_f
-        except AssertionError:
-            logger.critical(self._create_text_error_in_generation_numbers(numbers))
-            raise
-        self._numbers = frozenset(unique_nums)
-        self._asc_order = self._stages_or_directions_f == ",".join(str(n) for n in sorted(self._numbers))
-        if not self._asc_order:
-            self._errors_and_warnings.add_warnings(
-                Message('Номера не расположены в порядке возрастания', MessageCategories.validation)
-            )
-        for  num, cnt in self._doubles.items():
-            self._errors_and_warnings.add_warnings(
-                Message(f'Найдены дубли. Номер={num}, кол-во={cnt}', MessageCategories.validation)
-            )
-
-    def _create_text_error_in_generation_numbers(self, numbers: Iterable[int | float]) -> str:
-        generated_numbers = 'Сгенерированные номера:'
-        income_numbers = 'Входная строка с номерами:'
-        indent = max(len(generated_numbers), len(income_numbers))
-        return (
-            f'Программная ошибка логики: сгенерированные номера не должны различаться со входными:\n'
-            f'{generated_numbers:<{indent}} {self._sep.join(str(num) for num in numbers)}\n'
-            f'{income_numbers:<{indent}} {self._stages_or_directions_f}\n'
-            f'{self}'
-        )
-
-    def _get_sep_errors(self) -> Generator[Message, Any, None]:
-        if self._stages_or_directions_f and self._stages_or_directions_f[-1] == self._sep:
-            yield Message(
-                f'Строка не должна заканчиваться разделителем "{self._sep}"', MessageCategories.validation
-            )
-        more_than_one_sep_char_in_string = re.findall(self._sep + r'{2,}', self._stages_or_directions_f)
-        if more_than_one_sep_char_in_string:
-            yield Message(
-                f'Найдено более одного разделяющего символа "{self._sep}" подряд.', MessageCategories.validation
-            )
-
-    def get_stages_or_directions_string_row(self) -> str:
-        return self._stages_or_directions_string_row
-
-    def get_errors(self) -> Sequence[Message]:
-        return self._errors_and_warnings.errors
-
-    def get_numbers(self) -> Set[int | float]:
-        return self._numbers
-
-    def get_numbers_as_str(self, sep='') -> str:
-        return stages_as_string(self._numbers, sep or self._sep)
-
-    def get_bad_nums(self) -> Sequence[str]:
-        return self._bad_nums
-
-    def get_numbers_as_int_or_float(self) -> Set[str]:
-        return self._numbers
-
-    def get_doubles(self) -> MutableMapping[int | float, int]:
-        return self._doubles
-
-    @property
-    def is_asc_order(self):
-        return self._asc_order
-
-    @property
-    def value(self):
-        return self._stages_or_directions_string_row
-
-    @property
-    def is_valid(self):
-        return not self._errors_and_warnings.errors and not self._bad_nums
-
-    @property
-    def is_always_red(self) -> bool:
-        return self._is_always_red
 
 
 @dataclass(slots=True, frozen=True)
@@ -889,13 +961,13 @@ class DirectionBaseProperties:
 
 
 if __name__ == '__main__':
-    stages = StageOrDirectionCell('1,2,3,,4,3,')
+    stages = StageOrDirectionNumsCell('1,2,3,,4,3,')
     print(stages)
-    stages2 = StageOrDirectionCell('пост. кр')
+    stages2 = StageOrDirectionNumsCell('пост. кр')
     print(stages2)
-    stages3 = StageOrDirectionCell('1ю3ю4.4,')
+    stages3 = StageOrDirectionNumsCell('1ю3ю4.4,')
     print(stages3)
-    stages4 = StageOrDirectionCell('1,2,7e, 8.2 ')
+    stages4 = StageOrDirectionNumsCell('1,2,7e, 8.2 ')
     print(stages4)
     print(stages4.is_valid)
 

@@ -14,8 +14,8 @@ from sdp_lib.passport.constants import DirectionTypes, RowNames, StorageNames, C
     MessageCategories, TableNames, Fields
 from sdp_lib.passport.mixins import ReprMixin
 from sdp_lib.passport.text_messages import Text
-from sdp_lib.passport.passport2.base import Cell, StageOrDirectionCell, get_cell_with_value_as_number_, get_cell, \
-    get_cell_with_value_as_prom_tact_time, Message, AbstractRow, AbstractTableWithStages, InitData
+from sdp_lib.passport.passport2.base import Cell, StageOrDirectionNumsCell, get_cell_with_value_as_number_, get_cell, \
+    get_cell_with_value_as_prom_tact_time, Message, AbstractRow, AbstractTableWithStages, InitData, DirectionRowCells
 # from sdp_lib.passport.passport2.doc_parsers.tables_sorting import sort
 from sdp_lib.utils_common.utils_common import to_json
 
@@ -29,7 +29,7 @@ def _get_fields(fields_type: _Types):
     all_fields = (
         ('number', Cell),
         ('direction_type', Cell),
-        ('stages', StageOrDirectionCell),
+        ('stages', StageOrDirectionNumsCell),
         ('traffic_lights', Cell),
         ('t_green_ext', Cell),
         ('t_flashing_green', Cell),
@@ -56,22 +56,7 @@ DirectionRowCellsAll = make_dataclass(
 )
 
 
-class DirectionRowCells(NamedTuple):
-    number: Cell
-    direction_type: Cell
-    stages: StageOrDirectionCell
-    traffic_lights: Cell
-    t_green_ext: Cell
-    t_flashing_green: Cell
-    t_yellow: Cell
-    t_red: Cell
-    t_red_yellow: Cell
-    t_z: Cell
-    t_zz: Cell
-    always_red: Cell
-    toov_red: Cell
-    toov_green: Cell
-    description: Cell
+
 
 
 # @dataclass(frozen=True, slots=True)
@@ -118,51 +103,74 @@ class DirectionRow(AbstractRow, ReprMixin):
 
     ALWAYS_RED = re.compile(r'кр|-', re.IGNORECASE)
 
+    # class DirectionRowCells(NamedTuple):
+    #     number: Cell
+    #     direction_type: Cell
+    #     stages: StageOrDirectionNumsCell
+    #     traffic_lights: Cell
+    #     t_green_ext: Cell
+    #     t_flashing_green: Cell
+    #     t_yellow: Cell
+    #     t_red: Cell
+    #     t_red_yellow: Cell
+    #     t_z: Cell
+    #     t_zz: Cell
+    #     always_red: Cell
+    #     toov_red: Cell
+    #     toov_green: Cell
+    #     description: Cell
+
     def __init__(
-            self, index: int,
+            self,
+            index: int,
             row: _Row,
             is_empty: bool,
             is_header: bool,
-            number: InitData = InitData(),
-            direction_type: InitData = InitData(),
-            stages: InitData = InitData(),
-            traffic_lights: InitData = InitData(),
-            t_green_ext: InitData = InitData(),
-            t_flashing_green: InitData = InitData(),
-            t_yellow: InitData = InitData(),
-            t_red: InitData = InitData(),
-            t_red_yellow: InitData = InitData(),
-            t_z: InitData = InitData(),
-            t_zz: InitData = InitData(),
-            always_red: InitData = InitData(),
-            toov_red: InitData = InitData(),
-            toov_green: InitData = InitData(),
-            description:InitData = InitData(),
+            cells: Cell | StageOrDirectionNumsCell | DirectionRowCells
+            # number: InitData = InitData(),
+            # direction_type: InitData = InitData(),
+            # stages: InitData = InitData(),
+            # traffic_lights: InitData = InitData(),
+            # t_green_ext: InitData = InitData(),
+            # t_flashing_green: InitData = InitData(),
+            # t_yellow: InitData = InitData(),
+            # t_red: InitData = InitData(),
+            # t_red_yellow: InitData = InitData(),
+            # t_z: InitData = InitData(),
+            # t_zz: InitData = InitData(),
+            # always_red: InitData = InitData(),
+            # toov_red: InitData = InitData(),
+            # toov_green: InitData = InitData(),
+            # description:InitData = InitData(),
 
     ):
         super().__init__(index, row, is_empty, is_header)
-
-        _stages = StageOrDirectionCell(*stages)
-        dt = get_cell(*direction_type)
-        dt_val = dt.value
-        self._direction_type_is_standard = True if re.search(self.standard_directions, dt_val) is not None else False
-        self._cells = DirectionRowCells(
-            get_cell_with_value_as_number_(*number),
-            dt,
-            _stages,
-            get_cell(*traffic_lights),
-            get_cell_with_value_as_prom_tact_time(*t_green_ext, dt_val, ColNamesDirectionsTable.t_green_ext),
-            get_cell_with_value_as_prom_tact_time(*t_flashing_green, dt_val, ColNamesDirectionsTable.t_flashing_green,),
-            get_cell_with_value_as_prom_tact_time(*t_yellow, dt_val, ColNamesDirectionsTable.t_yellow,),
-            get_cell_with_value_as_prom_tact_time(*t_red, dt_val, ColNamesDirectionsTable.t_red,),
-            get_cell_with_value_as_prom_tact_time(*t_red_yellow, dt_val, ColNamesDirectionsTable.t_red_yellow ),
-            get_cell_with_value_as_prom_tact_time(*t_z, dt_val, ColNamesDirectionsTable.t_z),
-            get_cell_with_value_as_prom_tact_time(*t_zz, dt_val, ColNamesDirectionsTable.t_zz),
-            get_cell(*always_red),
-            get_cell(*toov_red),
-            get_cell(*toov_green),
-            get_cell(*description)
-            )
+        self._cells = cells
+        print('start section')
+        for c in self._cells:
+            print(f'c: {c}')
+        print('end section')
+        # _stages = StageOrDirectionNumsCell(*stages)
+        # dt = get_cell(*direction_type)
+        # dt_val = dt.value
+        # self._direction_type_is_standard = True if re.search(self.standard_directions, dt_val) is not None else False
+        # self._cells = DirectionRowCells(
+        #     get_cell_with_value_as_number_(*number),
+        #     dt,
+        #     _stages,
+        #     get_cell(*traffic_lights),
+        #     get_cell_with_value_as_prom_tact_time(*t_green_ext, dt_val, ColNamesDirectionsTable.t_green_ext),
+        #     get_cell_with_value_as_prom_tact_time(*t_flashing_green, dt_val, ColNamesDirectionsTable.t_flashing_green,),
+        #     get_cell_with_value_as_prom_tact_time(*t_yellow, dt_val, ColNamesDirectionsTable.t_yellow,),
+        #     get_cell_with_value_as_prom_tact_time(*t_red, dt_val, ColNamesDirectionsTable.t_red,),
+        #     get_cell_with_value_as_prom_tact_time(*t_red_yellow, dt_val, ColNamesDirectionsTable.t_red_yellow ),
+        #     get_cell_with_value_as_prom_tact_time(*t_z, dt_val, ColNamesDirectionsTable.t_z),
+        #     get_cell_with_value_as_prom_tact_time(*t_zz, dt_val, ColNamesDirectionsTable.t_zz),
+        #     get_cell(*always_red),
+        #     get_cell(*toov_red),
+        #     get_cell(*toov_green),
+        #     get_cell(*description)
+        #     )
 
         if not self.cells.number.is_valid:
             self._extra_data.err_and_warn.add_errors(

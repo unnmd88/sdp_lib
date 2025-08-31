@@ -1,13 +1,17 @@
 import itertools
 from dataclasses import dataclass, asdict, fields, astuple
+from enum import IntEnum
 
 
-
-v14 = [i for i in range(15)]
-v15 = [str(i) for i in range(16)]
+class E(IntEnum):
+    x = 1
+    y = 2
 
 
 if __name__ == '__main__':
-
-    for el in itertools.chain([1, 2, 3, 5], [None], ['6', '7']):
-        print(el)
+    try:
+        check_list = bool(E(5))
+    except ValueError:
+        print(check_list)
+        check_list = False
+    print(check_list)

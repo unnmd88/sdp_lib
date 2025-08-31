@@ -1,7 +1,7 @@
 from enum import StrEnum
 from typing import Any
 
-from sdp_lib.passport.constants import ColNamesTimeProgramsTable, ColNamesDirectionsTable, DirectionTypes
+from sdp_lib.passport.constants import ColNamesTimeProgramsTable, ColNamesDirectionsTable, DirectionTypes, TableNames
 
 
 class Text(StrEnum):
@@ -21,6 +21,18 @@ class Text(StrEnum):
         f'должна начинаться с новой строки("/n"), а каждое значение в'
         f'строке должно быть разделено пробелом или табуляцией.'
     )
+
+    @classmethod
+    def invalid_col_names(cls, entity, names):
+        return f'Некорректные имена столбцов для {entity}: {names}'
+
+    @classmethod
+    def bad_length(cls, entity, length=''):
+        return f'Недопустимое количество колонок <{entity}>: {length}'
+
+    @classmethod
+    def bad_num_rows(cls, entity, num='', extra=''):
+        return f'Недопустимое количество строк <{entity}>: {num}{extra}'
 
     @classmethod
     def get_bad_num(
