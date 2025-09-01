@@ -9,6 +9,7 @@ from docx import Document
 from sdp_lib.passport.constants import TableNames
 from sdp_lib.passport.passport2.base import add_record
 from sdp_lib.passport.passport2.patterns import Patterns
+from sdp_lib.passport.passport2.utils import dump_as_dict
 from sdp_lib.passport.text_messages import Text
 from sdp_lib.utils_common.utils_common import remove_chars, to_json, timed
 
@@ -88,10 +89,12 @@ class BaseCellValidationResult:
         return add_record(self.warnings, args, skip_add_if_err_is_empty)
 
     def dump(self):
-        return {attr: getattr(self, attr) for attr in self.__slots__}
+        # return {attr: getattr(self, attr) for attr in self.__slots__}
+        return dump_as_dict(self)
 
 
 class DirectionsOrStagesCellValidationResult(BaseCellValidationResult):
+
     __slots__ = BaseCellValidationResult.__slots__ + ('is_always_red', 'is_empty', 'nums', 'bad_nums', 'doubles')
 
     def __init__(self, string: str):
@@ -107,21 +110,33 @@ class DirectionsOrStagesCellValidationResult(BaseCellValidationResult):
         return self.ok
 
 
-@dataclass
+
 class CheckListDirectionRow:
-    num: BaseCellValidationResult
-    stages: DirectionsOrStagesCellValidationResult
-    is_empty: bool = False
+
+    __slots__ = ('num', 'stages', 'is_empty')
+
+    def __init__(
+            self,
+            num: BaseCellValidationResult = None,
+            stages: DirectionsOrStagesCellValidationResult = None,
+            is_empty: bool = False
+
+    ):
+        self.num = num
+        self.stages = stages
+        self.is_empty = is_empty
 
     def allow_to_compare_stages(self):
         return self.num.ok and self.stages.ok
 
     def dump(self):
-        return {
-            'num': self.num.dump(),
-            'stages': self.stages.dump(),
-            'is_empty': self.is_empty
-        }
+        res = {}
+        for attr in self.__slots__:
+            try:
+                res[attr] = dump_as_dict(getattr(self, attr))
+            except AttributeError:
+                res[attr] = getattr(self, attr)
+        return res
 
 
 @dataclass
@@ -228,13 +243,13 @@ if __name__ == '__main__':
     strings = ('1,2,2,4', '1.1,1.4,5,7,10', '', '     ', '1e,2dqd')
     for s in strings:
         rr = check_directions_or_stages_string(s)
-        print(rr.__slots__)
 
-    path = 'C://Programms//py.projects//sdp_lib//sdp_lib//passport//СО_2094_ул_Островитянова_ул_Ак_Волгина (2)'
+    # path = 'C://Programms//py.projects//sdp_lib//sdp_lib//passport//СО_2094_ул_Островитянова_ул_Ак_Волгина (2)'
+    path = '/home/auser/Downloads/СО_2120_Северный_б_р_Санникова_ул_Декабристов_ул_'
     doc = Document(f'{path}.docx')
     c = CheckListTable(validation_functions=dt_struct_validation_functions)
-    print(doc.tables[0].rows)
     validate_directions_table(doc.tables[0].rows)
 
-    sl = DirectionsOrStagesCellValidationResult('1,23')
-    print(sl.__slots__)
+    # sl = DirectionsOrStagesCellValidationResult('1,23')
+    # tt = DirectionsOrStagesCellValidationResult('1,23')
+    # print(to_json(dump_as_dict(tt)))
