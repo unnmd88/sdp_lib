@@ -1,8 +1,7 @@
-import itertools
 import re
 from collections import defaultdict
-from collections.abc import MutableSequence, MutableMapping, Set, Sequence, Callable
-from dataclasses import dataclass, field, asdict, fields
+from collections.abc import MutableSequence, MutableMapping, Sequence, Callable, Generator
+from typing import Any
 
 from docx import Document
 from docx.table import _Rows
@@ -114,7 +113,6 @@ class DirectionsOrStagesCellValidationResult(BaseCellValidationResult):
         return self.ok
 
 
-
 class CheckListDirectionRow:
 
     __slots__ = ('num', 'stages', 'is_empty')
@@ -143,17 +141,22 @@ class CheckListDirectionRow:
         return res
 
 
-
 class CheckListTable:
 
     __slots__ = ('length_columns', 'min_num_rows', 'head_rows', 'data_rows')
 
-    def __init__(self):
+    def __init__(
+            self,
+            length_columns: BaseCellValidationResult = None,
+            min_num_rows: BaseCellValidationResult = None,
+            head_rows: MutableSequence[CheckListDirectionRow] = None,
+            data_rows: MutableSequence[CheckListDirectionRow] = None
+    ):
 
-        self.length_columns: BaseCellValidationResult = None
-        self.min_num_rows: BaseCellValidationResult = None
-        self.head_rows: MutableSequence[CheckListDirectionRow] = []
-        self.data_rows: MutableSequence[CheckListDirectionRow] = []
+        self.length_columns = length_columns
+        self.min_num_rows: BaseCellValidationResult = min_num_rows
+        self.head_rows = head_rows or []
+        self.data_rows = data_rows or []
 
     def load_length_columns(self, instance: BaseCellValidationResult, replace_old=True):
         if self.length_columns and not replace_old:
@@ -244,20 +247,21 @@ def validate_data_row_dt(cells) -> CheckListDirectionRow:
     return CheckListDirectionRow(num_validation, check_directions_or_stages_string(stages), is_empty)
 
 
-@timed
-def validate_directions_table(rows_cells: _Rows) -> CheckListTable:
-    check_list = CheckListTable()
-    for func, arg, load_cb in zip(
-            dt_struct_validation_functions,
-            (len(rows_cells[0].cells), len(rows_cells)),
-            (check_list.load_length_columns, check_list.load_min_num_rows)
-    ):
+def validate_length_dt(rows_cells) -> Generator[BaseCellValidationResult, Any, None]:
+    for func, arg in zip(dt_struct_validation_functions,(len(rows_cells[0].cells), len(rows_cells))):
         instance = BaseCellValidationResult(arg)
         instance.set_is_checked(True)
         err_msg = func(arg)
         instance.set_ok(not bool(err_msg))
         instance.add_errors(err_msg)
-        load_cb(instance)
+        yield instance
+
+
+@timed
+def validate_directions_table(rows_cells: _Rows) -> CheckListTable:
+    length_columns, min_num_rows = validate_length_dt(rows_cells)
+    check_list = CheckListTable(length_columns, min_num_rows)
+
     for i in range(2, len(rows_cells)):
         check_list.data_rows.append(validate_data_row_dt(rows_cells[i].cells))
     print(to_json(check_list.dump(), 'ff'))
