@@ -9,9 +9,8 @@ from docx import Document
 from sdp_lib.passport.constants import TableNames
 from sdp_lib.passport.passport2.base import add_record
 from sdp_lib.passport.passport2.patterns import Patterns
-from sdp_lib.passport.passport2.utils import dump_as_dict
 from sdp_lib.passport.text_messages import Text
-from sdp_lib.utils_common.utils_common import remove_chars, to_json, timed
+from sdp_lib.utils_common.utils_common import remove_chars, to_json, timed, dump_to_dict
 
 
 def get_int_or_float(val: str) -> int | float | None:
@@ -60,6 +59,7 @@ def get_int_or_float(val: str) -> int | float | None:
 
 
 class BaseCellValidationResult:
+
     __slots__ = ('value', 'is_checked', 'ok', 'errors', 'warnings')
 
     def __init__(self, value=None):
@@ -76,6 +76,9 @@ class BaseCellValidationResult:
     def __bool__(self):
         return bool(self.ok)
 
+    def set_value(self, value):
+        self.value = value
+
     def set_is_checked(self, value: bool):
         self.is_checked = value
 
@@ -90,7 +93,7 @@ class BaseCellValidationResult:
 
     def dump(self):
         # return {attr: getattr(self, attr) for attr in self.__slots__}
-        return dump_as_dict(self)
+        return dump_to_dict(self)
 
 
 class DirectionsOrStagesCellValidationResult(BaseCellValidationResult):
@@ -133,7 +136,7 @@ class CheckListDirectionRow:
         res = {}
         for attr in self.__slots__:
             try:
-                res[attr] = dump_as_dict(getattr(self, attr))
+                res[attr] = dump_to_dict(getattr(self, attr))
             except AttributeError:
                 res[attr] = getattr(self, attr)
         return res
@@ -153,7 +156,7 @@ class CheckListTable:
     def dump(self):
 
         return {
-            'length_direction_table': self.length_direction_table.dump(),
+            'row_length': self.length_direction_table.dump(),
             'min_num_rows': self.min_num_rows.dump(),
             'head_rows': [m.dump() for m in self.head_rows],
             'data_rows': [m.dump() for m in self.data_rows],
@@ -169,7 +172,7 @@ def check_directions_or_stages_string(
     if not isinstance(always_red_pattern, re.Pattern):
         always_red_pattern = re.compile(always_red_pattern)
     res = DirectionsOrStagesCellValidationResult(string_without_spaces)
-    res.is_empty = len(string_without_spaces) == 0
+    res.is_empty = (len(string_without_spaces) == 0)
     res.is_always_red = bool(re.search(always_red_pattern, string_without_spaces))
     if not res.is_always_red and not res.is_empty:
         split_string = string_without_spaces.split(sep)
@@ -191,16 +194,19 @@ def check_directions_or_stages_string(
     return res
 
 
-def check_length_cols_direction_table(t_rows) -> str:
-    if not len(t_rows[0].cells) in (14, 15):
-        return Text.bad_length(TableNames.directions_table, len(t_rows[1]))
+def check_length_cols_direction_table(row_length: int) -> str:
+    if not row_length in (14, 15):
+        return Text.bad_length(TableNames.directions_table, row_length)
     return ''
+    # if not len(t_rows[0].cells) in (14, 15):
+    #     return Text.bad_length(TableNames.directions_table, len(t_rows[1]))
+    # return ''
 
 
-def check_min_num_rows(t_rows) -> str:
-    if len(t_rows) >= 3:
+def check_min_num_rows(num_rows: int) -> str:
+    if num_rows >= 3:
         return ''
-    return Text.bad_num_rows(str(TableNames.directions_table), len(t_rows), 'мин=3')
+    return Text.bad_num_rows(str(TableNames.directions_table), num_rows, 'мин=3')
 
 
 def check_num_direction_or_stage(value) -> str:
@@ -212,29 +218,39 @@ def check_num_direction_or_stage(value) -> str:
 dt_struct_validation_functions: Sequence[Callable] = (check_length_cols_direction_table, check_min_num_rows)
 
 
+def validate_data_row_dt(cells) -> CheckListDirectionRow:
+    is_empty = all(not v.text for v in cells)
+    num_from_cell = cells[0].text
+    num_validation = BaseCellValidationResult(num_from_cell)
+    num_validation.set_is_checked(True)
+    err_num_msg = check_num_direction_or_stage(num_from_cell)
+    num_validation.add_errors(err_num_msg)
+    num_validation.set_ok(not bool(err_num_msg))
+    stages = cells[2].text
+    stages_validation = check_directions_or_stages_string(stages)
+    stages_validation.set_is_checked(True)
+    return CheckListDirectionRow(num_validation, check_directions_or_stages_string(stages), is_empty)
+
+
 @timed
 def validate_directions_table(rows_cells) -> CheckListTable:
     check_list = CheckListTable(validation_functions=dt_struct_validation_functions)
-    for func, validation_instance in check_list.get_validation_mapping():
-        validation_instance: BaseCellValidationResult | CheckListDirectionRow
-        err_msg = func(rows_cells)
-        validation_instance.set_is_checked(True)
-        validation_instance.set_ok(not bool(err_msg))
-        validation_instance.add_errors(err_msg)
+    for func, arg in zip(dt_struct_validation_functions, (len(rows_cells[0].cells), len(rows_cells))):
+        instance = BaseCellValidationResult(arg)
+        instance.set_is_checked(True)
+        err_msg = func(arg)
+        instance.set_ok(not bool(err_msg))
+        instance.add_errors(err_msg)
+
+
+    # for func, validation_instance in check_list.get_validation_mapping():
+    #     validation_instance: BaseCellValidationResult | CheckListDirectionRow
+    #     err_msg = func(rows_cells)
+    #     validation_instance.set_is_checked(True)
+    #     validation_instance.set_ok(not bool(err_msg))
+    #     validation_instance.add_errors(err_msg)
     for i in range(2, len(rows_cells)):
-        cells = rows_cells[i].cells
-        is_empty = all(not v.text for v in cells)
-        num_from_cell = cells[0].text
-        num_validation = BaseCellValidationResult(num_from_cell)
-        num_validation.set_is_checked(True)
-        err_num_msg = check_num_direction_or_stage(num_from_cell)
-        num_validation.add_errors(err_num_msg)
-        num_validation.set_ok(not bool(err_num_msg))
-        stages = cells[2].text
-        stages_validation = check_directions_or_stages_string(stages)
-        stages_validation.set_is_checked(True)
-        curr_row = CheckListDirectionRow(num_validation, check_directions_or_stages_string(stages), is_empty)
-        check_list.data_rows.append(curr_row)
+        check_list.data_rows.append(validate_data_row_dt(rows_cells[i].cells))
     print(to_json(check_list.dump(), 'ff'))
     return check_list
 
