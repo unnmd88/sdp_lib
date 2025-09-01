@@ -5,6 +5,7 @@ from collections.abc import MutableSequence, MutableMapping, Set, Sequence, Call
 from dataclasses import dataclass, field, asdict, fields
 
 from docx import Document
+from docx.table import _Rows
 
 from sdp_lib.passport.constants import TableNames
 from sdp_lib.passport.passport2.base import add_record
@@ -144,19 +145,25 @@ class CheckListDirectionRow:
 
 @dataclass
 class CheckListTable:
-    length_direction_table: BaseCellValidationResult = field(default_factory=BaseCellValidationResult)
-    min_num_rows: BaseCellValidationResult = field(default_factory=BaseCellValidationResult)
+    length_columns: BaseCellValidationResult = None
+    min_num_rows: BaseCellValidationResult = None
     head_rows: MutableSequence[CheckListDirectionRow] = field(default_factory=list)
     data_rows: MutableSequence[CheckListDirectionRow] = field(default_factory=list)
-    validation_functions: Sequence[Callable] = field(default_factory=tuple)
 
-    def get_validation_mapping(self):
-        return zip(dt_struct_validation_functions, (getattr(self, name.name) for name in fields(self)))
+    def load_length_columns(self, instance: BaseCellValidationResult, replace_old=True):
+        if self.length_columns and not replace_old:
+            return
+        self.length_columns = instance
+
+    def load_min_num_rows(self, instance: BaseCellValidationResult, replace_old=True):
+        if self.min_num_rows and not replace_old:
+            return
+        self.min_num_rows = instance
 
     def dump(self):
 
         return {
-            'row_length': self.length_direction_table.dump(),
+            'length_columns': self.length_columns.dump(),
             'min_num_rows': self.min_num_rows.dump(),
             'head_rows': [m.dump() for m in self.head_rows],
             'data_rows': [m.dump() for m in self.data_rows],
@@ -233,22 +240,19 @@ def validate_data_row_dt(cells) -> CheckListDirectionRow:
 
 
 @timed
-def validate_directions_table(rows_cells) -> CheckListTable:
-    check_list = CheckListTable(validation_functions=dt_struct_validation_functions)
-    for func, arg in zip(dt_struct_validation_functions, (len(rows_cells[0].cells), len(rows_cells))):
+def validate_directions_table(rows_cells: _Rows) -> CheckListTable:
+    check_list = CheckListTable()
+    for func, arg, load_cb in zip(
+            dt_struct_validation_functions,
+            (len(rows_cells[0].cells), len(rows_cells)),
+            (check_list.load_length_columns, check_list.load_min_num_rows)
+    ):
         instance = BaseCellValidationResult(arg)
         instance.set_is_checked(True)
         err_msg = func(arg)
         instance.set_ok(not bool(err_msg))
         instance.add_errors(err_msg)
-
-
-    # for func, validation_instance in check_list.get_validation_mapping():
-    #     validation_instance: BaseCellValidationResult | CheckListDirectionRow
-    #     err_msg = func(rows_cells)
-    #     validation_instance.set_is_checked(True)
-    #     validation_instance.set_ok(not bool(err_msg))
-    #     validation_instance.add_errors(err_msg)
+        load_cb(instance)
     for i in range(2, len(rows_cells)):
         check_list.data_rows.append(validate_data_row_dt(rows_cells[i].cells))
     print(to_json(check_list.dump(), 'ff'))
@@ -263,7 +267,7 @@ if __name__ == '__main__':
     # path = 'C://Programms//py.projects//sdp_lib//sdp_lib//passport//СО_2094_ул_Островитянова_ул_Ак_Волгина (2)'
     path = '/home/auser/Downloads/СО_2120_Северный_б_р_Санникова_ул_Декабристов_ул_'
     doc = Document(f'{path}.docx')
-    c = CheckListTable(validation_functions=dt_struct_validation_functions)
+    c = CheckListTable()
     validate_directions_table(doc.tables[0].rows)
 
     # sl = DirectionsOrStagesCellValidationResult('1,23')
