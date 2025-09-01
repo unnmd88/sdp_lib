@@ -98,12 +98,12 @@ class DirectionRow(AbstractRow, ReprMixin):
             get_cell(ColNamesDirectionsTable.description, description, '')
 
         )
-        if not self.cells.number.is_valid:
+        if not self.cells.number.ok:
             self._extra_data.err_and_warn.add_errors(
                 Message(Text.get_bad_num(number, ColNamesDirectionsTable.number), MessageCategories.validation),
             )
             self._extra_data.permissions.set_val_for_compare_stages(False)
-        if not self.cells.stages.is_valid:
+        if not self.cells.stages.ok:
             self._extra_data.err_and_warn.add_errors(
                 Message(Text.get_bad_val(stages, ColNamesDirectionsTable.stages), MessageCategories.validation)
             )

@@ -102,6 +102,32 @@ row1 = ['№ фазы', 'Направления', 'Направления', 'У�
 """
 
 
+class DirectionTableAllPatterns(Enum):
+    num = re.compile('^тип\s*направления', re.IGNORECASE)
+    direction_type = re.compile('^фазы.*кот.*направ', re.IGNORECASE)
+    stages = re.compile('^светоф', re.IGNORECASE)
+    tlc = re.compile('^Тзд', re.IGNORECASE)
+    t_green_ext = re.compile('^Тзм', re.IGNORECASE)
+    t_green_flashing = re.compile('^Тж', re.IGNORECASE)
+    t_yellow = re.compile('^Тк', re.IGNORECASE)
+    t_red = re.compile('^Ткж', re.IGNORECASE)
+    t_red_yellow = re.compile('^Тз', re.IGNORECASE)
+    t_z = re.compile('^Тзз', re.IGNORECASE)
+    t_zz = re.compile('.+крас', re.IGNORECASE)
+    always_red = re.compile('^Крас', re.IGNORECASE)
+    toov_green = re.compile('^Зел', re.IGNORECASE)
+    toov_red = re.compile('', re.IGNORECASE)
+
+    prohibition = re.compile('^Запрет', re.IGNORECASE)
+    permission = re.compile('^Разрешение', re.IGNORECASE)
+
+    description1 = re.compile('', re.IGNORECASE)
+    description2 = re.compile('^примечание', re.IGNORECASE)
+
+    TOOV = re.compile('^ТООВ')
+
+
+
 class DirectionTablePatterns(Enum):
     row1_cell0  = re.compile('^№\s*нап', re.IGNORECASE)
     row1_cell1  = re.compile('^тип\s*направления', re.IGNORECASE)
@@ -118,6 +144,41 @@ class DirectionTablePatterns(Enum):
     row1_cell12 = re.compile('^Крас', re.IGNORECASE)
     row1_cell13 = re.compile('^Зел', re.IGNORECASE)
     row1_cell14 = re.compile('', re.IGNORECASE)
+
+
+
+    # row1_cell0  = ({0}, re.compile('^№\s*нап', re.IGNORECASE))
+    # row1_cell1  = ({1}, re.compile('^тип\s*направления', re.IGNORECASE))
+    # row1_cell2  = ({2}, re.compile('^фазы.*кот.*направ', re.IGNORECASE))
+    # row1_cell3  = ({3}, re.compile('^светоф', re.IGNORECASE))
+    # row1_cell4  = ({4}, re.compile('^Тзд', re.IGNORECASE))
+    # row1_cell5  = ({5}, re.compile('^Тзм', re.IGNORECASE))
+    # row1_cell6  = ({6}, re.compile('^Тж', re.IGNORECASE))
+    # row1_cell7  = ({7}, re.compile('^Тк', re.IGNORECASE))
+    # row1_cell8  = ({8}, re.compile('^Ткж', re.IGNORECASE))
+    # row1_cell9  = ({9}, re.compile('^Тз', re.IGNORECASE))
+    # row1_cell10 = ({10}, re.compile('^Тзз', re.IGNORECASE))
+    # row1_cell11 = ({11}, re.compile('.+крас', re.IGNORECASE))
+    # row1_cell12 = ({12}, re.compile('^Крас', re.IGNORECASE))
+    # row1_cell13 = ({13}, re.compile('^Зел', re.IGNORECASE))
+    # row1_cell14 = ({14}, re.compile('', re.IGNORECASE))
+
+    # num = re.compile('^тип\s*направления', re.IGNORECASE)
+    # direction_type = re.compile('^фазы.*кот.*направ', re.IGNORECASE)
+    # stages = re.compile('^светоф', re.IGNORECASE)
+    # tlc = re.compile('^Тзд', re.IGNORECASE)
+    # t_green_ext = re.compile('^Тзм', re.IGNORECASE)
+    # t_green_flashing = re.compile('^Тж', re.IGNORECASE)
+    # t_yellow = re.compile('^Тк', re.IGNORECASE)
+    # t_red = re.compile('^Ткж', re.IGNORECASE)
+    # t_red_yellow = re.compile('^Тз', re.IGNORECASE)
+    # t_z = re.compile('^Тзз', re.IGNORECASE)
+    # t_zz = re.compile('.+крас', re.IGNORECASE)
+    # always_red = re.compile('^Крас', re.IGNORECASE)
+    # toov_green = re.compile('^Зел', re.IGNORECASE)
+    # toov_red = re.compile('', re.IGNORECASE)
+    # description = re.compile('^примечание', re.IGNORECASE)
+
 
     @classmethod
     def get_patterns_len(cls, length: int):
@@ -153,14 +214,15 @@ def _check_is_directions_table(rows) -> bool:
     #     and re.search(DirectionTablePatterns.row1_cell0.value, rows[1].cells[0].text) is not None
     #     and re.search(DirectionTablePatterns.row1_cell1.value, rows[1].cells[1].text) is not None
     # )
-    is_two_head_rows = all(
+    first_and_second_rows_is_head = all(
         re.search(p, s) is not None for p, s in zip(
             (DirectionTablePatterns.row1_cell0.value, DirectionTablePatterns.row1_cell1.value),
-            (rows[1].cells[0].text, rows[1].cells[1].text)
+            (rows[1].cells[0].text, rows[1].cells[1].text),
+            strict=True
         )
     )
     try:
-        assert is_two_head_rows
+        assert first_and_second_rows_is_head
         # Проверка, что третья строка(индекс=2) это строка с первой группой
         cell_num_group = int(rows[2].cells[0].text)
         cell_t_green_ext = (int(rows[2].cells[5].text) - 3)
@@ -169,6 +231,16 @@ def _check_is_directions_table(rows) -> bool:
     except (AssertionError, ValueError):
         return False
     return True
+
+
+# individual_cells_dt = {
+#     DirectionTablePatterns.
+# }
+
+
+def _check_length_and_col_names_dt(row_cells):
+    pass
+
 
 
 def _check_bad_col_names_directions_table(row) -> tuple[int | None, MutableSequence[InvalidCellName]]:
@@ -211,6 +283,22 @@ def sort(tables: MutableSequence[Table]) -> DocTablesMeta:
     return DocTablesMeta(tables_meta)
 
 
+class Cells(Enum):
+    dt_data_row_length14 = (Cell, ) + (DirectionTypeCell, StageOrDirectionNumsCell) + tuple(Cell for _ in range(14 - 3))
+    dt_data_row_length15 = (Cell, ) + (DirectionTypeCell, StageOrDirectionNumsCell) + tuple(Cell for _ in range(15 - 3))
+    dt_head_row_length14 = tuple(Cell for _ in range(14))
+    dt_head_row_length15 = tuple(Cell for _ in range(15))
+
+
+class RowMatches(NamedTuple):
+    head: Sequence
+    data: Sequence
+
+
+dt_row_matches14 = RowMatches(Cells.dt_head_row_length14.value, Cells.dt_data_row_length14.value)
+dt_row_matches15 = RowMatches(Cells.dt_head_row_length15.value, Cells.dt_data_row_length15.value)
+
+
 def _get_values_for_direction_table_row(
     docx_row,
     val_tzz_if_has_not_in_docx_row='',
@@ -219,7 +307,32 @@ def _get_values_for_direction_table_row(
     if head_row:
         for i, data in enumerate(docx_row):
             if i == 10 and len(docx_row) == TableDirectionsAllowedLengths.exclude_tzz_14:
-                yield Cell(None, val_tzz_if_has_not_in_docx_row, '0')
+                yield Cell(None, val_tzz_if_has_not_in_docx_row, '')
+            yield Cell(i, data.text, '')
+    else:
+        for i, data in enumerate(docx_row):
+            if i == 10 and len(docx_row) == TableDirectionsAllowedLengths.exclude_tzz_14:
+                yield Cell(None, val_tzz_if_has_not_in_docx_row, '')
+
+            if i >= 2 or i == 0:
+                yield Cell(i, data.text, '')
+            elif i == 2:
+                yield StageOrDirectionNumsCell(i, data.text)
+            elif i == 1:
+                yield DirectionTypeCell(i, data.text)
+            else:
+                raise ValueError
+
+
+def _get_values_for_direction_table_row(
+    docx_row,
+    val_tzz_if_has_not_in_docx_row='',
+    head_row=False
+):
+    if head_row:
+        for i, data in enumerate(docx_row):
+            if i == 10 and len(docx_row) == TableDirectionsAllowedLengths.exclude_tzz_14:
+                yield Cell(None, val_tzz_if_has_not_in_docx_row, '')
             yield Cell(i, data.text, '')
     else:
         for i, data in enumerate(docx_row):
@@ -239,6 +352,8 @@ def _get_values_for_direction_table_row(
 def build_directions_table(index, table: Table):
     rows = table.rows
     dt = DirectionsTable(index, table, [], [])
+    if len(rows) == 14:
+        matches_data_row = Cells.dt_data_row_length14
     for i, row in enumerate(rows):
         if i <= 1:
             v = '"Разрешение"' if i == 1 else 'Тзз'
@@ -324,6 +439,12 @@ class CheckListBaseValidation:
     col_names_direction_table: ValidationCheck = field(default_factory=ValidationCheck)
 
 
+@dataclass
+class CheckListDirectionRow:
+    num: ValidationCheck = field(default_factory=ValidationCheck)
+    stages: ValidationCheck = field(default_factory=ValidationCheck)
+
+
 class Passport:
     def __init__(self, docx: str):
         self._path = docx
@@ -387,13 +508,13 @@ class Passport:
 
 if __name__ == '__main__':
     path = 'C://Programms//py.projects//sdp_lib//sdp_lib//passport//СО_2094_ул_Островитянова_ул_Ак_Волгина (2)'
-    # doc = Document(f'{path}.docx')
+    doc = Document(f'{path}.docx')
     # print(doc.tables)
-    # _display_all_tables(doc)
+    _display_all_tables(doc)
     # build_tables(doc.tables)
     # print(sort(doc.tables))
-    ps = Passport(f'{path}.docx')
-    ps.create_passport_from_docx()
+    # ps = Passport(f'{path}.docx')
+    # ps.create_passport_from_docx()
     # doc.tables[0].table_direction = WD_TABLE_DIRECTION.LTR
     # doc.tables[0].add_row()
     # doc.save(f'{path}_22.docx')
