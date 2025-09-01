@@ -5,7 +5,7 @@ import json
 import random
 import re
 import time
-from collections.abc import Sequence, MutableMapping, Iterable
+from collections.abc import Sequence, MutableMapping, Iterable, MutableSequence, Hashable
 from datetime import datetime as dt
 from string import ascii_letters
 from typing import Callable, TypeVar, Any, Protocol
@@ -161,6 +161,25 @@ def to_json(data: dict, file: str = None):
 def get_max_or_default_if_target_is_empty(target: Iterable, returned_default_val=None):
     print(f'target: {target}')
     return max(target, default=returned_default_val)
+
+
+def add_record(
+    target: MutableSequence | MutableMapping,
+    records: Iterable[Any] | Iterable[tuple[Hashable, Any]],
+    skip_add_if_err_is_empty=True
+) -> int:
+    cnt = 0
+    if isinstance(target, MutableMapping):
+        for k, v in records:
+            if str(v) or not skip_add_if_err_is_empty:
+                cnt += 1
+                target[k] = v
+    elif isinstance(target, MutableSequence):
+        for record in records:
+            if str(record) or not skip_add_if_err_is_empty:
+                cnt += 1
+                target.append(record)
+    return cnt
 
 
 class DumpProtocol(Protocol):
