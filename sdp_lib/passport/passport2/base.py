@@ -99,18 +99,21 @@ class Message(NamedTuple):
 
 
 def add_record(
-    container: MutableSequence | MutableMapping,
-    records: Iterable[str | Message] | Iterable[tuple[float, Any]]
+    target: MutableSequence | MutableMapping,
+    records: Iterable[str | Message] | Iterable[tuple[float, Any]],
+    skip_add_if_err_is_empty=True
 ) -> int:
     cnt = 0
-    if isinstance(container, MutableMapping):
-        for key, row in records:
-            cnt += 1
-            container[key] = row
-    elif isinstance(container, MutableSequence):
+    if isinstance(target, MutableMapping):
+        for k, v in records:
+            if str(v) or not skip_add_if_err_is_empty:
+                cnt += 1
+                target[k] = v
+    elif isinstance(target, MutableSequence):
         for record in records:
-            cnt += 1
-            container.append(record)
+            if str(record) or not skip_add_if_err_is_empty:
+                cnt += 1
+                target.append(record)
     return cnt
 
 

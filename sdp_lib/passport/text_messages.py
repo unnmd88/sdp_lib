@@ -1,3 +1,4 @@
+from collections.abc import Iterable, Sequence
 from enum import StrEnum
 from typing import Any
 
@@ -54,6 +55,10 @@ class Text(StrEnum):
             name: ColNamesTimeProgramsTable | ColNamesDirectionsTable = ''
     ) -> str:
         return f'Неверно задано значение "{name}": {value}'
+
+    @classmethod
+    def bad_nums(cls, bad_nums: Sequence) -> str:
+        return f'Недопустимые номера({len(bad_nums)}): {bad_nums}'
 
     @classmethod
     def get_has_doubles(cls, entity: str, column_name: str, doubles: Any):
