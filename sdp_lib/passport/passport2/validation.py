@@ -143,12 +143,17 @@ class CheckListDirectionRow:
         return res
 
 
-@dataclass
+
 class CheckListTable:
-    length_columns: BaseCellValidationResult = None
-    min_num_rows: BaseCellValidationResult = None
-    head_rows: MutableSequence[CheckListDirectionRow] = field(default_factory=list)
-    data_rows: MutableSequence[CheckListDirectionRow] = field(default_factory=list)
+
+    __slots__ = ('length_columns', 'min_num_rows', 'head_rows', 'data_rows')
+
+    def __init__(self):
+
+        self.length_columns: BaseCellValidationResult = None
+        self.min_num_rows: BaseCellValidationResult = None
+        self.head_rows: MutableSequence[CheckListDirectionRow] = []
+        self.data_rows: MutableSequence[CheckListDirectionRow] = []
 
     def load_length_columns(self, instance: BaseCellValidationResult, replace_old=True):
         if self.length_columns and not replace_old:
@@ -161,13 +166,13 @@ class CheckListTable:
         self.min_num_rows = instance
 
     def dump(self):
-
-        return {
-            'length_columns': self.length_columns.dump(),
-            'min_num_rows': self.min_num_rows.dump(),
-            'head_rows': [m.dump() for m in self.head_rows],
-            'data_rows': [m.dump() for m in self.data_rows],
-        }
+        res = {}
+        for attr in self.__slots__:
+            try:
+                res[attr] = dump_to_dict(getattr(self, attr))
+            except AttributeError:
+                res[attr] = [a.dump() for a in getattr(self, attr)]
+        return res
 
 
 def check_directions_or_stages_string(
