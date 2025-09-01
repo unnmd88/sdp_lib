@@ -1,3 +1,4 @@
+import re
 from collections.abc import Sequence, Callable, Generator
 from typing import Any
 
@@ -5,10 +6,36 @@ from docx import Document
 from docx.table import _Rows
 
 from sdp_lib.passport.constants import TableNames
+from sdp_lib.passport.passport2.patterns import DirectionTablePatterns
 from sdp_lib.passport.passport2.validation.base import get_int_or_float, CheckListDirectionRow, \
     BaseCellValidationResult, check_directions_or_stages_string, CheckListTable
 from sdp_lib.passport.text_messages import Text
 from sdp_lib.utils_common.utils_common import to_json, timed
+
+
+def _check_is_directions_table(rows: _Rows) -> bool:
+    # return bool(
+    #     14 <= len(rows[0].cells) <= 15
+    #     and re.search(DirectionTablePatterns.row1_cell0.value, rows[1].cells[0].text) is not None
+    #     and re.search(DirectionTablePatterns.row1_cell1.value, rows[1].cells[1].text) is not None
+    # )
+    first_and_second_rows_is_head = all(
+        re.search(p, s) is not None for p, s in zip(
+            (DirectionTablePatterns.row1_cell0.value, DirectionTablePatterns.row1_cell1.value),
+            (rows[1].cells[0].text, rows[1].cells[1].text),
+            strict=True
+        )
+    )
+    try:
+        assert first_and_second_rows_is_head
+        # Проверка, что третья строка(индекс=2) это строка с первой группой
+        cell_num_group = int(rows[2].cells[0].text)
+        cell_t_green_ext = (int(rows[2].cells[5].text) - 3)
+        assert cell_num_group - 1  >= 0
+        assert cell_t_green_ext >= 0
+    except (AssertionError, ValueError):
+        return False
+    return True
 
 
 def check_length_cols_direction_table(row_length: int) -> str:
