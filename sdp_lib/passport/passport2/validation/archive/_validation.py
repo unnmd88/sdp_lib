@@ -247,8 +247,8 @@ def validate_data_row_dt(cells) -> CheckListDirectionRow:
     return CheckListDirectionRow(num_validation, check_directions_or_stages_string(stages), is_empty)
 
 
-def validate_length_dt(rows_cells) -> Generator[BaseCellValidationResult, Any, None]:
-    for func, arg in zip(dt_struct_validation_functions,(len(rows_cells[0].cells), len(rows_cells))):
+def validate_geometry_dt(rows_cells) -> Generator[BaseCellValidationResult, Any, None]:
+    for func, arg in zip(dt_struct_validation_functions, (len(rows_cells[0].cells), len(rows_cells))):
         instance = BaseCellValidationResult(arg)
         instance.set_is_checked(True)
         err_msg = func(arg)
@@ -259,9 +259,8 @@ def validate_length_dt(rows_cells) -> Generator[BaseCellValidationResult, Any, N
 
 @timed
 def validate_directions_table(rows_cells: _Rows) -> CheckListTable:
-    length_columns, min_num_rows = validate_length_dt(rows_cells)
+    length_columns, min_num_rows = validate_geometry_dt(rows_cells)
     check_list = CheckListTable(length_columns, min_num_rows)
-
     for i in range(2, len(rows_cells)):
         check_list.data_rows.append(validate_data_row_dt(rows_cells[i].cells))
     print(to_json(check_list.dump(), 'ff'))
