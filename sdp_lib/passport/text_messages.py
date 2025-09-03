@@ -12,6 +12,9 @@ class Text(StrEnum):
         f'числа через точку("1.1", "1.2", "4.1" и т.д.)'
     )
 
+
+
+
     always_red_must_be_empty = (
         f'У группы типа "{DirectionTypes.always_red}" не должно быть фаз в '
         f'колонке "{ColNamesDirectionsTable.stages}"'
@@ -24,16 +27,22 @@ class Text(StrEnum):
     )
 
     @classmethod
+    def bad_value(cls, val, expected=''):
+        if expected:
+            return f'Недопустимое значение <{val}>. Допустимые: {expected}'
+        return f'Недопустимое значение.'
+
+    @classmethod
     def invalid_col_names(cls, entity, names):
         return f'Некорректные имена столбцов для {entity}: {names}'
 
     @classmethod
-    def bad_length(cls, entity, length=''):
-        return f'Недопустимое количество колонок <{entity}>: {length}'
+    def bad_length(cls, val, expected=''):
+        return f'Недопустимое количество колонок <{val}>. Допустимое количество: {expected}'
 
     @classmethod
-    def bad_num_rows(cls, entity, num='', extra=''):
-        return f'Недопустимое количество строк <{entity}>: {num}{extra}'
+    def bad_num_rows(cls, val, expected=''):
+        return f'Недопустимое количество строк <{val}>. Допустимое количество больше {expected}'
 
     @classmethod
     def get_bad_num(
@@ -48,17 +57,17 @@ class Text(StrEnum):
         #     f'числа через точку("1.1", "1.2", "4.1" и т.д.)'
         # )
 
-    @classmethod
-    def get_bad_val(
-            cls,
-            value: Any = '',
-            name: ColNamesTimeProgramsTable | ColNamesDirectionsTable = ''
-    ) -> str:
-        return f'Неверно задано значение "{name}": {value}'
-
-    @classmethod
-    def bad_nums(cls, bad_nums: Sequence) -> str:
-        return f'Недопустимые номера({len(bad_nums)}): {bad_nums}'
+    # @classmethod
+    # def get_bad_val(
+    #         cls,
+    #         value: Any = '',
+    #         name: ColNamesTimeProgramsTable | ColNamesDirectionsTable = ''
+    # ) -> str:
+    #     return f'Неверно задано значение "{name}": {value}'
+    #
+    # @classmethod
+    # def bad_nums(cls, bad_nums: Sequence) -> str:
+    #     return f'Недопустимые номера({len(bad_nums)}): {bad_nums}'
 
     @classmethod
     def get_has_doubles(cls, entity: str, column_name: str, doubles: Any):

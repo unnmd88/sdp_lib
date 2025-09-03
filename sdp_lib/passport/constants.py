@@ -47,6 +47,10 @@ patterns_row1_15_dt = DirectionTablePatterns.get_patterns_len(15)
 patterns_row1_14_dt = DirectionTablePatterns.get_patterns_len(14)
 
 
+allowed_column_lengths_dt = (14, 15)
+allowed_min_num_rows = 3
+
+
 class MessageLevels(StrEnum):
     debug = 'DEBUG'
     info = 'INFO'

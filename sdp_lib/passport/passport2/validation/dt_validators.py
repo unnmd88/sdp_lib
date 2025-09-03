@@ -1,6 +1,6 @@
 import re
 from collections import Counter, defaultdict
-from collections.abc import Sequence, Callable, Generator, Iterable
+from collections.abc import Sequence, Callable, Generator, Iterable, Container
 from functools import wraps
 from typing import Any
 
@@ -8,10 +8,11 @@ from docx import Document
 from docx.table import _Rows, _Row
 
 from sdp_lib.passport.constants import TableNames, row0_14_dt, patterns_row1_15_dt, row1_14_dt, DirectionTablePatterns, \
-    patterns_row1_14_dt
+    patterns_row1_14_dt, allowed_column_lengths_dt, allowed_min_num_rows
 from sdp_lib.passport.passport2.validation.base import get_int_or_float, CheckListDirectionRow, \
-    BaseCellValidationResult, check_directions_or_stages_string, CheckListTable
-from sdp_lib.passport.passport2.validation.common_validators import get_bad_values
+    BaseCellValidationResult, check_directions_or_stages_string, CheckListTable, BaseValidationResult, Cell
+from sdp_lib.passport.passport2.validation.common_validators import validate_geometry, check_columns_length, \
+    check_min_num_rows
 from sdp_lib.passport.text_messages import Text
 from sdp_lib.utils_common.utils_common import to_json, timed
 
@@ -41,32 +42,20 @@ def _check_is_directions_table(rows: _Rows) -> bool:
     return True
 
 
-def check_length_cols_direction_table(row_length: int) -> str:
-    if not row_length in (14, 15):
-        return Text.bad_length(TableNames.directions_table, row_length)
-    return ''
-    # if not len(t_rows[0].cells) in (14, 15):
-    #     return Text.bad_length(TableNames.directions_table, len(t_rows[1]))
-    # return ''
-
-
-def check_min_num_rows(num_rows: int) -> str:
-    if num_rows >= 3:
-        return ''
-    return Text.bad_num_rows(str(TableNames.directions_table), num_rows, 'мин=3')
-
-
 def check_num_direction_or_stage(value) -> str:
     if get_int_or_float(value) is None:
         return f'Недопустимый номер: {value}' if value else f'Номер не задан'
     return ''
 
 
-dt_struct_validation_functions: Sequence[Callable] = (check_length_cols_direction_table, check_min_num_rows)
+dt_struct_validation_functions: Sequence[Callable] = (check_columns_length, check_min_num_rows)
 
+mapiings = {
+    0:
+}
 
 def validate_data_row_dt(cells) -> CheckListDirectionRow:
-    is_empty = all(not v.text for v in cells)
+    is_empty = all(not v.text.rstrip().lstrip() for v in cells)
     num_from_cell = cells[0].text
     num_validation = BaseCellValidationResult(num_from_cell)
     num_validation.set_is_checked(True)
@@ -79,38 +68,14 @@ def validate_data_row_dt(cells) -> CheckListDirectionRow:
     return CheckListDirectionRow(num_validation, check_directions_or_stages_string(stages), is_empty)
 
 
-def validate_geometry_dt(rows_cells) -> Generator[BaseCellValidationResult, Any, None]:
-    for func, arg in zip(dt_struct_validation_functions, (len(rows_cells[0].cells), len(rows_cells))):
-        instance = BaseCellValidationResult(arg)
-        instance.set_is_checked(True)
-        err_msg = func(arg)
-        instance.set_ok(not bool(err_msg))
-        instance.add_errors(err_msg)
-        yield instance
-
-
-def validate_row(func: Callable):
-    @wraps(func)
-    def wrapper(row_cells: _Row, patterns: Sequence[str | re.Pattern], *args, **kwargs):
-        # bad_vals = get_bad_values((c.text for c in row_cells.cells), patterns)
-        bad_vals = list(get_bad_values(row_cells, patterns))
-        print(f'bad_vals: {bad_vals}')
-        return func(1, 2)
-    return wrapper
-
-
-
-def validate_first_row(row_cells, patterns):
-    cnt = defaultdict(list)
-
-    return 'Kello!'
-
-
 @timed
 def validate_directions_table(rows_cells: _Rows) -> CheckListTable:
-    length_columns, min_num_rows = validate_geometry_dt(rows_cells)
+    length_columns, min_num_rows = validate_geometry(
+        (check_columns_length, len(rows_cells[0].cells), allowed_column_lengths_dt),
+        (check_min_num_rows, len(rows_cells), allowed_column_lengths_dt)
+    )
     check_list = CheckListTable(length_columns, min_num_rows)
-    check_list_head_rows = ...
+    print(check_list)
     for i in range(2, len(rows_cells)):
         check_list.data_rows.append(validate_data_row_dt(rows_cells[i].cells))
     print(to_json(check_list.dump(), 'ff'))
@@ -118,14 +83,15 @@ def validate_directions_table(rows_cells: _Rows) -> CheckListTable:
 
 
 if __name__ == '__main__':
-    validate_first_row(row1_14_dt, patterns_row1_14_dt)
     # strings = ('1,2,2,4', '1.1,1.4,5,7,10', '', '     ', '1e,2dqd')
     # for s in strings:
     #     rr = check_directions_or_stages_string(s)
     #
     # # path = 'C://Programms//py.projects//sdp_lib//sdp_lib//passport//СО_2094_ул_Островитянова_ул_Ак_Волгина (2)'
-    # path = '/home/auser/Downloads/СО_2120_Северный_б_р_Санникова_ул_Декабристов_ул_'
-    # doc = Document(f'{path}.docx')
+    path1 = '/home/auser/Downloads/СО_2120_Северный_б_р_Санникова_ул_Декабристов_ул_'
+    path2 = '/home/auser/Downloads/ПД Паспорт шаблон 2025 (Копия)'
+
+    doc = Document(f'{path1}.docx')
     # c = CheckListTable()
-    # validate_directions_table(doc.tables[0].rows)
+    validate_directions_table(doc.tables[0].rows)
 

@@ -1,6 +1,6 @@
 import re
 from collections import defaultdict
-from collections.abc import MutableSequence, MutableMapping, Iterable
+from collections.abc import MutableSequence, MutableMapping, Iterable, Sequence
 from typing import NamedTuple, Any
 
 from sdp_lib.passport.constants import Patterns
@@ -9,22 +9,17 @@ from sdp_lib.passport.text_messages import Text
 from sdp_lib.utils_common.utils_common import dump_to_dict, remove_chars, add_record, get_int_or_float
 
 
-class BadValue(NamedTuple):
+class Cell(NamedTuple):
     pos: int
-    val: Any
-    expected: Any
+    value: str | int | float
+    expected: str
+    error_message: str
 
 
-class Doubles(NamedTuple):
-    val: Any
-    positions: MutableSequence[int]
-    count: int
-
-
-
-class HeadRowData(NamedTuple):
-    bad_vals: MutableSequence
-    doubles: MutableSequence
+class BaseValidationResult(NamedTuple):
+    value: str | int | float
+    errors: Sequence[str]
+    warnings: Sequence[str]
 
 
 class BaseCellValidationResult:
@@ -65,18 +60,6 @@ class BaseCellValidationResult:
         return dump_to_dict(self)
 
 
-class ContentCellValidationResult(BaseCellValidationResult):
-
-    __slots__ = BaseCellValidationResult.__slots__ + ('expected_val', )
-
-    def __init__(self, value=None, expected_val=None):
-        super().__init__(value)
-        self.expected = expected_val
-
-    def set_expected_val(self, val):
-        self.expected = val
-
-
 class DirectionsOrStagesCellValidationResult(BaseCellValidationResult):
 
     __slots__ = BaseCellValidationResult.__slots__ + ('is_always_red', 'is_empty', 'nums', 'bad_nums', 'doubles')
@@ -92,14 +75,6 @@ class DirectionsOrStagesCellValidationResult(BaseCellValidationResult):
     def compute_and_set_ok_attr(self) -> bool:
         self.ok = all(not obj for obj in (self.is_empty, self.bad_nums))
         return self.ok
-
-
-class CheckListHeadRow(NamedTuple):
-    row: Iterable[str]
-    pos: int
-    bad_vals: MutableSequence[BadValue]
-    doubles: MutableMapping[str, int]
-    messages: MessageStorage
 
 
 class CheckListDirectionRow:
@@ -136,14 +111,14 @@ class CheckListTable:
 
     def __init__(
             self,
-            length_columns: BaseCellValidationResult = None,
-            min_num_rows: BaseCellValidationResult = None,
+            length_columns: Cell = None,
+            num_rows: Cell = None,
             head_rows: MutableSequence[CheckListDirectionRow] = None,
             data_rows: MutableSequence[CheckListDirectionRow] = None
     ):
 
         self.length_columns = length_columns
-        self.min_num_rows: BaseCellValidationResult = min_num_rows
+        self.min_num_rows = num_rows
         self.head_rows = head_rows or []
         self.data_rows = data_rows or []
 
@@ -158,12 +133,19 @@ class CheckListTable:
         self.min_num_rows = instance
 
     def dump(self):
+        res =  {
+            'length_columns': self.length_columns._asdict(),
+            'min_num_rows': self.min_num_rows._asdict(),
+        }
+        print(res)
+        return res
         res = {}
         for attr in self.__slots__:
             try:
                 res[attr] = dump_to_dict(getattr(self, attr))
             except AttributeError:
-                res[attr] = [a.dump() for a in getattr(self, attr)]
+                # res[attr] = [a.dump() for a in getattr(self, attr)]
+                res[attr] = [a._asdict() for a in getattr(self, attr)]
         return res
 
 
