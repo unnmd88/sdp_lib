@@ -1,7 +1,50 @@
+import re
 from enum import (
     StrEnum,
-    IntEnum,
+    IntEnum, Enum,
 )
+
+from sdp_lib.utils_common.utils_common import gen_seq
+
+
+class Patterns(Enum):
+    always_red = re.compile(r'кр|-|поко', re.IGNORECASE)
+
+
+class DirectionTablePatterns(Enum):
+    row1_cell0  = re.compile('^№\s*нап', re.IGNORECASE)
+    row1_cell1  = re.compile('^тип\s*направления', re.IGNORECASE)
+    row1_cell2  = re.compile('^фазы.*кот.*направ', re.IGNORECASE)
+    row1_cell3  = re.compile('^светофоры', re.IGNORECASE)
+    row1_cell4  = re.compile('^Тзд', re.IGNORECASE)
+    row1_cell5  = re.compile('^Тзм', re.IGNORECASE)
+    row1_cell6  = re.compile('^Тж', re.IGNORECASE)
+    row1_cell7  = re.compile('^Тк', re.IGNORECASE)
+    row1_cell8  = re.compile('^Ткж', re.IGNORECASE)
+    row1_cell9  = re.compile('^Тз', re.IGNORECASE)
+    row1_cell10 = re.compile('^Тзз', re.IGNORECASE)
+    row1_cell11 = re.compile('^пост.+крас', re.IGNORECASE)
+    row1_cell12 = re.compile('^Зел', re.IGNORECASE)
+    row1_cell13 = re.compile('^Красн', re.IGNORECASE)
+    row1_cell14 = re.compile('', re.IGNORECASE)
+
+    @classmethod
+    def get_patterns_len(cls, length: int):
+        if length == 15:
+            for pattern in cls:
+                yield pattern.value
+        elif length == 14:
+            for i, pattern in enumerate(cls):
+                if i != 10:
+                    yield pattern.value
+
+
+row0_15_dt = ['№ нап.', 'Тип направления', 'Фазы, в кот. участ. направ.', 'Светофоры', '"Запрет"', '"Запрет"', '"Запрет"', '"Запрет"', '"Разрешение"', '"Разрешение"', '"Разрешение"', 'Пост. красное', 'ТООВ ', 'ТООВ ', 'Примечание']
+row1_15_dt = ['№ нап.', 'Тип направления', 'Фазы, в кот. участ. направ.', 'Светофоры', 'Тзд', 'Тзм', 'Тж', 'Тк', 'Ткж', 'Тз', 'Тзз', 'Пост. красное', 'Красн.', 'Зелен.', '']
+row0_14_dt = gen_seq(row0_15_dt, {10})
+row1_14_dt = gen_seq(row1_15_dt, {10})
+patterns_row1_15_dt = DirectionTablePatterns.get_patterns_len(15)
+patterns_row1_14_dt = DirectionTablePatterns.get_patterns_len(14)
 
 
 class MessageLevels(StrEnum):

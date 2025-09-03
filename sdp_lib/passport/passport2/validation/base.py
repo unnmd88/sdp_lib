@@ -1,10 +1,30 @@
 import re
 from collections import defaultdict
-from collections.abc import MutableSequence, MutableMapping
+from collections.abc import MutableSequence, MutableMapping, Iterable
+from typing import NamedTuple, Any
 
-from sdp_lib.passport.passport2.patterns import Patterns
+from sdp_lib.passport.constants import Patterns
+from sdp_lib.passport.passport2.base import MessageStorage
 from sdp_lib.passport.text_messages import Text
 from sdp_lib.utils_common.utils_common import dump_to_dict, remove_chars, add_record, get_int_or_float
+
+
+class BadValue(NamedTuple):
+    pos: int
+    val: Any
+    expected: Any
+
+
+class Doubles(NamedTuple):
+    val: Any
+    positions: MutableSequence[int]
+    count: int
+
+
+
+class HeadRowData(NamedTuple):
+    bad_vals: MutableSequence
+    doubles: MutableSequence
 
 
 class BaseCellValidationResult:
@@ -45,6 +65,18 @@ class BaseCellValidationResult:
         return dump_to_dict(self)
 
 
+class ContentCellValidationResult(BaseCellValidationResult):
+
+    __slots__ = BaseCellValidationResult.__slots__ + ('expected_val', )
+
+    def __init__(self, value=None, expected_val=None):
+        super().__init__(value)
+        self.expected = expected_val
+
+    def set_expected_val(self, val):
+        self.expected = val
+
+
 class DirectionsOrStagesCellValidationResult(BaseCellValidationResult):
 
     __slots__ = BaseCellValidationResult.__slots__ + ('is_always_red', 'is_empty', 'nums', 'bad_nums', 'doubles')
@@ -60,6 +92,14 @@ class DirectionsOrStagesCellValidationResult(BaseCellValidationResult):
     def compute_and_set_ok_attr(self) -> bool:
         self.ok = all(not obj for obj in (self.is_empty, self.bad_nums))
         return self.ok
+
+
+class CheckListHeadRow(NamedTuple):
+    row: Iterable[str]
+    pos: int
+    bad_vals: MutableSequence[BadValue]
+    doubles: MutableMapping[str, int]
+    messages: MessageStorage
 
 
 class CheckListDirectionRow:

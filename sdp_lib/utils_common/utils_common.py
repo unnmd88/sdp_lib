@@ -5,7 +5,7 @@ import json
 import random
 import re
 import time
-from collections.abc import Sequence, MutableMapping, Iterable, MutableSequence, Hashable
+from collections.abc import Sequence, MutableMapping, Iterable, MutableSequence, Hashable, Container
 from datetime import datetime as dt
 from string import ascii_letters
 from typing import Callable, TypeVar, Any, Protocol
@@ -244,6 +244,19 @@ def dump_to_tuple(obj: DumpProtocol):
         return ((attr, getattr(obj, attr)) for attr in obj.__slots__)
     except AttributeError:
         return (pair for pair in obj.__dict__.items())
+
+
+def gen_seq(
+    pattern: Sequence,
+    exclude_positions: Container[int] = None,
+    exclude_values: Container[Any] = None,
+    returned_container = tuple,
+):
+    exclude_positions = exclude_positions or ()
+    exclude_values = exclude_values or ()
+    return returned_container(
+        el for i, el in enumerate(pattern) if (i not in exclude_positions) and (el not in exclude_values)
+    )
 
 
 if __name__ == '__main__':
