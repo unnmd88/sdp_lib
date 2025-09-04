@@ -1,3 +1,4 @@
+import itertools
 import re
 from collections import Counter, defaultdict
 from collections.abc import Sequence, Callable, Generator, Iterable, Container
@@ -8,11 +9,12 @@ from docx import Document
 from docx.table import _Rows, _Row
 
 from sdp_lib.passport.constants import TableNames, row0_14_dt, patterns_row1_15_dt, row1_14_dt, DirectionTablePatterns, \
-    patterns_row1_14_dt, allowed_column_lengths_dt, allowed_min_num_rows
+    patterns_row1_14_dt, allowed_column_lengths_dt, allowed_min_num_rows, patterns_row0_14_dt, dt_patterns_row0, \
+    dt_patterns_row1
+from sdp_lib.passport.passport2.utils import remove_left_light_spaces
 from sdp_lib.passport.passport2.validation.base import get_int_or_float, CheckListDirectionRow, \
     BaseCellValidationResult, check_directions_or_stages_string, CheckListTable, BaseValidationResult, Cell
-from sdp_lib.passport.passport2.validation.common_validators import validate_geometry, check_columns_length, \
-    check_min_num_rows
+from sdp_lib.passport.passport2.validation.common_validators import validate_geometry, match_cells
 from sdp_lib.passport.text_messages import Text
 from sdp_lib.utils_common.utils_common import to_json, timed
 
@@ -48,11 +50,9 @@ def check_num_direction_or_stage(value) -> str:
     return ''
 
 
-dt_struct_validation_functions: Sequence[Callable] = (check_columns_length, check_min_num_rows)
+# dt_struct_validation_functions: Sequence[Callable] = (check_columns_length, check_min_num_rows)
 
-mapiings = {
-    0:
-}
+
 
 def validate_data_row_dt(cells) -> CheckListDirectionRow:
     is_empty = all(not v.text.rstrip().lstrip() for v in cells)
@@ -69,17 +69,32 @@ def validate_data_row_dt(cells) -> CheckListDirectionRow:
 
 
 @timed
-def validate_directions_table(rows_cells: _Rows) -> CheckListTable:
-    length_columns, min_num_rows = validate_geometry(
-        (check_columns_length, len(rows_cells[0].cells), allowed_column_lengths_dt),
-        (check_min_num_rows, len(rows_cells), allowed_column_lengths_dt)
-    )
-    check_list = CheckListTable(length_columns, min_num_rows)
-    print(check_list)
-    for i in range(2, len(rows_cells)):
-        check_list.data_rows.append(validate_data_row_dt(rows_cells[i].cells))
-    print(to_json(check_list.dump(), 'ff'))
-    return check_list
+def validate_directions_table(rows: _Rows) -> CheckListTable:
+    geometry_check_list = validate_geometry(rows, allowed_column_lengths_dt, allowed_min_num_rows)
+    print(geometry_check_list)
+    patterns_row0 = dt_patterns_row0[geometry_check_list.num_columns.value]
+    patterns_row1 = dt_patterns_row1[geometry_check_list.num_columns.value]
+    first = tuple(match_cells(remove_left_light_spaces(rows[0].cells), patterns_row0))
+    second = tuple(match_cells(remove_left_light_spaces(rows[1].cells), patterns_row1))
+    for el in itertools.chain(first, ('----', ),  second):
+        print(el)
+
+
+
+
+
+# @timed
+# def validate_directions_table(rows_cells: _Rows) -> CheckListTable:
+#     length_columns, min_num_rows = validate_geometry(
+#         (check_columns_length, len(rows_cells[0].cells), allowed_column_lengths_dt),
+#         (check_min_num_rows, len(rows_cells), allowed_column_lengths_dt)
+#     )
+#     check_list = CheckListTable(length_columns, min_num_rows)
+#     print(check_list)
+#     for i in range(2, len(rows_cells)):
+#         check_list.data_rows.append(validate_data_row_dt(rows_cells[i].cells))
+#     print(to_json(check_list.dump(), 'ff'))
+#     return check_list
 
 
 if __name__ == '__main__':
@@ -90,8 +105,9 @@ if __name__ == '__main__':
     # # path = 'C://Programms//py.projects//sdp_lib//sdp_lib//passport//СО_2094_ул_Островитянова_ул_Ак_Волгина (2)'
     path1 = '/home/auser/Downloads/СО_2120_Северный_б_р_Санникова_ул_Декабристов_ул_'
     path2 = '/home/auser/Downloads/ПД Паспорт шаблон 2025 (Копия)'
+    path3 = '/home/auser/Downloads/СО_2120_Северный_б_р_Санникова_ул_Декабристов_ул_ (1)'
 
-    doc = Document(f'{path1}.docx')
+    doc = Document(f'{path3}.docx')
     # c = CheckListTable()
     validate_directions_table(doc.tables[0].rows)
 

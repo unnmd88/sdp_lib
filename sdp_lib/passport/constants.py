@@ -39,12 +39,72 @@ class DirectionTablePatterns(Enum):
                     yield pattern.value
 
 
+class AllPatterns(Enum):
+    num_direction  = re.compile('^№\s*нап', re.IGNORECASE)
+    entity_direction  = re.compile('^тип\s*направления', re.IGNORECASE)
+    stages  = re.compile('^фазы.*кот.*направ', re.IGNORECASE)
+    traffic_lights  = re.compile('^светофоры', re.IGNORECASE)
+
+    prohibition  = re.compile('Запрет', re.IGNORECASE)
+    permission  = re.compile('Разрешение', re.IGNORECASE)
+
+    t_green_extension  = re.compile('^Тзд', re.IGNORECASE)
+    t_green_flashing  = re.compile('^Тзм', re.IGNORECASE)
+    t_yellow  = re.compile('^Тж', re.IGNORECASE)
+    t_red  = re.compile('^Тк', re.IGNORECASE)
+    t_red_yellow  = re.compile('^Ткж', re.IGNORECASE)
+    t_z  = re.compile('^Тз', re.IGNORECASE)
+    t_zz = re.compile('^Тзз', re.IGNORECASE)
+    always_red = re.compile('^пост.+крас', re.IGNORECASE)
+
+    toov = re.compile('^ТООВ')
+
+    toov_green = re.compile('^Зел', re.IGNORECASE)
+    toov_red = re.compile('^Красн', re.IGNORECASE)
+    description = re.compile('^примечание', re.IGNORECASE)
+    empty = re.compile('', re.IGNORECASE)
+
+
+
 row0_15_dt = ['№ нап.', 'Тип направления', 'Фазы, в кот. участ. направ.', 'Светофоры', '"Запрет"', '"Запрет"', '"Запрет"', '"Запрет"', '"Разрешение"', '"Разрешение"', '"Разрешение"', 'Пост. красное', 'ТООВ ', 'ТООВ ', 'Примечание']
 row1_15_dt = ['№ нап.', 'Тип направления', 'Фазы, в кот. участ. направ.', 'Светофоры', 'Тзд', 'Тзм', 'Тж', 'Тк', 'Ткж', 'Тз', 'Тзз', 'Пост. красное', 'Красн.', 'Зелен.', '']
 row0_14_dt = gen_seq(row0_15_dt, {10})
 row1_14_dt = gen_seq(row1_15_dt, {10})
+
+
+patterns_row0_15_dt = (
+    AllPatterns.num_direction.value,
+    AllPatterns.entity_direction.value,
+    AllPatterns.stages.value,
+    AllPatterns.traffic_lights.value,
+    AllPatterns.prohibition.value,
+    AllPatterns.prohibition.value,
+    AllPatterns.prohibition.value,
+    AllPatterns.prohibition.value,
+    AllPatterns.permission.value,
+    AllPatterns.permission.value,
+    AllPatterns.permission.value,
+    AllPatterns.always_red.value,
+    AllPatterns.toov.value,
+    AllPatterns.toov.value,
+    AllPatterns.description.value,
+)
+patterns_row0_14_dt = patterns_row0_15_dt[:10] + patterns_row0_15_dt[11:]
+
 patterns_row1_15_dt = DirectionTablePatterns.get_patterns_len(15)
 patterns_row1_14_dt = DirectionTablePatterns.get_patterns_len(14)
+
+dt_patterns_row0 = {
+    14: patterns_row0_14_dt,
+    15: patterns_row0_15_dt
+}
+dt_patterns_row1 = {
+    14: patterns_row1_14_dt,
+    15: patterns_row1_15_dt
+}
+
+
+
 
 
 allowed_column_lengths_dt = (14, 15)
@@ -293,4 +353,6 @@ default_values = {
 
 if __name__ == '__main__':
 
-    print(WEEKDAYS)
+    print(patterns_row0_14_dt)
+    for p in patterns_row0_14_dt:
+        print(p)

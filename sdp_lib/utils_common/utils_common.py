@@ -259,6 +259,18 @@ def gen_seq(
     )
 
 
+
+
+def create_repr_from_dict_xor_slots(instance):
+    if hasattr(instance, '__dict__') and hasattr(instance, '__slots__'):
+        raise ValueError(f'An instance should not have "__dict__" and "__slots__" at the same time.')
+    try:
+        attrs = ' '.join(f'{k}={v!r}' for k, v in instance.__dict__.items())
+    except AttributeError:
+        attrs = ' '.join(f'{attr}={getattr(instance, attr)!r}' for attr in instance.__slots__)
+    return f'{instance.__class__.__name__}({attrs})'
+
+
 if __name__ == '__main__':
 
 

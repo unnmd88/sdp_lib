@@ -1,4 +1,11 @@
+from collections.abc import Iterable
+
 from docx import Document
+from docx.table import _Cell
+
+
+def remove_left_light_spaces(cells: Iterable[_Cell]):
+    return (s.text.rstrip().lstrip() for s in cells)
 
 
 def _display_all_tables(doc_x):
