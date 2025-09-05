@@ -6,7 +6,8 @@ import json
 import random
 import re
 import time
-from collections.abc import Sequence, MutableMapping, Iterable, MutableSequence, Hashable, Container
+from collections.abc import Sequence, MutableMapping, Iterable, MutableSequence, Hashable, Container, Generator, \
+    MappingView
 from datetime import datetime as dt
 from string import ascii_letters
 from typing import Callable, TypeVar, Any, Protocol
@@ -260,7 +261,12 @@ def gen_seq(
     )
 
 
-def get_instance_properties(instance):
+def get_instance_properties(instance) -> Generator[MappingView, Any, None]:
+    """
+    Возвращает итератор по всем @properties в виде ключ-значение.
+    :param instance: Любой объект.
+    :return: Возвращает итератор по всем @properties в виде ключ-значение.
+    """
     _all_classes = itertools.chain(
         *(c.__dict__.items() for c in instance.__class__.__bases__ if c != object),
         instance.__class__.__dict__.items()
@@ -274,6 +280,15 @@ def create_repr_from_dict_xor_slots(
     exclude_startswith: str = '__',
     splitter: str = ' '
 ):
+    """
+    Возвращает строковое представление объекта.
+    :param instance: Любой объект.
+    :param include_properties: Если True - добавляет @properties.
+    :param exclude_startswith: Исключает атрибуты, начинающиеся с exclude_startswith.
+    :param splitter: Разделитель между атрибутами.
+    :return: Строковое представление объекта. Например:
+             MyClass(attr1=1 attr2=True, attr3=[1, 2, 3, 4])
+    """
     if hasattr(instance, '__dict__') and hasattr(instance, '__slots__'):
         raise ValueError(f'An instance should not have "__dict__" and "__slots__" at the same time.')
     try:
