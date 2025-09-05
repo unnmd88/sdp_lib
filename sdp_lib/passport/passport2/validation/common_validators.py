@@ -17,7 +17,7 @@ from sdp_lib.passport.passport2.base2 import MessageStorage, ValidationData, Cel
 from sdp_lib.passport.passport2.check_lists import TableGeometryCheckList
 from sdp_lib.passport.passport2.validation.base import Cell, DirectionsOrStagesCellValidationResult
 from sdp_lib.passport.text_messages import Text
-from sdp_lib.utils_common.utils_common import timed
+from sdp_lib.utils_common.utils_common import timed, remove_chars
 
 """
 
@@ -63,18 +63,17 @@ def match_cells(
     #     yield CellData(s,  bool(re.search(p, s)))
 
 
-def check_directions_or_stages_string(
+def validate_sequence_directions_or_stages_nums(
     string: str,
     sep=',',
     always_red_pattern: str | re.Pattern = Patterns.always_red.value
 ) -> DirectionsOrStagesCellValidationResult:
     string_without_spaces = remove_chars(string, ' ')
-    if not isinstance(always_red_pattern, re.Pattern):
-        always_red_pattern = re.compile(always_red_pattern)
-    res = DirectionsOrStagesCellValidationResult(string_without_spaces)
-    res.is_empty = (len(string_without_spaces) == 0)
-    res.is_always_red = bool(re.search(always_red_pattern, string_without_spaces))
-    if not res.is_always_red and not res.is_empty:
+
+    is_empty = (len(string_without_spaces) == 0)
+    is_always_red = bool(re.match(always_red_pattern, string_without_spaces))
+
+    if not is_always_red and not is_empty:
         split_string = string_without_spaces.split(sep)
         tmp_basket = set()
         for n in split_string:
