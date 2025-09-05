@@ -58,7 +58,6 @@ DirectionRowCellsAll = make_dataclass(
 
 
 
-
 # @dataclass(frozen=True, slots=True)
 # class DirectionRowCells:
 #     number: Cell
