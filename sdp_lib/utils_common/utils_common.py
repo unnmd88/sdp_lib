@@ -1,6 +1,7 @@
 import functools
 import inspect
 import ipaddress
+import itertools
 import json
 import random
 import re
@@ -259,16 +260,33 @@ def gen_seq(
     )
 
 
+def get_instance_properties(instance):
+    _all_classes = itertools.chain(
+        *(c.__dict__.items() for c in instance.__class__.__bases__ if c != object),
+        instance.__class__.__dict__.items()
+    )
+    return (k for k, v in _all_classes if not k.startswith('__') and isinstance(v, property))
 
 
-def create_repr_from_dict_xor_slots(instance):
+def create_repr_from_dict_xor_slots(
+    instance,
+    include_properties: bool = True,
+    exclude_startswith: str = '__',
+    splitter: str = ' '
+):
     if hasattr(instance, '__dict__') and hasattr(instance, '__slots__'):
         raise ValueError(f'An instance should not have "__dict__" and "__slots__" at the same time.')
     try:
-        attrs = ' '.join(f'{k}={v!r}' for k, v in instance.__dict__.items())
+        src = instance.__dict__.keys()
     except AttributeError:
-        attrs = ' '.join(f'{attr}={getattr(instance, attr)!r}' for attr in instance.__slots__)
+        src = instance.__slots__
+    p = (get_instance_properties(instance)) if include_properties else ()
+    attrs = splitter.join(
+        f'{attr}={getattr(instance, attr)!r}'
+        for attr in itertools.chain(src, p) if not attr.startswith(exclude_startswith)
+    )
     return f'{instance.__class__.__name__}({attrs})'
+
 
 
 if __name__ == '__main__':
