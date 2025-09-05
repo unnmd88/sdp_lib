@@ -9,7 +9,7 @@ from dataclasses import (
 )
 from typing import TypeAlias
 
-from sdp_lib.passport.constants import DirectionTypes
+from sdp_lib.passport.constants import DirectionEntities
 
 
 DEBUG = True
@@ -51,7 +51,7 @@ class Direction:
 
     index: int
     num_as_string: str
-    entity: str = str(DirectionTypes.common)
+    entity: str = str(DirectionEntities.common)
     stages: str = ''
     traffic_lights: str = ''
     t_green_ext: int = 0
@@ -143,7 +143,7 @@ class DirectionsTable:
                 num, entity, stages = split_data
             elif len(split_data) == 1:
                 num = 'xx'
-                entity = DirectionTypes.common
+                entity = DirectionEntities.common
                 stages = split_data[0]
             else:
                 raise ValueError
@@ -190,7 +190,7 @@ def build_instances_groups_table(data: str):
             num, entity, stages = split_data
         elif len(split_data) == 1:
             num = 'xx'
-            entity = DirectionTypes.common
+            entity = DirectionEntities.common
             stages = split_data[0]
         else:
             raise ValueError
@@ -211,5 +211,5 @@ if __name__ == '__main__':
     print(direction_table.get_direction_types_cnt())
     print(direction_table.get_max_stage_num())
 
-    grp = Direction(0, '12', entity=DirectionTypes.vehicle, stages='1,3,4,43')
+    grp = Direction(0, '12', entity=DirectionEntities.vehicle, stages='1,3,4,43')
     print(grp)

@@ -2,7 +2,7 @@ from collections.abc import Iterable, Sequence
 from enum import StrEnum
 from typing import Any
 
-from sdp_lib.passport.constants import ColNamesTimeProgramsTable, ColNamesDirectionsTable, DirectionTypes, TableNames
+from sdp_lib.passport.constants import ColNamesTimeProgramsTable, ColNamesDirectionsTable, DirectionEntities, TableNames
 
 
 class Text(StrEnum):
@@ -16,7 +16,7 @@ class Text(StrEnum):
 
 
     always_red_must_be_empty = (
-        f'У группы типа "{DirectionTypes.always_red}" не должно быть фаз в '
+        f'У группы типа "{DirectionEntities.always_red}" не должно быть фаз в '
         f'колонке "{ColNamesDirectionsTable.stages}"'
     )
 

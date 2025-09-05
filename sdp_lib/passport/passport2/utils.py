@@ -22,5 +22,6 @@ def _display_all_tables(doc_x):
 if __name__ == '__main__':
     path = '/home/auser/Downloads/СО_2120_Северный_б_р_Санникова_ул_Декабристов_ул_'
     pattern = '/home/auser/Downloads/ПД Паспорт шаблон 2025'
-    doc = Document(f'{pattern}.docx')
+    path_sdp = "C:\Programms\py.projects\sdp_lib\sdp_lib\passport\СО_2094_ул_Островитянова_ул_Ак_Волгина (2)"
+    doc = Document(f'{path_sdp}.docx')
     _display_all_tables(doc)

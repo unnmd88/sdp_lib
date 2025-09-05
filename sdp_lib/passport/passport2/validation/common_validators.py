@@ -11,10 +11,11 @@ from docx import Document
 from docx.table import Table, _Rows
 from setuptools.command.build_ext import if_dl
 
-from sdp_lib.passport.constants import row0_14_dt, row1_14_dt, DirectionTablePatterns, row0_15_dt, allowed_min_num_rows
+from sdp_lib.passport.constants import row0_14_dt, row1_14_dt, DirectionTablePatterns, row0_15_dt, allowed_min_num_rows, \
+    Patterns
 from sdp_lib.passport.passport2.base2 import MessageStorage, ValidationData, CellData
 from sdp_lib.passport.passport2.check_lists import TableGeometryCheckList
-from sdp_lib.passport.passport2.validation.base import Cell
+from sdp_lib.passport.passport2.validation.base import Cell, DirectionsOrStagesCellValidationResult
 from sdp_lib.passport.text_messages import Text
 from sdp_lib.utils_common.utils_common import timed
 
@@ -45,53 +46,52 @@ def validate_geometry(
         ValidationData(num_rows, num_rows >= min_rows),
     )
 
-# def validate_geometry(*args: tuple[Callable, int, Container]) -> Generator[ValidationData, Any, None]:
-#     for func, val, expected in args:
-#         err_msg = func(val, expected)
-#         yield ValidationData(val, expected, err_msg or None)
-
-
-
-
-# def create_cell_instance_is_num_direction_or_stage(val) -> int | float | None:
-#     return get_int_or_float(val)
-
-
-# def get_pattern_match_results(
-#     *args: tuple[re.Pattern | str, Sequence[str], Sequence | None],
-#     remove_lef_right_spaces=True
-# ) -> Generator[tuple[Cell, ...], Any, None]:
-#     for target, patterns, expected_vals in args:
-#         expected_vals = expected_vals or (None for _ in target)
-#         target = target if not remove_lef_right_spaces else (s.rstrip().lstrip() for s in patterns)
-#         yield tuple(
-#             create_cell_instance(i, s, e, bool(re.search(p, s))) for i, (p, s, e) in
-#             enumerate(zip(target, patterns, expected_vals, strict=True))
-#         )
-
 
 def match_cells(
-    target,
+    strings,
     patterns,
+    duplicate_pattern_result_to_context=False
 ):
-    for s, p in zip(target, patterns, strict=True):
-        yield CellData(s,  bool(re.search(p, s)))
-
-
-def match_cells_and_get_cell_data_instance(
-    target,
-    patterns,
-    remove_lef_right_spaces=True,
-):
-    target = target if not remove_lef_right_spaces else (s.rstrip().lstrip() for s in patterns)
-    return (CellData(s, bool(re.search(p, s))) for s, p in zip(target, patterns, strict=True))
+    if duplicate_pattern_result_to_context:
+        for s, p in zip(strings, patterns, strict=True):
+            res = bool(re.search(p, s))
+            yield CellData(s, res, res)
+    else:
+        for s, p in zip(strings, patterns, strict=True):
+            yield CellData(s, bool(re.search(p, s)))
     # for s, p in zip(target, patterns, strict=True):
     #     yield CellData(s,  bool(re.search(p, s)))
-        # yield tuple(
-        #     create_cell_instance(i, s, e, bool(re.search(p, s))) for i, (p, s, e) in
-        #     enumerate(zip(target, patterns, expected_vals, strict=True))
-        # )
 
+
+def check_directions_or_stages_string(
+    string: str,
+    sep=',',
+    always_red_pattern: str | re.Pattern = Patterns.always_red.value
+) -> DirectionsOrStagesCellValidationResult:
+    string_without_spaces = remove_chars(string, ' ')
+    if not isinstance(always_red_pattern, re.Pattern):
+        always_red_pattern = re.compile(always_red_pattern)
+    res = DirectionsOrStagesCellValidationResult(string_without_spaces)
+    res.is_empty = (len(string_without_spaces) == 0)
+    res.is_always_red = bool(re.search(always_red_pattern, string_without_spaces))
+    if not res.is_always_red and not res.is_empty:
+        split_string = string_without_spaces.split(sep)
+        tmp_basket = set()
+        for n in split_string:
+            num = get_int_or_float(n)
+            if num is None:
+                res.bad_nums.append(n)
+            else:
+                res.nums.append(num)
+            if num in tmp_basket:
+                res.doubles[num or n] += 1
+            else:
+                tmp_basket.add(num)
+    res.compute_and_set_ok_attr()
+    res.is_checked = True
+    if res.bad_nums:
+        res.errors.append(Text.bad_nums(res.bad_nums))
+    return res
 
 
 if __name__ == '__main__':

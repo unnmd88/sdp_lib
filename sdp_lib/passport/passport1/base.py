@@ -27,7 +27,7 @@ from sdp_lib.passport.constants import (
     ColNamesTimeProgramsTable,
     StagesMapping,
     TableNames,
-    DirectionTypes,
+    DirectionEntities,
     RowNames, MessageLevels, MessageCategories, Fields, categories_descriptions, ComparisonDescriptions, default_values
 )
 from sdp_lib.passport.mixins import ReprMixin, EntityNameMixin
@@ -140,7 +140,7 @@ def get_cell_with_value_as_number_(
     return Cell(name, init_val, default_val, val, is_valid)
 
 
-def get_cell_with_value_as_prom_tact_time(direction_type: DirectionTypes, col_name: ColNamesDirectionsTable, init_val) -> Cell:
+def get_cell_with_value_as_prom_tact_time(direction_type: DirectionEntities, col_name: ColNamesDirectionsTable, init_val) -> Cell:
     default_val = default_values.get((direction_type, col_name))
     if init_val is None:
         val = default_val
@@ -460,7 +460,7 @@ class AbstractTableWithStages(EntityNameMixin):
                 row_properties = [p if i != 10 else t_zz for i, p in enumerate(row_properties)]
             elif len(row_properties) == 1:
                 if self.name == TableNames.directions_table:
-                    num, direction_type, stages = str(i + 1), DirectionTypes.common, row_properties[0]
+                    num, direction_type, stages = str(i + 1), DirectionEntities.common, row_properties[0]
                     row_properties = [num, direction_type, stages]
             elif len(row_properties) == 2 and self.name == TableNames.time_program:
                 num_pp, num_stage, directions = i + 1, row_properties[0], row_properties[1]
@@ -840,7 +840,7 @@ def compare_stages_data_for_directions_and_time_programs(
 @dataclass(frozen=True, slots=True)
 class DirectionBaseProperties:
     num: int | float | str
-    type: DirectionTypes
+    type: DirectionEntities
     stages: str
     errors: list[dict]
 

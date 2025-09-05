@@ -1,17 +1,15 @@
 import itertools
+import re
 from dataclasses import dataclass, asdict, fields, astuple
 from enum import IntEnum
 from typing import NamedTuple
 
 
-class N(NamedTuple):
-    a: int
-    b: list
+reg = re.match('^\d{,2}$|^\d{,2}\.\d$', '')
+
 
 
 if __name__ == '__main__':
-    inst = N(1, [])
-    inst2 = N(1, [312])
+    print(reg)
 
-    print(inst)
-    print(inst2)
+

@@ -10,7 +10,7 @@ from typing import NamedTuple
 
 from docx.table import _Row
 
-from sdp_lib.passport.constants import DirectionTypes, RowNames, StorageNames, ColNamesDirectionsTable, \
+from sdp_lib.passport.constants import DirectionEntities, RowNames, StorageNames, ColNamesDirectionsTable, \
     MessageCategories, TableNames, Fields
 from sdp_lib.passport.mixins import ReprMixin
 from sdp_lib.passport.text_messages import Text
@@ -198,20 +198,20 @@ class DirectionRow(AbstractRow, ReprMixin):
         #     if i == 10 and len(self._row.cells) == _Types.exclude_tzz_fields14:
         #         yield None
 
-    def _get_direction_type(self, init_val: str | DirectionTypes, pos: int | None) -> Cell:
-        default_val, is_valid = DirectionTypes.empty, True
+    def _get_direction_type(self, init_val: str | DirectionEntities, pos: int | None) -> Cell:
+        default_val, is_valid = DirectionEntities.empty, True
         if re.findall(self.ALWAYS_RED, init_val):
-            val = DirectionTypes.always_red
+            val = DirectionEntities.always_red
         elif init_val:
             val = init_val
             try:
-                DirectionTypes(init_val)
+                DirectionEntities(init_val)
             except ValueError:
                 is_valid = False
                 self._extra_data.err_and_warn.add_warnings(
                     Message(
                         f'Задан нестандартный тип направления: {init_val}. '
-                        f'Стандартные типы: {DirectionTypes.get_standard_types()}',
+                        f'Стандартные типы: {DirectionEntities.get_standard_types()}',
                         MessageCategories.validation
                     )
                 )
@@ -221,7 +221,7 @@ class DirectionRow(AbstractRow, ReprMixin):
 
     def _check_direction_type_is_standard(self) -> bool:
         try:
-            return bool(DirectionTypes(self.cells.direction_type.value))
+            return bool(DirectionEntities(self.cells.direction_type.value))
         except ValueError:
             self._extra_data.err_and_warn.add_warnings(
                 Message('Задан нестандартный тип направления.', MessageCategories.validation)

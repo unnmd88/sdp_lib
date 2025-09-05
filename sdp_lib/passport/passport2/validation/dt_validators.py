@@ -10,13 +10,16 @@ from docx.table import _Rows, _Row
 
 from sdp_lib.passport.constants import TableNames, row0_14_dt, patterns_row1_15_dt, row1_14_dt, DirectionTablePatterns, \
     patterns_row1_14_dt, allowed_column_lengths_dt, allowed_min_num_rows, patterns_row0_14_dt, dt_patterns_row0, \
-    dt_patterns_row1
+    dt_patterns_row1, DirectionEntities, PatternsDt
+from sdp_lib.passport.passport2.base2 import AbstractRow, DirectionRow, CellData
 from sdp_lib.passport.passport2.utils import remove_left_light_spaces
 from sdp_lib.passport.passport2.validation.base import get_int_or_float, CheckListDirectionRow, \
     BaseCellValidationResult, check_directions_or_stages_string, CheckListTable, BaseValidationResult, Cell
 from sdp_lib.passport.passport2.validation.common_validators import validate_geometry, match_cells
 from sdp_lib.passport.text_messages import Text
 from sdp_lib.utils_common.utils_common import to_json, timed
+
+
 
 
 def _check_is_directions_table(rows: _Rows) -> bool:
@@ -51,35 +54,52 @@ def check_num_direction_or_stage(value) -> str:
 
 
 # dt_struct_validation_functions: Sequence[Callable] = (check_columns_length, check_min_num_rows)
+def get_two_head_rows(row0_cells, row1_cells) -> tuple[DirectionRow, DirectionRow]:
+    rows_length = len(row0_cells)
+    return (
+        DirectionRow(tuple(match_cells(remove_left_light_spaces(row0_cells), dt_patterns_row0[rows_length], True))),
+        DirectionRow(tuple(match_cells(remove_left_light_spaces(row1_cells), dt_patterns_row1[rows_length], True))),
+    )
+
+def validate_num_and_create_cell(val) -> CellData:
+    num = get_int_or_float(val)
+    is_valid = bool(num)
+    return CellData(val, is_valid, is_valid, recovered=num)
 
 
-
-def validate_data_row_dt(cells) -> CheckListDirectionRow:
-    is_empty = all(not v.text.rstrip().lstrip() for v in cells)
-    num_from_cell = cells[0].text
-    num_validation = BaseCellValidationResult(num_from_cell)
-    num_validation.set_is_checked(True)
-    err_num_msg = check_num_direction_or_stage(num_from_cell)
-    num_validation.add_errors(err_num_msg)
-    num_validation.set_ok(not bool(err_num_msg))
-    stages = cells[2].text
-    stages_validation = check_directions_or_stages_string(stages)
-    stages_validation.set_is_checked(True)
-    return CheckListDirectionRow(num_validation, check_directions_or_stages_string(stages), is_empty)
+def validate_direction_entity_and_create_cell(val) -> CellData:
+    entity =  None
+    if re.search(PatternsDt.vehicle.value, val):
+        entity = DirectionEntities.vehicle
+    elif re.search(PatternsDt.arrow.value, val):
+        entity = DirectionEntities.arrow
+    elif re.search(PatternsDt.pedestrian.value, val):
+        entity = DirectionEntities.pedestrian
+    elif re.search(PatternsDt.public.value, val):
+        entity = DirectionEntities.public
+    elif re.search(PatternsDt.tram.value, val):
+        entity = DirectionEntities.tram
+    elif re.search(PatternsDt.always_red.value, val):
+        entity = DirectionEntities.always_red
+    is_valid = bool(entity)
+    return CellData(val, is_valid, is_valid, recovered=entity != val)
 
 
 @timed
 def validate_directions_table(rows: _Rows) -> CheckListTable:
     geometry_check_list = validate_geometry(rows, allowed_column_lengths_dt, allowed_min_num_rows)
-    print(geometry_check_list)
-    patterns_row0 = dt_patterns_row0[geometry_check_list.num_columns.value]
-    patterns_row1 = dt_patterns_row1[geometry_check_list.num_columns.value]
-    first = tuple(match_cells(remove_left_light_spaces(rows[0].cells), patterns_row0))
-    second = tuple(match_cells(remove_left_light_spaces(rows[1].cells), patterns_row1))
-    for el in itertools.chain(first, ('----', ),  second):
-        print(el)
-
-
+    first_row, second_row = get_two_head_rows(rows[0].cells, rows[1].cells)
+    length = len(rows[0].cells)
+    data_rows = []
+    print(first_row)
+    for i in range(2, length):
+        cells = remove_left_light_spaces(rows[i].cells)
+        num = validate_num_and_create_cell(next(cells))
+        entity = validate_direction_entity_and_create_cell(next(cells))
+        res = (num, entity) + tuple(CellData() for _ in range(12))
+        r=  DirectionRow(res)
+        print(r)
+        break
 
 
 
@@ -106,8 +126,9 @@ if __name__ == '__main__':
     path1 = '/home/auser/Downloads/СО_2120_Северный_б_р_Санникова_ул_Декабристов_ул_'
     path2 = '/home/auser/Downloads/ПД Паспорт шаблон 2025 (Копия)'
     path3 = '/home/auser/Downloads/СО_2120_Северный_б_р_Санникова_ул_Декабристов_ул_ (1)'
+    path4 = "C:\Programms\py.projects\sdp_lib\sdp_lib\passport\СО_2094_ул_Островитянова_ул_Ак_Волгина (2).docx"
 
-    doc = Document(f'{path3}.docx')
+    doc = Document(f'{path4}')
     # c = CheckListTable()
     validate_directions_table(doc.tables[0].rows)
 

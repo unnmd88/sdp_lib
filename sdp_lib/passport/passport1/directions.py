@@ -13,7 +13,7 @@ from sdp_lib.passport.passport1.base import (
     AbstractRow, get_cell_with_value_as_prom_tact_time,
 )
 from sdp_lib.passport.constants import (
-    DirectionTypes,
+    DirectionEntities,
     ColNamesDirectionsTable,
     StorageNames,
     TableNames,
@@ -61,7 +61,7 @@ class DirectionRow(AbstractRow, ReprMixin):
             self,
             index: int,
             number: str | int | float,
-            direction_type: str = str(DirectionTypes.common),
+            direction_type: str = str(DirectionEntities.common),
             stages: str = '',
             traffic_lights: str = '' ,
             t_green_ext: int = None,
@@ -109,20 +109,20 @@ class DirectionRow(AbstractRow, ReprMixin):
             )
             self._extra_data.permissions.set_val_for_compare_stages(False)
 
-    def _get_direction_type(self, init_val: str | DirectionTypes) -> Cell:
-        default_val, is_valid = DirectionTypes.common, True
+    def _get_direction_type(self, init_val: str | DirectionEntities) -> Cell:
+        default_val, is_valid = DirectionEntities.common, True
         if re.findall(self.ALWAYS_RED, init_val):
-            val = DirectionTypes.always_red
+            val = DirectionEntities.always_red
         elif init_val:
             val = init_val
             try:
-                DirectionTypes(init_val)
+                DirectionEntities(init_val)
             except ValueError:
                 is_valid = False
                 self._extra_data.err_and_warn.add_warnings(
                     Message(
                         f'Задан нестандартный тип направления: {init_val}. '
-                        f'Стандартные типы: {DirectionTypes.get_standard_types()}',
+                        f'Стандартные типы: {DirectionEntities.get_standard_types()}',
                         MessageCategories.validation
                     )
                 )
@@ -132,7 +132,7 @@ class DirectionRow(AbstractRow, ReprMixin):
 
     def _check_direction_type_is_standard(self) -> bool:
         try:
-            return bool(DirectionTypes(self.cells.direction_type.value))
+            return bool(DirectionEntities(self.cells.direction_type.value))
         except ValueError:
             self._extra_data.err_and_warn.add_warnings(
                 Message('Задан нестандартный тип направления.', MessageCategories.validation)

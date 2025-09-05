@@ -9,7 +9,7 @@ from enum import StrEnum
 from itertools import filterfalse, count, combinations_with_replacement
 from typing import NamedTuple, AnyStr, Any
 
-from sdp_lib.passport.constants import DirectionTypes, RowNames
+from sdp_lib.passport.constants import DirectionEntities, RowNames
 import logging
 import asyncio
 # from deep_translator import GoogleTranslator

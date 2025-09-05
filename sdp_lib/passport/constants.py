@@ -39,7 +39,14 @@ class DirectionTablePatterns(Enum):
                     yield pattern.value
 
 
-class AllPatterns(Enum):
+class PatternsDt(Enum):
+    allowed_entities = re.compile('Транспортное|Поворотное|Пешеходное|общ.*тр|пос.*крас', re.IGNORECASE)
+    vehicle = re.compile('^Транспортное', re.IGNORECASE)
+    arrow = re.compile('^Поворотное', re.IGNORECASE)
+    pedestrian = re.compile('^Пешеходное', re.IGNORECASE)
+    public = re.compile('^общ.*тр', re.IGNORECASE)
+    tram = re.compile('^трамвайное', re.IGNORECASE)
+    always_red = re.compile('^пост.+крас', re.IGNORECASE)
     num_direction  = re.compile('^№\s*нап', re.IGNORECASE)
     entity_direction  = re.compile('^тип\s*направления', re.IGNORECASE)
     stages  = re.compile('^фазы.*кот.*направ', re.IGNORECASE)
@@ -55,7 +62,6 @@ class AllPatterns(Enum):
     t_red_yellow  = re.compile('^Ткж', re.IGNORECASE)
     t_z  = re.compile('^Тз', re.IGNORECASE)
     t_zz = re.compile('^Тзз', re.IGNORECASE)
-    always_red = re.compile('^пост.+крас', re.IGNORECASE)
 
     toov = re.compile('^ТООВ')
 
@@ -73,21 +79,21 @@ row1_14_dt = gen_seq(row1_15_dt, {10})
 
 
 patterns_row0_15_dt = (
-    AllPatterns.num_direction.value,
-    AllPatterns.entity_direction.value,
-    AllPatterns.stages.value,
-    AllPatterns.traffic_lights.value,
-    AllPatterns.prohibition.value,
-    AllPatterns.prohibition.value,
-    AllPatterns.prohibition.value,
-    AllPatterns.prohibition.value,
-    AllPatterns.permission.value,
-    AllPatterns.permission.value,
-    AllPatterns.permission.value,
-    AllPatterns.always_red.value,
-    AllPatterns.toov.value,
-    AllPatterns.toov.value,
-    AllPatterns.description.value,
+    PatternsDt.num_direction.value,
+    PatternsDt.entity_direction.value,
+    PatternsDt.stages.value,
+    PatternsDt.traffic_lights.value,
+    PatternsDt.prohibition.value,
+    PatternsDt.prohibition.value,
+    PatternsDt.prohibition.value,
+    PatternsDt.prohibition.value,
+    PatternsDt.permission.value,
+    PatternsDt.permission.value,
+    PatternsDt.permission.value,
+    PatternsDt.always_red.value,
+    PatternsDt.toov.value,
+    PatternsDt.toov.value,
+    PatternsDt.description.value,
 )
 patterns_row0_14_dt = patterns_row0_15_dt[:10] + patterns_row0_15_dt[11:]
 
@@ -103,12 +109,14 @@ dt_patterns_row1 = {
     15: patterns_row1_15_dt
 }
 
+dt_patterns_data_rows = {
 
-
-
+}
 
 allowed_column_lengths_dt = (14, 15)
 allowed_min_num_rows = 3
+
+
 
 
 class MessageLevels(StrEnum):
@@ -153,18 +161,22 @@ class StorageNames(StrEnum):
     errors_and_warnings = 'Ошибки и предупреждения'
 
 
-class DirectionTypes(StrEnum):
-    empty = ''
-    common = 'Направление'
+class DirectionEntities(StrEnum):
     vehicle = 'Транспортное'
     pedestrian = 'Пешеходное'
     arrow = 'Поворотное'
     always_red = 'Пост. красн'
+    public = 'Общ. транспорт'
+    tram = 'Трамвайное'
 
     @classmethod
     def get_standard_types(cls):
-        return {str(d) for d in cls if d not in {cls.common, cls.empty}}
+        return {str(d) for d in cls}
         # return ', '.join(str(d) for d in cls if d not in {cls.common, cls.empty})
+
+
+standard_directions = {el for el in DirectionEntities}
+
 
 
 class StagesMapping(IntEnum):
@@ -325,29 +337,29 @@ common_direction_default_times = DefaultTimeValuesDirectionTable(0, 0, 0, 0, 0, 
 
 
 default_values = {
-    (DirectionTypes.vehicle, ColNamesDirectionsTable.t_green_ext): 0,
-    (DirectionTypes.vehicle, ColNamesDirectionsTable.t_flashing_green): 3,
-    (DirectionTypes.vehicle, ColNamesDirectionsTable.t_yellow): 3,
-    (DirectionTypes.vehicle, ColNamesDirectionsTable.t_red): 0,
-    (DirectionTypes.vehicle, ColNamesDirectionsTable.t_red_yellow): 1,
-    (DirectionTypes.vehicle, ColNamesDirectionsTable.t_z): 0,
-    (DirectionTypes.vehicle, ColNamesDirectionsTable.t_zz): 0,
+    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_green_ext): 0,
+    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_flashing_green): 3,
+    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_yellow): 3,
+    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_red): 0,
+    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_red_yellow): 1,
+    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_z): 0,
+    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_zz): 0,
 
-    (DirectionTypes.pedestrian, ColNamesDirectionsTable.t_green_ext): 0,
-    (DirectionTypes.pedestrian, ColNamesDirectionsTable.t_flashing_green): 3,
-    (DirectionTypes.pedestrian, ColNamesDirectionsTable.t_yellow): 0,
-    (DirectionTypes.pedestrian, ColNamesDirectionsTable.t_red): 3,
-    (DirectionTypes.pedestrian, ColNamesDirectionsTable.t_red_yellow): 0,
-    (DirectionTypes.pedestrian, ColNamesDirectionsTable.t_z): 0,
-    (DirectionTypes.pedestrian, ColNamesDirectionsTable.t_zz): 0,
+    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_green_ext): 0,
+    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_flashing_green): 3,
+    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_yellow): 0,
+    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_red): 3,
+    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_red_yellow): 0,
+    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_z): 0,
+    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_zz): 0,
 
-    (DirectionTypes.arrow, ColNamesDirectionsTable.t_green_ext): 0,
-    (DirectionTypes.arrow, ColNamesDirectionsTable.t_flashing_green): 3,
-    (DirectionTypes.arrow, ColNamesDirectionsTable.t_yellow): 0,
-    (DirectionTypes.arrow, ColNamesDirectionsTable.t_red): 3,
-    (DirectionTypes.arrow, ColNamesDirectionsTable.t_red_yellow): 0,
-    (DirectionTypes.arrow, ColNamesDirectionsTable.t_z): 0,
-    (DirectionTypes.arrow, ColNamesDirectionsTable.t_zz): 0,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_green_ext): 0,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_flashing_green): 3,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_yellow): 0,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_red): 3,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_red_yellow): 0,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_z): 0,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_zz): 0,
 }
 
 
