@@ -12,14 +12,14 @@ from sdp_lib.passport.constants import TableNames, row0_14_dt, patterns_row1_15_
     patterns_row1_14_dt, allowed_column_lengths_dt, allowed_min_num_rows, patterns_row0_14_dt, dt_patterns_row0, \
     dt_patterns_row1, DirectionEntities, PatternsDt
 from sdp_lib.passport.passport2.base2 import AbstractRow, DirectionRow, CellData
-from sdp_lib.passport.passport2.utils import remove_left_light_spaces
-from sdp_lib.passport.passport2.validation.base import get_int_or_float, CheckListDirectionRow, \
-    BaseCellValidationResult, check_directions_or_stages_string, CheckListTable, BaseValidationResult, Cell
-from sdp_lib.passport.passport2.validation.common_validators import validate_geometry, match_cells
+from sdp_lib.passport.passport2.utils import remove_left_light_spaces_from_cells
+from sdp_lib.passport.passport2.validation.base import  CheckListDirectionRow, \
+    BaseCellValidationResult, CheckListTable, BaseValidationResult, Cell
+from sdp_lib.passport.passport2.validation.common_validators import validate_geometry, match_cells, \
+    validate_sequence_directions_or_stages_nums_and_create_cell
 from sdp_lib.passport.text_messages import Text
-from sdp_lib.utils_common.utils_common import to_json, timed
-
-
+from sdp_lib.utils_common.utils_common import to_json, timed, remove_left_light_spaces, \
+    get_stage_or_direction_number_or_none
 
 
 def _check_is_directions_table(rows: _Rows) -> bool:
@@ -48,7 +48,7 @@ def _check_is_directions_table(rows: _Rows) -> bool:
 
 
 def check_num_direction_or_stage(value) -> str:
-    if get_int_or_float(value) is None:
+    if get_stage_or_direction_number_or_none(value) is None:
         return f'Недопустимый номер: {value}' if value else f'Номер не задан'
     return ''
 
@@ -57,12 +57,12 @@ def check_num_direction_or_stage(value) -> str:
 def get_two_head_rows(row0_cells, row1_cells) -> tuple[DirectionRow, DirectionRow]:
     rows_length = len(row0_cells)
     return (
-        DirectionRow(tuple(match_cells(remove_left_light_spaces(row0_cells), dt_patterns_row0[rows_length], True))),
-        DirectionRow(tuple(match_cells(remove_left_light_spaces(row1_cells), dt_patterns_row1[rows_length], True))),
+        DirectionRow(tuple(match_cells(remove_left_light_spaces_from_cells(row0_cells), dt_patterns_row0[rows_length], True))),
+        DirectionRow(tuple(match_cells(remove_left_light_spaces_from_cells(row1_cells), dt_patterns_row1[rows_length], True))),
     )
 
 def validate_num_and_create_cell(val) -> CellData:
-    num = get_int_or_float(val)
+    num = get_stage_or_direction_number_or_none(val)
     is_valid = bool(num)
     return CellData(val, is_valid, is_valid, recovered=num)
 
@@ -93,13 +93,14 @@ def validate_directions_table(rows: _Rows) -> CheckListTable:
     data_rows = []
     print(first_row)
     for i in range(2, length):
-        cells = remove_left_light_spaces(rows[i].cells)
+        cells = remove_left_light_spaces_from_cells(rows[i].cells)
         num = validate_num_and_create_cell(next(cells))
         entity = validate_direction_entity_and_create_cell(next(cells))
-        res = (num, entity) + tuple(CellData() for _ in range(12))
+        stages = validate_sequence_directions_or_stages_nums_and_create_cell(next(cells))
+        res = (num, entity, stages) + tuple(CellData() for _ in range(11))
         r=  DirectionRow(res)
         print(r)
-        break
+
 
 
 

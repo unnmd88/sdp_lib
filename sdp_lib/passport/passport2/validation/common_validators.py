@@ -13,11 +13,12 @@ from setuptools.command.build_ext import if_dl
 
 from sdp_lib.passport.constants import row0_14_dt, row1_14_dt, DirectionTablePatterns, row0_15_dt, allowed_min_num_rows, \
     Patterns
-from sdp_lib.passport.passport2.base2 import MessageStorage, ValidationData, CellData
+from sdp_lib.passport.passport2.base2 import MessageStorage, ValidationData, CellData, \
+    DirectionsOrStagesSequenceValidation
 from sdp_lib.passport.passport2.check_lists import TableGeometryCheckList
-from sdp_lib.passport.passport2.validation.base import Cell, DirectionsOrStagesCellValidationResult
+from sdp_lib.passport.passport2.validation.base import Cell
 from sdp_lib.passport.text_messages import Text
-from sdp_lib.utils_common.utils_common import timed, remove_chars
+from sdp_lib.utils_common.utils_common import timed, remove_chars, get_stage_or_direction_number_or_none
 
 """
 
@@ -63,34 +64,44 @@ def match_cells(
     #     yield CellData(s,  bool(re.search(p, s)))
 
 
-def validate_sequence_directions_or_stages_nums(
+def validate_sequence_directions_or_stages_nums_and_create_cell(
     string: str,
     sep=',',
     always_red_pattern: str | re.Pattern = Patterns.always_red.value
-) -> DirectionsOrStagesCellValidationResult:
+) -> CellData:
     string_without_spaces = remove_chars(string, ' ')
+    # if len(string_without_spaces) == 0:
+    #     return False
+    is_valid = (
+        bool(re.match(always_red_pattern, string_without_spaces)
+        or any(get_stage_or_direction_number_or_none(n) is not None for n in string_without_spaces.split(sep)))
+    )
+    return CellData(string, is_valid)
+    # tmp_basket = set()
+    # for n in split_string:
+    #     num = get_int_or_float(n)
+    #     if num is None:
+    #         res.bad_nums.append(n)
+    #     else:
+    #         res.nums.append(num)
+    #     if num in tmp_basket:
+    #         res.doubles[num or n] += 1
+    #     else:
+    #         tmp_basket.add(num)
+    # if not validation.is_always_red and not validation.is_empty:
+    #     split_string = string_without_spaces.split(sep)
+    #     tmp_basket = set()
+    #     for n in split_string:
+    #         num = get_int_or_float(n)
+    #         if num is None:
+    #             res.bad_nums.append(n)
+    #         else:
+    #             res.nums.append(num)
+    #         if num in tmp_basket:
+    #             res.doubles[num or n] += 1
+    #         else:
+    #             tmp_basket.add(num)
 
-    is_empty = (len(string_without_spaces) == 0)
-    is_always_red = bool(re.match(always_red_pattern, string_without_spaces))
-
-    if not is_always_red and not is_empty:
-        split_string = string_without_spaces.split(sep)
-        tmp_basket = set()
-        for n in split_string:
-            num = get_int_or_float(n)
-            if num is None:
-                res.bad_nums.append(n)
-            else:
-                res.nums.append(num)
-            if num in tmp_basket:
-                res.doubles[num or n] += 1
-            else:
-                tmp_basket.add(num)
-    res.compute_and_set_ok_attr()
-    res.is_checked = True
-    if res.bad_nums:
-        res.errors.append(Text.bad_nums(res.bad_nums))
-    return res
 
 
 if __name__ == '__main__':

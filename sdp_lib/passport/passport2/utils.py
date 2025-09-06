@@ -4,7 +4,7 @@ from docx import Document
 from docx.table import _Cell
 
 
-def remove_left_light_spaces(cells: Iterable[_Cell]):
+def remove_left_light_spaces_from_cells(cells: Iterable[_Cell]):
     return (s.text.rstrip().lstrip() for s in cells)
 
 

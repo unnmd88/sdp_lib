@@ -6,7 +6,7 @@ from typing import NamedTuple, Any
 from sdp_lib.passport.constants import Patterns
 from sdp_lib.passport.passport2.base import MessageStorage
 from sdp_lib.passport.text_messages import Text
-from sdp_lib.utils_common.utils_common import dump_to_dict, remove_chars, add_record, get_int_or_float
+from sdp_lib.utils_common.utils_common import dump_to_dict, remove_chars, add_record
 
 
 class Cell(NamedTuple):
@@ -148,33 +148,3 @@ class CheckListTable:
                 res[attr] = [a._asdict() for a in getattr(self, attr)]
         return res
 
-
-def check_directions_or_stages_string(
-    string: str,
-    sep=',',
-    always_red_pattern: str | re.Pattern = Patterns.always_red.value
-) -> DirectionsOrStagesCellValidationResult:
-    string_without_spaces = remove_chars(string, ' ')
-    if not isinstance(always_red_pattern, re.Pattern):
-        always_red_pattern = re.compile(always_red_pattern)
-    res = DirectionsOrStagesCellValidationResult(string_without_spaces)
-    res.is_empty = (len(string_without_spaces) == 0)
-    res.is_always_red = bool(re.search(always_red_pattern, string_without_spaces))
-    if not res.is_always_red and not res.is_empty:
-        split_string = string_without_spaces.split(sep)
-        tmp_basket = set()
-        for n in split_string:
-            num = get_int_or_float(n)
-            if num is None:
-                res.bad_nums.append(n)
-            else:
-                res.nums.append(num)
-            if num in tmp_basket:
-                res.doubles[num or n] += 1
-            else:
-                tmp_basket.add(num)
-    res.compute_and_set_ok_attr()
-    res.is_checked = True
-    if res.bad_nums:
-        res.errors.append(Text.bad_nums(res.bad_nums))
-    return res

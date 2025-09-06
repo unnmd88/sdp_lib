@@ -12,6 +12,8 @@ from datetime import datetime as dt
 from string import ascii_letters
 from typing import Callable, TypeVar, Any, Protocol
 
+from sdp_lib.num_stage_or_direction import StageOrDirectionNumber
+
 T = TypeVar('T')
 
 def timed(func: Callable):
@@ -165,20 +167,43 @@ def get_max_or_default_if_target_is_empty(target: Iterable, returned_default_val
     return max(target, default=returned_default_val)
 
 
-def get_int_or_float(val: str) -> int | float | None:
+def check_stage_or_direction_num_is_allowed_integer(val: str) -> bool:
     """
-    Основная функция, содержащая логику определения валидности номера фазы или направления.
-    На вход подается строка с номером, который вернёт int или float, если номер валидный,
-    иначе вернёт None.
-    Допустимыми считаются следующие типы номеров: целые числа или числа через точку,
-    где после точки стоит единстенная цифра от 1 до 9.
-    Примеры допустимых номеоров: "1", "4", "26", "1.2", "5.1", "32.4" и т.д.
-    Превращает объект val в тип int | float | None.
-    :param val: Объект строки из которого будет получен объект int | float | None.
-    :return: Если строка val является целым числом, возвращает int(val).
-             Если строка val является числом с точкой, у которого после точки стоит
-             одна единственная целая цифра от 1 до 9, функция вернёт float(val).
-             Иначе возвращает None.
+    Проверяет, является ли val допустимым номером фазы/направления, представленным целым числом.
+    Валидные значения: int(val) > 0.
+    :param val: Проверяемое значение.
+    :return: True, если является, иначе False.
+    """
+    return bool(val.isdigit() and val != '0')
+
+
+def check_stage_or_direction_num_is_allowed_float(val: str) -> bool:
+    """
+    Проверяет, является ли val допустимым номером фазы/направления, представленным числом с точкой.
+    Валидные значения: целая часть(до ".") представлена int > 0, а дробная часть(после ".") представлена
+    цифрой от 0-9.
+    :param val: Проверяемое значение.
+    :return: True, если является, иначе False.
+    """
+    assumption_is_float = val.split('.')
+    if len(assumption_is_float) != 2:
+        return False
+    before_dot, after_dot = assumption_is_float
+    return bool(
+        check_stage_or_direction_num_is_allowed_integer(before_dot) and len(after_dot) == 1 and after_dot.isdigit()
+    )
+
+
+def get_stage_or_direction_number_or_none(val: str) -> int | float | None:
+    """
+    Проверяет, является ли значение val допустимым номером фазы/направления.
+    Допустимые номера:
+        1. Натуральное число.
+        2. Число с точкой, где целая часть(до ".") представлена натуральным числом,
+           а дробная часть(после ".") представлена цифрой от 0-9.
+    Примеры допустимых номеров: "1", "4", "26", "1.2", "5.1", "32.4" и т.д.
+    :param val: Проверяемое значение номера направления/фазы.
+    :return: int, если номер соответствует п.1, float, если если номер соответствует п.2, иначе None.
 
     Примеры
     --------
@@ -194,20 +219,64 @@ def get_int_or_float(val: str) -> int | float | None:
     # None
 
     """
-    if isinstance(val, (int, float)):
-        return val
-    if not isinstance(val, str):
-        return None
-    if val.isdigit():
-        return int(val)
-    else:
-        assumption_is_float = val.split('.')
-        if len(assumption_is_float) != 2:
-            return None
-        before_dot, after_dot = assumption_is_float
-        if len(after_dot) != 1 or not after_dot.isdigit() or not before_dot.isdigit():
-            return None
-        return float(val)
+    val_s = str(val)
+    if check_stage_or_direction_num_is_allowed_integer(val_s):
+        return int(val_s)
+    if check_stage_or_direction_num_is_allowed_float(val_s):
+        return float(val_s)
+    return None
+
+
+# def get_stage_or_direction_number(
+#     val: str
+# ) -> int | float:
+#     """
+#     Основная функция, содержащая логику определения валидности номера фазы или направления.
+#     На вход подается строка с номером, который вернёт int или float, если номер валидный,
+#     иначе вернёт None.
+#     Допустимыми считаются следующие типы номеров: целые числа или числа через точку,
+#     где после точки стоит единственная цифра от 1 до 9.
+#     Примеры допустимых номеров: "1", "4", "26", "1.2", "5.1", "32.4" и т.д.
+#     Превращает объект val в тип int | float | None.
+#     :param val: Объект строки из которого будет получен объект int | float | None.
+#     :return: Если строка val является целым числом, возвращает int(val).
+#              Если строка val является числом с точкой, у которого после точки стоит
+#              одна единственная целая цифра от 1 до 9, функция вернёт float(val).
+#              Иначе возвращает None.
+#
+#     Примеры
+#     --------
+#     # >>> get_int_or_float("1")
+#     # 1
+#     # >>> get_int_or_float("2.1")
+#     # 2.1
+#     # >>> get_int_or_float("3.2")
+#     # 3.2
+#     # >>> get_int_or_float("4.45")
+#     # None
+#     # >>> get_int_or_float("abracadabra")
+#     None
+#
+#     """
+#     if not isinstance(val, (str, int, float)):
+#         raise TypeError(
+#             f'get_stage_or_direction_number() argument must be a string, int or float, not "{type(val).__name__!r}"'
+#         )
+#     val = str(val)
+#     if val.isdigit():
+#         return int(val)
+#     else:
+#         assumption_is_float = val.split('.')
+#         if len(assumption_is_float) != 2:
+#             raise ValueError(f'invalid literal: {val!r}.')
+#         before_dot, after_dot = assumption_is_float
+#         if len(after_dot) != 1 or not after_dot.isdigit() or not before_dot.isdigit():
+#             raise ValueError(f'invalid literal after dot: {val!r}.')
+#         return StageOrDirectionNumber(float(val))
+
+
+def remove_left_light_spaces(sequence: Iterable[str]):
+    return (s.rstrip().lstrip() for s in sequence)
 
 
 def add_record(

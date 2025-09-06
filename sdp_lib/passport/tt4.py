@@ -5,11 +5,15 @@ from enum import IntEnum
 from typing import NamedTuple
 
 
-reg = re.match('^\d{,2}$|^\d{,2}\.\d$', '')
+reg = re.match('^\d{,2}\.\d$', '01.2')
 
 
 
 if __name__ == '__main__':
-    print(reg)
+    val_s = str('11')
+    val_f = float(val_s)
+
+    print('-1'.isdigit())
+    print(int('-1'))
 
 
