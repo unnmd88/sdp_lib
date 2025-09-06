@@ -1,8 +1,10 @@
 import re
+from collections.abc import Container, Sequence
 from enum import (
     StrEnum,
     IntEnum, Enum,
 )
+from typing import NamedTuple
 
 from sdp_lib.utils_common.utils_common import gen_seq
 
@@ -52,8 +54,8 @@ class PatternsDt(Enum):
     stages  = re.compile('^фазы.*кот.*направ', re.IGNORECASE)
     traffic_lights  = re.compile('^светофоры', re.IGNORECASE)
 
-    prohibition  = re.compile('Запрет', re.IGNORECASE)
-    permission  = re.compile('Разрешение', re.IGNORECASE)
+    prohibition  = re.compile('"?Запрет"?.', re.IGNORECASE)
+    permission  = re.compile('"?Разрешение"?', re.IGNORECASE)
 
     t_green_extension  = re.compile('^Тзд', re.IGNORECASE)
     t_green_flashing  = re.compile('^Тзм', re.IGNORECASE)
@@ -72,8 +74,8 @@ class PatternsDt(Enum):
 
 
 
-row0_15_dt = ['№ нап.', 'Тип направления', 'Фазы, в кот. участ. направ.', 'Светофоры', '"Запрет"', '"Запрет"', '"Запрет"', '"Запрет"', '"Разрешение"', '"Разрешение"', '"Разрешение"', 'Пост. красное', 'ТООВ ', 'ТООВ ', 'Примечание']
-row1_15_dt = ['№ нап.', 'Тип направления', 'Фазы, в кот. участ. направ.', 'Светофоры', 'Тзд', 'Тзм', 'Тж', 'Тк', 'Ткж', 'Тз', 'Тзз', 'Пост. красное', 'Красн.', 'Зелен.', '']
+row0_15_dt = ('№ нап.', 'Тип направления', 'Фазы, в кот. участ. направ.', 'Светофоры', '"Запрет"', '"Запрет"', '"Запрет"', '"Запрет"', '"Разрешение"', '"Разрешение"', '"Разрешение"', 'Пост. красное', 'ТООВ ', 'ТООВ ', 'Примечание')
+row1_15_dt = ('№ нап.', 'Тип направления', 'Фазы, в кот. участ. направ.', 'Светофоры', 'Тзд', 'Тзм', 'Тж', 'Тк', 'Ткж', 'Тз', 'Тзз', 'Пост. красное', 'Красн.', 'Зелен.', '')
 row0_14_dt = gen_seq(row0_15_dt, {10})
 row1_14_dt = gen_seq(row1_15_dt, {10})
 
@@ -100,6 +102,22 @@ patterns_row0_14_dt = patterns_row0_15_dt[:10] + patterns_row0_15_dt[11:]
 patterns_row1_15_dt = DirectionTablePatterns.get_patterns_len(15)
 patterns_row1_14_dt = DirectionTablePatterns.get_patterns_len(14)
 
+
+class HeadRowsDirectionTableData(NamedTuple):
+    first_row_names: Sequence[str]
+    second_row_names: Sequence[str]
+    first_row_patterns: Sequence[re.Pattern | str]
+    second_row_patterns: Sequence[re.Pattern | str]
+
+
+dt15 = HeadRowsDirectionTableData(row0_15_dt, row1_15_dt, patterns_row0_15_dt, tuple(patterns_row1_15_dt))
+dt14_no_tzz = HeadRowsDirectionTableData(row0_14_dt, row1_14_dt, patterns_row0_14_dt, tuple(patterns_row1_14_dt))
+
+dt_mapping = {
+    14: dt14_no_tzz,
+    15: dt15
+}
+
 dt_patterns_row0 = {
     14: patterns_row0_14_dt,
     15: patterns_row0_15_dt
@@ -107,10 +125,6 @@ dt_patterns_row0 = {
 dt_patterns_row1 = {
     14: patterns_row1_14_dt,
     15: patterns_row1_15_dt
-}
-
-dt_patterns_data_rows = {
-
 }
 
 allowed_column_lengths_dt = (14, 15)
@@ -335,10 +349,20 @@ arrow_direction_default_times = DefaultTimeValuesDirectionTable(0, 3, 0, 3, 0, 0
 common_direction_default_times = DefaultTimeValuesDirectionTable(0, 0, 0, 0, 0, 0, 0)
 """
 
+class AllowedValues(NamedTuple):
+    min: float
+    max: float
+    default: float
 
-default_values = {
-    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_green_ext): 0,
-    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_flashing_green): 3,
+
+min0_max20_default0 = AllowedValues(0, 20, 0)
+min0_max3_default3  = AllowedValues(0, 3, 3)
+min3_max3_default3  = AllowedValues(3, 3, 3)
+
+
+direction_timings = {
+    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_green_ext): min0_max20_default0,
+    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_flashing_green): min0_max3_default3,
     (DirectionEntities.vehicle, ColNamesDirectionsTable.t_yellow): 3,
     (DirectionEntities.vehicle, ColNamesDirectionsTable.t_red): 0,
     (DirectionEntities.vehicle, ColNamesDirectionsTable.t_red_yellow): 1,

@@ -49,19 +49,20 @@ def validate_geometry(
 
 
 def match_cells(
-    strings,
-    patterns,
+    strings: Sequence[str],
+    patterns: Sequence[str | re.Pattern],
+    to_recover: Sequence[str] = None,
     duplicate_pattern_result_to_context=False
 ):
+    to_recover = to_recover or (None for _ in strings)
     if duplicate_pattern_result_to_context:
-        for s, p in zip(strings, patterns, strict=True):
-            res = bool(re.search(p, s))
-            yield CellData(s, res, res)
+        for s, p, r in zip(strings, patterns, to_recover, strict=True):
+            res = bool(re.match(p, s))
+            yield CellData(s, res, res, recovered=r if res else None)
     else:
-        for s, p in zip(strings, patterns, strict=True):
-            yield CellData(s, bool(re.search(p, s)))
-    # for s, p in zip(target, patterns, strict=True):
-    #     yield CellData(s,  bool(re.search(p, s)))
+        for s, p, r in zip(strings, patterns, to_recover, strict=True):
+            res = bool(re.match(p, s))
+            yield CellData(s, bool(re.match(p, s)), recovered=r if res else None)
 
 
 def validate_sequence_directions_or_stages_nums_and_create_cell(

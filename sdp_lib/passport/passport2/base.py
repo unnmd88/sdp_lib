@@ -30,7 +30,7 @@ from sdp_lib.passport.constants import (
     StagesMapping,
     TableNames,
     DirectionEntities,
-    RowNames, MessageLevels, MessageCategories, Fields, categories_descriptions, ComparisonDescriptions, default_values
+    RowNames, MessageLevels, MessageCategories, Fields, categories_descriptions, ComparisonDescriptions
 )
 from sdp_lib.passport.mixins import ReprMixin, EntityNameMixin
 from sdp_lib.passport.text_messages import Text
@@ -355,19 +355,7 @@ def get_cell_with_value_as_number_(
     return Cell(pos, init_val, default_val, val, is_valid)
 
 
-def get_cell_with_value_as_prom_tact_time(
-        pos: int | None,
-        init_val,
-        direction_type: DirectionEntities,
-        col_name: ColNamesDirectionsTable,
 
-) -> Cell:
-    default_val = default_values.get((direction_type, col_name))
-    if init_val is None:
-        val = default_val
-    else:
-        val = init_val
-    return Cell(pos, init_val, default_val, val)
 
 
 def get_pretty_string(data: Iterable[Message]):

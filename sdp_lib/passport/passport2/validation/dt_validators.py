@@ -10,7 +10,7 @@ from docx.table import _Rows, _Row
 
 from sdp_lib.passport.constants import TableNames, row0_14_dt, patterns_row1_15_dt, row1_14_dt, DirectionTablePatterns, \
     patterns_row1_14_dt, allowed_column_lengths_dt, allowed_min_num_rows, patterns_row0_14_dt, dt_patterns_row0, \
-    dt_patterns_row1, DirectionEntities, PatternsDt
+    dt_patterns_row1, DirectionEntities, PatternsDt, HeadRowsDirectionTableData, dt_mapping
 from sdp_lib.passport.passport2.base2 import AbstractRow, DirectionRow, CellData
 from sdp_lib.passport.passport2.utils import remove_left_light_spaces_from_cells
 from sdp_lib.passport.passport2.validation.base import  CheckListDirectionRow, \
@@ -23,11 +23,6 @@ from sdp_lib.utils_common.utils_common import to_json, timed, remove_left_light_
 
 
 def _check_is_directions_table(rows: _Rows) -> bool:
-    # return bool(
-    #     14 <= len(rows[0].cells) <= 15
-    #     and re.search(DirectionTablePatterns.row1_cell0.value, rows[1].cells[0].text) is not None
-    #     and re.search(DirectionTablePatterns.row1_cell1.value, rows[1].cells[1].text) is not None
-    # )
     first_and_second_rows_is_head = all(
         re.search(p, s) is not None for p, s in zip(
             (DirectionTablePatterns.row1_cell0.value, DirectionTablePatterns.row1_cell1.value),
@@ -47,19 +42,28 @@ def _check_is_directions_table(rows: _Rows) -> bool:
     return True
 
 
-def check_num_direction_or_stage(value) -> str:
-    if get_stage_or_direction_number_or_none(value) is None:
-        return f'Недопустимый номер: {value}' if value else f'Номер не задан'
-    return ''
-
-
-# dt_struct_validation_functions: Sequence[Callable] = (check_columns_length, check_min_num_rows)
-def get_two_head_rows(row0_cells, row1_cells) -> tuple[DirectionRow, DirectionRow]:
-    rows_length = len(row0_cells)
+def _get_head_rows_iter(row0_cells, row1_cells, names_and_patterns):
     return (
-        DirectionRow(tuple(match_cells(remove_left_light_spaces_from_cells(row0_cells), dt_patterns_row0[rows_length], True))),
-        DirectionRow(tuple(match_cells(remove_left_light_spaces_from_cells(row1_cells), dt_patterns_row1[rows_length], True))),
+        (
+            remove_left_light_spaces_from_cells(row0_cells),
+            names_and_patterns.first_row_patterns,
+            names_and_patterns.first_row_names
+        ),
+
+        (
+            remove_left_light_spaces_from_cells(row1_cells),
+            names_and_patterns.second_row_patterns,
+            names_and_patterns.second_row_names
+        ),
     )
+
+
+def get_two_head_rows(row0_cells, row1_cells) -> Iterable[DirectionRow, DirectionRow]:
+    rows_length = len(row0_cells)
+    names_and_patterns: HeadRowsDirectionTableData = dt_mapping[rows_length]
+    for row, patterns, recover in (_get_head_rows_iter(row0_cells, row1_cells, names_and_patterns)):
+        yield DirectionRow(tuple(match_cells(row, patterns, recover, True)))
+
 
 def validate_num_and_create_cell(val) -> CellData:
     num = get_stage_or_direction_number_or_none(val)
@@ -82,7 +86,7 @@ def validate_direction_entity_and_create_cell(val) -> CellData:
     elif re.search(PatternsDt.always_red.value, val):
         entity = DirectionEntities.always_red
     is_valid = bool(entity)
-    return CellData(val, is_valid, is_valid, recovered=entity != val)
+    return CellData(val, is_valid, is_valid, recovered=entity)
 
 
 @timed
