@@ -8,9 +8,9 @@ from typing import Any
 from docx import Document
 from docx.table import _Rows, _Row
 
-from sdp_lib.passport.constants import TableNames, row0_14_dt, patterns_row1_15_dt, row1_14_dt, DirectionTablePatterns, \
+from sdp_lib.passport.constants import TableNames, row0_14_dt, patterns_row1_15_dt, row1_14_dt, \
     patterns_row1_14_dt, allowed_column_lengths_dt, allowed_min_num_rows, patterns_row0_14_dt, dt_patterns_row0, \
-    dt_patterns_row1, DirectionEntities, PatternsDt, HeadRowsDirectionTableData, dt_mapping
+    dt_patterns_row1, DirectionEntities, PatternsDirectionTable, HeadRowsDirectionTableData, dt_mapping
 from sdp_lib.passport.passport2.base2 import AbstractRow, DirectionRow, CellData
 from sdp_lib.passport.passport2.utils import remove_left_light_spaces_from_cells
 from sdp_lib.passport.passport2.validation.base import  CheckListDirectionRow, \
@@ -24,8 +24,8 @@ from sdp_lib.utils_common.utils_common import to_json, timed, remove_left_light_
 
 def _check_is_directions_table(rows: _Rows) -> bool:
     first_and_second_rows_is_head = all(
-        re.search(p, s) is not None for p, s in zip(
-            (DirectionTablePatterns.row1_cell0.value, DirectionTablePatterns.row1_cell1.value),
+        re.match(p, s) is not None for p, s in zip(
+            (PatternsDirectionTable.num_direction.value, PatternsDirectionTable.entity_direction.value),
             (rows[1].cells[0].text, rows[1].cells[1].text),
             strict=True
         )
@@ -73,17 +73,17 @@ def validate_num_and_create_cell(val) -> CellData:
 
 def validate_direction_entity_and_create_cell(val) -> CellData:
     entity =  None
-    if re.search(PatternsDt.vehicle.value, val):
+    if re.search(PatternsDirectionTable.vehicle.value, val):
         entity = DirectionEntities.vehicle
-    elif re.search(PatternsDt.arrow.value, val):
+    elif re.search(PatternsDirectionTable.arrow.value, val):
         entity = DirectionEntities.arrow
-    elif re.search(PatternsDt.pedestrian.value, val):
+    elif re.search(PatternsDirectionTable.pedestrian.value, val):
         entity = DirectionEntities.pedestrian
-    elif re.search(PatternsDt.public.value, val):
+    elif re.search(PatternsDirectionTable.public.value, val):
         entity = DirectionEntities.public
-    elif re.search(PatternsDt.tram.value, val):
+    elif re.search(PatternsDirectionTable.tram.value, val):
         entity = DirectionEntities.tram
-    elif re.search(PatternsDt.always_red.value, val):
+    elif re.search(PatternsDirectionTable.always_red.value, val):
         entity = DirectionEntities.always_red
     is_valid = bool(entity)
     return CellData(val, is_valid, is_valid, recovered=entity)

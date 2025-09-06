@@ -1,11 +1,26 @@
+import re
 from collections.abc import Iterable
 
 from docx import Document
 from docx.table import _Cell
 
+from sdp_lib.passport.constants import Patterns
+
 
 def remove_left_light_spaces_from_cells(cells: Iterable[_Cell]):
     return (s.text.rstrip().lstrip() for s in cells)
+
+
+def remove_spaces_and_invalid_sep(string, sep=','):
+    if (string:= string.replace(' ', '')) == '':
+        return string
+    # string = string.replace(' ', '')
+    if sep == ',':
+        string = re.sub(Patterns.more_than_one_comma.value, sep, string)
+        return re.sub(Patterns.comma_is_start_end_or_spaces.value, '', string)
+    string = re.sub(f'{sep}{sep}+', sep, string)
+    return  re.sub(f'^{sep}|{sep}+$|.\s', '', string)
+
 
 
 def _display_all_tables(doc_x):
@@ -24,4 +39,20 @@ if __name__ == '__main__':
     pattern = '/home/auser/Downloads/ПД Паспорт шаблон 2025'
     path_sdp = "C:\Programms\py.projects\sdp_lib\sdp_lib\passport\СО_2094_ул_Островитянова_ул_Ак_Волгина (2)"
     doc = Document(f'{path_sdp}.docx')
-    _display_all_tables(doc)
+    # _display_all_tables(doc)
+
+
+    sepp = ','
+    sepp2 = ';'
+    strinnng1 = '   1,  ,2.3,  ,,,4,,,'
+    strinnng2 = '1;;2.3;;4;'
+    recovered = remove_spaces_and_invalid_sep(strinnng1, sepp)
+    print(recovered)
+    assert recovered == '1,2.3,4'
+
+    recovered2 = remove_spaces_and_invalid_sep(strinnng2, sepp2)
+    print(recovered2)
+    assert recovered2 == '1;2.3;4'
+    print(repr(remove_spaces_and_invalid_sep('', sepp2)))
+
+

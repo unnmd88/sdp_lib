@@ -11,11 +11,12 @@ from docx import Document
 from docx.table import Table, _Rows
 from setuptools.command.build_ext import if_dl
 
-from sdp_lib.passport.constants import row0_14_dt, row1_14_dt, DirectionTablePatterns, row0_15_dt, allowed_min_num_rows, \
+from sdp_lib.passport.constants import row0_14_dt, row1_14_dt, row0_15_dt, allowed_min_num_rows, \
     Patterns
 from sdp_lib.passport.passport2.base2 import MessageStorage, ValidationData, CellData, \
-    DirectionsOrStagesSequenceValidation
+    DirectionsOrStagesSequenceValidation, Comparison
 from sdp_lib.passport.passport2.check_lists import TableGeometryCheckList
+from sdp_lib.passport.passport2.utils import remove_spaces_and_invalid_sep
 from sdp_lib.passport.passport2.validation.base import Cell
 from sdp_lib.passport.text_messages import Text
 from sdp_lib.utils_common.utils_common import timed, remove_chars, get_stage_or_direction_number_or_none
@@ -70,39 +71,28 @@ def validate_sequence_directions_or_stages_nums_and_create_cell(
     sep=',',
     always_red_pattern: str | re.Pattern = Patterns.always_red.value
 ) -> CellData:
-    string_without_spaces = remove_chars(string, ' ')
-    # if len(string_without_spaces) == 0:
-    #     return False
-    is_valid = (
-        bool(re.match(always_red_pattern, string_without_spaces)
-        or any(get_stage_or_direction_number_or_none(n) is not None for n in string_without_spaces.split(sep)))
-    )
-    return CellData(string, is_valid)
-    # tmp_basket = set()
-    # for n in split_string:
-    #     num = get_int_or_float(n)
-    #     if num is None:
-    #         res.bad_nums.append(n)
-    #     else:
-    #         res.nums.append(num)
-    #     if num in tmp_basket:
-    #         res.doubles[num or n] += 1
-    #     else:
-    #         tmp_basket.add(num)
-    # if not validation.is_always_red and not validation.is_empty:
-    #     split_string = string_without_spaces.split(sep)
-    #     tmp_basket = set()
-    #     for n in split_string:
-    #         num = get_int_or_float(n)
-    #         if num is None:
-    #             res.bad_nums.append(n)
-    #         else:
-    #             res.nums.append(num)
-    #         if num in tmp_basket:
-    #             res.doubles[num or n] += 1
-    #         else:
-    #             tmp_basket.add(num)
+    recovered_string = remove_spaces_and_invalid_sep(string)
+    is_always_red = bool(re.match(always_red_pattern, recovered_string))
+    is_empty = len(recovered_string) == 0
+    res = DirectionsOrStagesSequenceValidation(is_always_red, is_empty, defaultdict(int), [], [], Comparison())
+    if is_empty:
+        res.errors.append(Text.cell_is_empty)
+        return CellData(string, False, False, extra=res)
 
+    split_string = recovered_string.split(sep)
+    for i, n in enumerate(split_string):
+        num = get_stage_or_direction_number_or_none(n)
+        if num is not None:
+            res.nums[num] += 1
+        elif num is None:
+            res.bad_nums.append(n)
+    if res.bad_nums:
+        res.nums.clear()
+        return CellData(string, False, False, extra=res)
+    return CellData(string, True, recovered=recovered_string, extra=res)
+
+
+    # return CellData(string, is_valid)
 
 
 if __name__ == '__main__':

@@ -12,7 +12,7 @@ class Text(StrEnum):
         f'числа через точку("1.1", "1.2", "4.1" и т.д.)'
     )
 
-
+    cell_is_empty = 'Ячейка пуста '
 
 
     always_red_must_be_empty = (

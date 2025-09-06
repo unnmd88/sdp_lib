@@ -46,9 +46,19 @@ class ValidationData(NamedTuple):
     is_valid: bool
 
 
+class BadNumDirectionOrStage(NamedTuple):
+    pos: int
+    value: str
+    is_empty: bool
+
+
+
+    # doubles: MutableMapping
+
+
 class CellData:
 
-    __slots__ = ('value', 'text', 'context', 'recovered')
+    __slots__ = ('value', 'text', 'context', 'recovered', 'extra')
 
     def __init__(
             self,
@@ -56,11 +66,13 @@ class CellData:
             text_is_valid: bool = None,
             context_is_valid: bool = None,
             recovered=None,
+            extra=None
     ):
         self.value = value
         self.text = text_is_valid
         self.context = context_is_valid
         self.recovered = recovered
+        self.extra = extra
 
     def __repr__(self):
         return create_repr_from_dict_xor_slots(self)
@@ -149,12 +161,20 @@ class DirectionRow(AbstractRow):
         return self._row[14 if len(self._row) == 15 else 13]
 
 
+class Comparison:
+    def __init__(self):
+        self._va = []
+        self._ft = []
+
+
 class DirectionsOrStagesSequenceValidation(NamedTuple):
     is_always_red: bool
     is_empty: bool
-    nums: MutableSequence
+    nums: MutableMapping
     bad_nums: MutableSequence
-    doubles: MutableMapping
+    errors: MutableSequence
+    compare: Comparison
+
 
 
 

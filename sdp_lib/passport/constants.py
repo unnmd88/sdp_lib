@@ -11,37 +11,39 @@ from sdp_lib.utils_common.utils_common import gen_seq
 
 class Patterns(Enum):
     always_red = re.compile(r'кр|-|поко', re.IGNORECASE)
+    comma_is_start_end_or_spaces = re.compile('^,|,+$')
+    more_than_one_comma = re.compile(',{2,}')
 
 
-class DirectionTablePatterns(Enum):
-    row1_cell0  = re.compile('^№\s*нап', re.IGNORECASE)
-    row1_cell1  = re.compile('^тип\s*направления', re.IGNORECASE)
-    row1_cell2  = re.compile('^фазы.*кот.*направ', re.IGNORECASE)
-    row1_cell3  = re.compile('^светофоры', re.IGNORECASE)
-    row1_cell4  = re.compile('^Тзд', re.IGNORECASE)
-    row1_cell5  = re.compile('^Тзм', re.IGNORECASE)
-    row1_cell6  = re.compile('^Тж', re.IGNORECASE)
-    row1_cell7  = re.compile('^Тк', re.IGNORECASE)
-    row1_cell8  = re.compile('^Ткж', re.IGNORECASE)
-    row1_cell9  = re.compile('^Тз', re.IGNORECASE)
-    row1_cell10 = re.compile('^Тзз', re.IGNORECASE)
-    row1_cell11 = re.compile('^пост.+крас', re.IGNORECASE)
-    row1_cell12 = re.compile('^Зел', re.IGNORECASE)
-    row1_cell13 = re.compile('^Красн', re.IGNORECASE)
-    row1_cell14 = re.compile('', re.IGNORECASE)
+# class _DirectionTablePatterns(Enum):
+#     row1_cell0  = re.compile('^№\s*нап', re.IGNORECASE)
+#     row1_cell1  = re.compile('^тип\s*направления', re.IGNORECASE)
+#     row1_cell2  = re.compile('^фазы.*кот.*направ', re.IGNORECASE)
+#     row1_cell3  = re.compile('^светофоры', re.IGNORECASE)
+#     row1_cell4  = re.compile('^Тзд', re.IGNORECASE)
+#     row1_cell5  = re.compile('^Тзм', re.IGNORECASE)
+#     row1_cell6  = re.compile('^Тж', re.IGNORECASE)
+#     row1_cell7  = re.compile('^Тк', re.IGNORECASE)
+#     row1_cell8  = re.compile('^Ткж', re.IGNORECASE)
+#     row1_cell9  = re.compile('^Тз', re.IGNORECASE)
+#     row1_cell10 = re.compile('^Тзз', re.IGNORECASE)
+#     row1_cell11 = re.compile('^пост.+крас', re.IGNORECASE)
+#     row1_cell12 = re.compile('^Зел', re.IGNORECASE)
+#     row1_cell13 = re.compile('^Красн', re.IGNORECASE)
+#     row1_cell14 = re.compile('', re.IGNORECASE)
+#
+#     @classmethod
+#     def get_patterns_len(cls, length: int):
+#         if length == 15:
+#             for pattern in cls:
+#                 yield pattern.value
+#         elif length == 14:
+#             for i, pattern in enumerate(cls):
+#                 if i != 10:
+#                     yield pattern.value
 
-    @classmethod
-    def get_patterns_len(cls, length: int):
-        if length == 15:
-            for pattern in cls:
-                yield pattern.value
-        elif length == 14:
-            for i, pattern in enumerate(cls):
-                if i != 10:
-                    yield pattern.value
 
-
-class PatternsDt(Enum):
+class PatternsDirectionTable(Enum):
     allowed_entities = re.compile('Транспортное|Поворотное|Пешеходное|общ.*тр|пос.*крас', re.IGNORECASE)
     vehicle = re.compile('^Транспортное', re.IGNORECASE)
     arrow = re.compile('^Поворотное', re.IGNORECASE)
@@ -72,6 +74,36 @@ class PatternsDt(Enum):
     description = re.compile('^примечание', re.IGNORECASE)
     empty = re.compile('', re.IGNORECASE)
 
+    row1_cells = (
+        re.compile('^№\s*нап', re.IGNORECASE),
+        re.compile('^тип\s*направления', re.IGNORECASE),
+        re.compile('^фазы.*кот.*направ', re.IGNORECASE),
+        re.compile('^светофоры', re.IGNORECASE),
+        re.compile('^Тзд', re.IGNORECASE),
+        re.compile('^Тзм', re.IGNORECASE),
+        re.compile('^Тж', re.IGNORECASE),
+        re.compile('^Тк', re.IGNORECASE),
+        re.compile('^Ткж', re.IGNORECASE),
+        re.compile('^Тз', re.IGNORECASE),
+        re.compile('^Тзз', re.IGNORECASE),
+        re.compile('^пост.+крас', re.IGNORECASE),
+        re.compile('^Зел', re.IGNORECASE),
+        re.compile('^Красн', re.IGNORECASE),
+        re.compile('', re.IGNORECASE),
+    )
+
+
+    @classmethod
+    def get_patterns_row1(cls, length: int):
+        print(cls.row1_cells.value)
+        if length == 15:
+            for pattern in cls.row1_cells.value:
+                yield pattern
+        elif length == 14:
+            for i, pattern in enumerate(cls.row1_cells.value):
+                if i != 10:
+                    yield pattern
+
 
 
 row0_15_dt = ('№ нап.', 'Тип направления', 'Фазы, в кот. участ. направ.', 'Светофоры', '"Запрет"', '"Запрет"', '"Запрет"', '"Запрет"', '"Разрешение"', '"Разрешение"', '"Разрешение"', 'Пост. красное', 'ТООВ ', 'ТООВ ', 'Примечание')
@@ -81,26 +113,26 @@ row1_14_dt = gen_seq(row1_15_dt, {10})
 
 
 patterns_row0_15_dt = (
-    PatternsDt.num_direction.value,
-    PatternsDt.entity_direction.value,
-    PatternsDt.stages.value,
-    PatternsDt.traffic_lights.value,
-    PatternsDt.prohibition.value,
-    PatternsDt.prohibition.value,
-    PatternsDt.prohibition.value,
-    PatternsDt.prohibition.value,
-    PatternsDt.permission.value,
-    PatternsDt.permission.value,
-    PatternsDt.permission.value,
-    PatternsDt.always_red.value,
-    PatternsDt.toov.value,
-    PatternsDt.toov.value,
-    PatternsDt.description.value,
+    PatternsDirectionTable.num_direction.value,
+    PatternsDirectionTable.entity_direction.value,
+    PatternsDirectionTable.stages.value,
+    PatternsDirectionTable.traffic_lights.value,
+    PatternsDirectionTable.prohibition.value,
+    PatternsDirectionTable.prohibition.value,
+    PatternsDirectionTable.prohibition.value,
+    PatternsDirectionTable.prohibition.value,
+    PatternsDirectionTable.permission.value,
+    PatternsDirectionTable.permission.value,
+    PatternsDirectionTable.permission.value,
+    PatternsDirectionTable.always_red.value,
+    PatternsDirectionTable.toov.value,
+    PatternsDirectionTable.toov.value,
+    PatternsDirectionTable.description.value,
 )
 patterns_row0_14_dt = patterns_row0_15_dt[:10] + patterns_row0_15_dt[11:]
 
-patterns_row1_15_dt = DirectionTablePatterns.get_patterns_len(15)
-patterns_row1_14_dt = DirectionTablePatterns.get_patterns_len(14)
+patterns_row1_15_dt = PatternsDirectionTable.get_patterns_row1(15)
+patterns_row1_14_dt = PatternsDirectionTable.get_patterns_row1(14)
 
 
 class HeadRowsDirectionTableData(NamedTuple):
@@ -388,7 +420,6 @@ direction_timings = {
 
 
 if __name__ == '__main__':
-
-    print(patterns_row0_14_dt)
-    for p in patterns_row0_14_dt:
-        print(p)
+    pass
+    # print(PatternsDirectionTable.row1_cells.value)
+    # print(tuple(PatternsDirectionTable.get_patterns_row1(14)))
