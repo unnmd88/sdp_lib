@@ -14,6 +14,7 @@ class Text(StrEnum):
 
     cell_is_empty = 'Ячейка пуста '
 
+    is_not_a_number = 'Значение не является числом'
 
     always_red_must_be_empty = (
         f'У группы типа "{DirectionEntities.always_red}" не должно быть фаз в '
@@ -51,23 +52,20 @@ class Text(StrEnum):
             cell_name: ColNamesTimeProgramsTable | ColNamesDirectionsTable = ''
     ) -> str:
         return  f'Неверно задан номер в ячейке "{str(cell_name)}": {num_stage}'
-        # return (
-        #     f'Неверно задан номер "{str(table_name)}": {num_stage}. '
-        #     f'Допускаются номера в виде целых чисел("1", "2", "6" и т.д) или '
-        #     f'числа через точку("1.1", "1.2", "4.1" и т.д.)'
-        # )
 
-    # @classmethod
-    # def get_bad_val(
-    #         cls,
-    #         value: Any = '',
-    #         name: ColNamesTimeProgramsTable | ColNamesDirectionsTable = ''
-    # ) -> str:
-    #     return f'Неверно задано значение "{name}": {value}'
-    #
-    # @classmethod
-    # def bad_nums(cls, bad_nums: Sequence) -> str:
-    #     return f'Недопустимые номера({len(bad_nums)}): {bad_nums}'
+    @classmethod
+    def val_must_be_gt(cls, gt_val):
+        return f'Значение не должно быть меньше {gt_val}'
+
+    @classmethod
+    def val_must_be_lt(cls, lt_val):
+        return f'Значение не должно быть больше {lt_val}'
+
+    @classmethod
+    def direction_entity_not_defined(cls):
+        return f'Тип направления не задан'
+
+
 
     @classmethod
     def get_has_doubles(cls, entity: str, column_name: str, doubles: Any):

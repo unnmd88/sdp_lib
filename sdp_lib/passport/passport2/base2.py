@@ -109,16 +109,16 @@ class HeadRow(AbstractRow):
 class DirectionRow(AbstractRow):
 
     @property
-    def num_direction(self) -> CellData:
-        return self._row[0]
+    def num_direction(self) -> tuple[int, CellData]:
+        return 0, self._row[0]
 
     @property
-    def entity(self) -> CellData:
-        return self._row[1]
+    def entity(self) -> tuple[int, CellData]:
+        return 1, self._row[1]
 
     @property
-    def stages(self) -> CellData:
-        return self._row[2]
+    def stages(self) -> tuple[int, CellData]:
+        return 2, self._row[2]
 
     @property
     def traffic_lights(self) -> CellData:
@@ -184,7 +184,8 @@ class DirectionsOrStagesSequenceValidation(NamedTuple):
     compare: Comparison
 
 
-
+class NumberValidation(NamedTuple):
+    errors: MutableSequence
 
 
 

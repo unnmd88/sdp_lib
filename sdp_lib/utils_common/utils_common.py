@@ -9,6 +9,7 @@ import time
 from collections.abc import Sequence, MutableMapping, Iterable, MutableSequence, Hashable, Container, Generator, \
     MappingView
 from datetime import datetime as dt
+from enum import Enum
 from string import ascii_letters
 from typing import Callable, TypeVar, Any, Protocol
 
@@ -371,6 +372,11 @@ def create_repr_from_dict_xor_slots(
     )
     return f'{instance.__class__.__name__}({attrs})'
 
+
+def get_vector_from_enum(src: Enum, startswith: str, exclude_names: Container = ()):
+    for name in src:
+        if name.name.startswith(startswith) and name.value not in exclude_names:
+            yield name.value
 
 
 if __name__ == '__main__':

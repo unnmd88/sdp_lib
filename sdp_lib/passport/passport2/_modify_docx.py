@@ -1,4 +1,5 @@
 from docx import Document
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import RGBColor
 
 
@@ -8,6 +9,13 @@ def change_color(cell, color: RGBColor):
     print(color)
 
 
+def add_text(cell, text):
+    cell.text += '\naaaabraa' # Добавить текст
+    cell.paragraphs[0].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER # Выровнять по центру
+
+"""
+https://stackoverflow.com/questions/42736364/docx-center-text-in-table-cells
+"""
 
 
 # cell = dt.rows[2].cells[1]

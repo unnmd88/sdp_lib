@@ -1,5 +1,6 @@
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Container
+from enum import Enum
 
 from docx import Document
 from docx.table import _Cell
@@ -20,6 +21,7 @@ def remove_spaces_and_invalid_sep(string, sep=','):
         return re.sub(Patterns.comma_is_start_end_or_spaces.value, '', string)
     string = re.sub(f'{sep}{sep}+', sep, string)
     return  re.sub(f'^{sep}|{sep}+$|.\s', '', string)
+
 
 
 

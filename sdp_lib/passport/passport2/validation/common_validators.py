@@ -12,9 +12,9 @@ from docx.table import Table, _Rows
 from setuptools.command.build_ext import if_dl
 
 from sdp_lib.passport.constants import row0_14_dt, row1_14_dt, row0_15_dt, allowed_min_num_rows, \
-    Patterns
+    Patterns, AllowedValues, matches
 from sdp_lib.passport.passport2.base2 import MessageStorage, ValidationData, CellData, \
-    DirectionsOrStagesSequenceValidation, Comparison
+    DirectionsOrStagesSequenceValidation, Comparison, NumberValidation
 from sdp_lib.passport.passport2.check_lists import TableGeometryCheckList
 from sdp_lib.passport.passport2.utils import remove_spaces_and_invalid_sep
 from sdp_lib.passport.passport2.validation.base import Cell
@@ -116,8 +116,27 @@ def validate_sequence_directions_or_stages_nums_and_create_cell(
     # return CellData(string, is_valid)
 
 
-def validate_tlc(direction_entity, val):
-    pass
+def validate_number_and_create_cell(key_for_matches, val_to_validate: str) -> CellData:
+    tv = NumberValidation([])
+    try:
+        val_f = float(val_to_validate.replace(',', '.', 1))
+    except ValueError:
+        tv.errors.append(Text.is_not_a_number)
+        return CellData(val_to_validate, False, False, extra=tv)
+    values: AllowedValues = matches[key_for_matches]
+    if values.min <= val_f <= values.max: # OK case
+        return CellData(val_to_validate, True, True, recovered=int(val_f) if val_f.is_integer() else val_f, extra=tv)
+
+    if val_f < values.min:
+        err = Text.val_must_be_gt(values.min)
+    elif val_f > values.max:
+        err = Text.val_must_be_lt(values.max)
+    else:
+        raise Exception(f'Debug: val_to_validate not fully validated')
+    tv.errors.append(err)
+    return CellData(val_to_validate, True, False, recovered=int(val_f) if val_f.is_integer() else val_f, extra=tv)
+
+
 
 
 if __name__ == '__main__':

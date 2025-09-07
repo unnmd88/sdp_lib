@@ -6,7 +6,7 @@ from enum import (
 )
 from typing import NamedTuple
 
-from sdp_lib.utils_common.utils_common import gen_seq
+from sdp_lib.utils_common.utils_common import gen_seq, get_vector_from_enum
 
 
 class Patterns(Enum):
@@ -186,7 +186,6 @@ patterns_row0_15_dt = (
     PatternsDirectionTable.description.value,
 )
 patterns_row0_14_dt = patterns_row0_15_dt[:10] + patterns_row0_15_dt[11:]
-
 patterns_row1_15_dt = PatternsDirectionTable.get_patterns_row1(15)
 patterns_row1_14_dt = PatternsDirectionTable.get_patterns_row1(14)
 
@@ -267,8 +266,16 @@ class DirectionEntities(StrEnum):
         # return ', '.join(str(d) for d in cls if d not in {cls.common, cls.empty})
 
 
-standard_directions = {el for el in DirectionEntities}
+substrings_vehicle = (
+    f'{DirectionEntities.vehicle[:2]}'.lower(),
+)
+substrings_arrow = ('д/c', )
+substrings_pedestrian = ('пеш', )
 
+standard_directions = {el for el in DirectionEntities}
+startswith_tlc = {
+    DirectionEntities.vehicle: (f'{DirectionEntities.vehicle[:2]}', ),
+}
 
 
 class StagesMapping(IntEnum):
@@ -283,7 +290,7 @@ class ColNamesDirectionsTable(StrEnum):
     t_red = 'Тк'
     t_red_yellow = 'Ткж'
     t_z = 'Тз'
-    t_zz = 'Тз'
+    t_zz = 'Тзз'
 
     number = '№ нап.'
     direction_type = 'Тип направления'
@@ -293,6 +300,15 @@ class ColNamesDirectionsTable(StrEnum):
     toov_green = 'Зелен.'
     toov_red = 'Красн.'
     description = 'Примечание'
+
+
+dt_timing_columns = tuple(get_vector_from_enum(ColNamesDirectionsTable, 't_'))
+dt_timing_columns_exclude_tzz = tuple(get_vector_from_enum(ColNamesDirectionsTable, 't_', (ColNamesDirectionsTable.t_zz, )))
+
+dt_timing_columns_mapping = {
+    14: dt_timing_columns_exclude_tzz,
+    15: dt_timing_columns,
+}
 
 
 class ColNamesTimeProgramsTable(StrEnum):
@@ -433,21 +449,22 @@ class AllowedValues(NamedTuple):
     default: float
 
 
-min0_max20_default0 = AllowedValues(0, 20, 0)
-min0_max3_default3  = AllowedValues(0, 3, 3)
+min0_max10_default0 = AllowedValues(0, 10, 0)
 min3_max3_default3  = AllowedValues(3, 3, 3)
+min0_max10_default3  = AllowedValues(3, 10, 3)
+min1_max3_default1  = AllowedValues(1, 3, 1)
 
 
-direction_timings = {
-    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_green_ext): min0_max20_default0,
-    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_flashing_green): min0_max3_default3,
-    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_yellow): 3,
-    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_red): 0,
-    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_red_yellow): 1,
-    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_z): 0,
-    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_zz): 0,
+matches = {
+    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_green_ext): min0_max10_default0,
+    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_flashing_green): min3_max3_default3,
+    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_yellow): min3_max3_default3,
+    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_red): min0_max10_default3,
+    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_red_yellow): min1_max3_default1,
+    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_z): min0_max10_default0,
+    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_zz): min0_max10_default0,
 
-    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_green_ext): 0,
+    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_green_ext): min0_max10_default0,
     (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_flashing_green): 3,
     (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_yellow): 0,
     (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_red): 3,
@@ -467,5 +484,7 @@ direction_timings = {
 
 if __name__ == '__main__':
     pass
+    print(dt_timing_columns)
+    print(dt_timing_columns_exclude_tzz)
     # print(PatternsDirectionTable.row1_cells.value)
     # print(tuple(PatternsDirectionTable.get_patterns_row1(14)))
