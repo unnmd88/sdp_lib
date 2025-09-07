@@ -9,8 +9,8 @@ from docx import Document
 from docx.table import _Rows, _Row
 
 from sdp_lib.passport.constants import TableNames, row0_14_dt, patterns_row1_15_dt, row1_14_dt, \
-    patterns_row1_14_dt, allowed_column_lengths_dt, allowed_min_num_rows, patterns_row0_14_dt, dt_patterns_row0, \
-    dt_patterns_row1, DirectionEntities, PatternsDirectionTable, HeadRowsDirectionTableData, dt_mapping
+    patterns_row1_14_dt, allowed_column_lengths_dt, allowed_min_num_rows, patterns_row0_14_dt,  \
+     DirectionEntities, PatternsDirectionTable, HeadRowsDirectionTableData, dt_mapping
 from sdp_lib.passport.passport2.base2 import AbstractRow, DirectionRow, CellData
 from sdp_lib.passport.passport2.utils import remove_left_light_spaces_from_cells
 from sdp_lib.passport.passport2.validation.base import  CheckListDirectionRow, \
@@ -81,24 +81,6 @@ def validate_num_and_create_cell(val) -> CellData:
     return CellData(val, is_valid, is_valid, recovered=num)
 
 
-def validate_direction_entity_and_create_cell(val) -> CellData:
-    entity =  None
-    if re.search(PatternsDirectionTable.vehicle.value, val):
-        entity = DirectionEntities.vehicle
-    elif re.search(PatternsDirectionTable.arrow.value, val):
-        entity = DirectionEntities.arrow
-    elif re.search(PatternsDirectionTable.pedestrian.value, val):
-        entity = DirectionEntities.pedestrian
-    elif re.search(PatternsDirectionTable.public.value, val):
-        entity = DirectionEntities.public
-    elif re.search(PatternsDirectionTable.tram.value, val):
-        entity = DirectionEntities.tram
-    elif re.search(PatternsDirectionTable.always_red.value, val):
-        entity = DirectionEntities.always_red
-    is_valid = bool(entity)
-    return CellData(val, is_valid, is_valid, recovered=entity)
-
-
 @timed
 def validate_directions_table(rows: _Rows) -> CheckListTable:
     geometry_check_list = validate_geometry(rows, allowed_column_lengths_dt, allowed_min_num_rows)
@@ -113,7 +95,7 @@ def validate_directions_table(rows: _Rows) -> CheckListTable:
         stages = validate_sequence_directions_or_stages_nums_and_create_cell(next(cells))
         res = (num, entity, stages) + tuple(CellData() for _ in range(11))
         r =  DirectionRow(res)
-        print(r if i == 8 else 'skipped')
+        print(r.represent(attr_splitter='\n') if i in (8, length - 1) else r)
 
 
 

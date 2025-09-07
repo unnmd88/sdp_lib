@@ -82,8 +82,16 @@ class AbstractRow:
     def __init__(self, row: Sequence[CellData] | MutableSequence[CellData]):
         self._row = row
 
-    def __repr__(self):
-        return create_repr_from_dict_xor_slots(self, splitter='\n')
+    # def __repr__(self):
+    #     return create_repr_from_dict_xor_slots(self, splitter='\n')
+
+    def represent(
+            self,
+            include_properties=True,
+            exclude_startswith='__',
+            attr_splitter=' ',
+    ):
+        return create_repr_from_dict_xor_slots(self, include_properties, exclude_startswith, attr_splitter)
 
     @property
     def is_valid(self):

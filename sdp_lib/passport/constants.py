@@ -206,14 +206,6 @@ dt_mapping = {
     15: dt15
 }
 
-dt_patterns_row0 = {
-    14: patterns_row0_14_dt,
-    15: patterns_row0_15_dt
-}
-dt_patterns_row1 = {
-    14: patterns_row1_14_dt,
-    15: patterns_row1_15_dt
-}
 
 allowed_column_lengths_dt = (14, 15)
 allowed_min_num_rows = 3
