@@ -128,11 +128,11 @@ class DirectionRow(AbstractRow, ReprMixin):
                 )
         else:
             val = default_val
-        return Cell(ColNamesDirectionsTable.direction_type, init_val, default_val, val, is_valid)
+        return Cell(ColNamesDirectionsTable.direction_entity, init_val, default_val, val, is_valid)
 
     def _check_direction_type_is_standard(self) -> bool:
         try:
-            return bool(DirectionEntities(self.cells.direction_type.value))
+            return bool(DirectionEntities(self.cells.direction_entity.value))
         except ValueError:
             self._extra_data.err_and_warn.add_warnings(
                 Message('Задан нестандартный тип направления.', MessageCategories.validation)

@@ -105,9 +105,65 @@ class PatternsDirectionTable(Enum):
                     yield pattern
 
 
+class ColNamesDirectionsTable(StrEnum):
+    t_green_ext = 'Тзд'
+    t_flashing_green = 'Тзм'
+    t_yellow = 'Тж'
+    t_red = 'Тк'
+    t_red_yellow = 'Ткж'
+    t_z = 'Тз'
+    t_zz = 'Тз'
 
-row0_15_dt = ('№ нап.', 'Тип направления', 'Фазы, в кот. участ. направ.', 'Светофоры', '"Запрет"', '"Запрет"', '"Запрет"', '"Запрет"', '"Разрешение"', '"Разрешение"', '"Разрешение"', 'Пост. красное', 'ТООВ ', 'ТООВ ', 'Примечание')
-row1_15_dt = ('№ нап.', 'Тип направления', 'Фазы, в кот. участ. направ.', 'Светофоры', 'Тзд', 'Тзм', 'Тж', 'Тк', 'Ткж', 'Тз', 'Тзз', 'Пост. красное', 'Красн.', 'Зелен.', '')
+    number = '№ нап.'
+    direction_entity = 'Тип направления'
+    traffic_lights = 'Светофоры'
+    stages = 'Фазы, в кот. участ. направ.'
+    prohibition = '"Запрет"'
+    permission = '"Разрешение"'
+    toov = 'ТООВ'
+    always_red = 'Пост. красное'
+    toov_green = 'Зелен.'
+    toov_red = 'Красн.'
+    description = 'Примечание'
+
+
+# row0_15_dt = ('№ нап.', 'Тип направления', 'Фазы, в кот. участ. направ.', 'Светофоры', '"Запрет"', '"Запрет"', '"Запрет"', '"Запрет"', '"Разрешение"', '"Разрешение"', '"Разрешение"', 'Пост. красное', 'ТООВ ', 'ТООВ ', 'Примечание')
+row0_15_dt = (
+    ColNamesDirectionsTable.number,
+    ColNamesDirectionsTable.direction_entity,
+    ColNamesDirectionsTable.stages,
+    ColNamesDirectionsTable.traffic_lights,
+    ColNamesDirectionsTable.prohibition,
+    ColNamesDirectionsTable.prohibition,
+    ColNamesDirectionsTable.prohibition,
+    ColNamesDirectionsTable.prohibition,
+    ColNamesDirectionsTable.permission,
+    ColNamesDirectionsTable.permission,
+    ColNamesDirectionsTable.permission,
+    ColNamesDirectionsTable.always_red,
+    ColNamesDirectionsTable.toov,
+    ColNamesDirectionsTable.toov,
+    ColNamesDirectionsTable.description,
+)
+# row1_15_dt = ('№ нап.', 'Тип направления', 'Фазы, в кот. участ. направ.', 'Светофоры', 'Тзд', 'Тзм', 'Тж', 'Тк', 'Ткж', 'Тз', 'Тзз', 'Пост. красное', 'Красн.', 'Зелен.', '')
+row1_15_dt = (
+    ColNamesDirectionsTable.number,
+    ColNamesDirectionsTable.direction_entity,
+    ColNamesDirectionsTable.stages,
+    ColNamesDirectionsTable.traffic_lights,
+    ColNamesDirectionsTable.t_green_ext,
+    ColNamesDirectionsTable.t_flashing_green,
+    ColNamesDirectionsTable.t_yellow,
+    ColNamesDirectionsTable.t_red,
+    ColNamesDirectionsTable.t_red_yellow,
+    ColNamesDirectionsTable.t_z,
+    ColNamesDirectionsTable.t_zz,
+    ColNamesDirectionsTable.always_red,
+    ColNamesDirectionsTable.toov_red,
+    ColNamesDirectionsTable.toov_green,
+    ColNamesDirectionsTable.description,
+
+)
 row0_14_dt = gen_seq(row0_15_dt, {10})
 row1_14_dt = gen_seq(row1_15_dt, {10})
 
@@ -161,8 +217,6 @@ dt_patterns_row1 = {
 
 allowed_column_lengths_dt = (14, 15)
 allowed_min_num_rows = 3
-
-
 
 
 class MessageLevels(StrEnum):

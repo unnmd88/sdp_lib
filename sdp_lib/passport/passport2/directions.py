@@ -221,7 +221,7 @@ class DirectionRow(AbstractRow, ReprMixin):
 
     def _check_direction_type_is_standard(self) -> bool:
         try:
-            return bool(DirectionEntities(self.cells.direction_type.value))
+            return bool(DirectionEntities(self.cells.direction_entity.value))
         except ValueError:
             self._extra_data.err_and_warn.add_warnings(
                 Message('Задан нестандартный тип направления.', MessageCategories.validation)
@@ -242,7 +242,7 @@ class DirectionsTable(AbstractTableWithStages, ReprMixin):
     #     self._direction_type_counter = Counter(str(row.cells.direction_type.value) for row in self._rows)
 
     def get_direction_types_cnt(self):
-        return Counter(str(row.cells.direction_type.value) for row in self._rows)
+        return Counter(str(row.cells.direction_entity.value) for row in self._rows)
 
     def dump_to_dict(self) -> dict:
         return super().dump_to_dict() | {

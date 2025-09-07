@@ -15,11 +15,21 @@ from sdp_lib.passport.passport2.base2 import AbstractRow, DirectionRow, CellData
 from sdp_lib.passport.passport2.utils import remove_left_light_spaces_from_cells
 from sdp_lib.passport.passport2.validation.base import  CheckListDirectionRow, \
     BaseCellValidationResult, CheckListTable, BaseValidationResult, Cell
-from sdp_lib.passport.passport2.validation.common_validators import validate_geometry, match_cells, \
-    validate_sequence_directions_or_stages_nums_and_create_cell
+from sdp_lib.passport.passport2.validation.common_validators import validate_geometry, match_cells_one_to_one, \
+    validate_sequence_directions_or_stages_nums_and_create_cell, match_cells_one_string_to_many_patterns
 from sdp_lib.passport.text_messages import Text
 from sdp_lib.utils_common.utils_common import to_json, timed, remove_left_light_spaces, \
     get_stage_or_direction_number_or_none
+
+
+entity_patterns_and_aliases = (
+    (PatternsDirectionTable.vehicle.value, DirectionEntities.vehicle,),
+    (PatternsDirectionTable.arrow.value, DirectionEntities.arrow,),
+    (PatternsDirectionTable.pedestrian.value, DirectionEntities.pedestrian,),
+    (PatternsDirectionTable.always_red.value, DirectionEntities.always_red,),
+    (PatternsDirectionTable.public.value, DirectionEntities.public,),
+    (PatternsDirectionTable.tram.value, DirectionEntities.tram,),
+)
 
 
 def _check_is_directions_table(rows: _Rows) -> bool:
@@ -62,7 +72,7 @@ def get_two_head_rows(row0_cells, row1_cells) -> Iterable[DirectionRow, Directio
     rows_length = len(row0_cells)
     names_and_patterns: HeadRowsDirectionTableData = dt_mapping[rows_length]
     for row, patterns, recover in (_get_head_rows_iter(row0_cells, row1_cells, names_and_patterns)):
-        yield DirectionRow(tuple(match_cells(row, patterns, recover, True)))
+        yield DirectionRow(tuple(match_cells_one_to_one(row, patterns, recover, True)))
 
 
 def validate_num_and_create_cell(val) -> CellData:
@@ -99,11 +109,11 @@ def validate_directions_table(rows: _Rows) -> CheckListTable:
     for i in range(2, length):
         cells = remove_left_light_spaces_from_cells(rows[i].cells)
         num = validate_num_and_create_cell(next(cells))
-        entity = validate_direction_entity_and_create_cell(next(cells))
+        entity = match_cells_one_string_to_many_patterns(next(cells), entity_patterns_and_aliases, True)
         stages = validate_sequence_directions_or_stages_nums_and_create_cell(next(cells))
         res = (num, entity, stages) + tuple(CellData() for _ in range(11))
-        r=  DirectionRow(res)
-        print(r)
+        r =  DirectionRow(res)
+        print(r if i == 8 else 'skipped')
 
 
 

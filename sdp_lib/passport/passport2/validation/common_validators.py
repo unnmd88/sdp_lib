@@ -49,7 +49,7 @@ def validate_geometry(
     )
 
 
-def match_cells(
+def match_cells_one_to_one(
     strings: Sequence[str],
     patterns: Sequence[str | re.Pattern],
     to_recover: Sequence[str] = None,
@@ -64,6 +64,36 @@ def match_cells(
         for s, p, r in zip(strings, patterns, to_recover, strict=True):
             res = bool(re.match(p, s))
             yield CellData(s, bool(re.match(p, s)), recovered=r if res else None)
+
+
+def get_alias(string, patterns_and_aliases: tuple[tuple[[re.Pattern | str], str], ...]) -> str | None:
+    for data in patterns_and_aliases:
+        if re.match(data[0], string) is not None:
+            return data[1]
+    return None
+
+
+def match_cells_one_string_to_many_patterns(
+    string: str,
+    patterns_and_aliases: Sequence[tuple[str | re.Pattern, str]],
+    duplicate_pattern_result_to_context=False
+):
+    alias = get_alias(string, patterns_and_aliases)
+    is_valid = bool(alias)
+
+    if duplicate_pattern_result_to_context:
+        return CellData(string, is_valid, is_valid, recovered=alias)
+    return CellData(string, bool(alias), recovered=alias)
+
+
+    #     for s, patterns_and_aliases in zip(string, patterns_and_aliases, strict=True):
+    #         alias = get_alias(s, patterns_and_aliases)
+    #         is_valid = bool(alias)
+    #         yield CellData(s, is_valid, is_valid, recovered=alias)
+    # else:
+    #     for s, patterns_and_aliases in zip(strings, patterns_and_aliases, strict=True):
+    #         alias = get_alias(s, patterns_and_aliases)
+    #         yield CellData(s, bool(alias), recovered=alias)
 
 
 def validate_sequence_directions_or_stages_nums_and_create_cell(
