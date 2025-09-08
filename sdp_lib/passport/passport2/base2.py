@@ -1,6 +1,11 @@
+import itertools
 from collections.abc import MutableSequence, Sequence, MutableMapping
 from functools import cached_property
 from typing import NamedTuple, Any
+
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.shared import RGBColor
+from docx.table import _Cell
 
 from sdp_lib.passport.constants import MessageCategories
 from sdp_lib.utils_common.utils_common import add_record, create_repr_from_dict_xor_slots
@@ -13,16 +18,20 @@ class Message(NamedTuple):
 
 class MessageStorage(NamedTuple):
 
-    errors: MutableSequence[str | Message]
-    warnings: MutableSequence[str | Message]
+    errors: MutableSequence[str]
+    warnings: MutableSequence[str]
 
-    def add_errors(self, *errors: Message):
+    def add_errors(self, *errors: str):
         return add_record(self.errors, errors)
 
-    def add_warnings(self, *warnings: Message):
+    def add_warnings(self, *warnings: str):
         return add_record(self.warnings, warnings)
 
-    def clear_all(self):
+    def chain(self) -> itertools.chain:
+        return itertools.chain(self.errors, self.warnings)
+
+    def clear(self):
+
         self.errors.clear()
         self.warnings.clear()
 
@@ -52,38 +61,64 @@ class BadNumDirectionOrStage(NamedTuple):
     is_empty: bool
 
 
-
-    # doubles: MutableMapping
+class CellMapping(NamedTuple):
+    i_table: int
+    i_col: int
+    i_row: int
+    cell: _Cell
 
 
 class CellData:
 
-    __slots__ = ('value', 'text', 'context', 'recovered', 'extra')
+    RGB_RED = RGBColor(255, 0, 0)
+    RGB_GREEN = RGBColor(0, 255, 0)
+    RGB_BLUE = RGBColor(0, 0, 255)
+
+    __slots__ = ('value', 'text_is_valid', 'context_is_valid', 'recovered_val', 'extra', 'cell_mapping',
+                 'converted_val', 'messages')
 
     def __init__(
             self,
             value: str = None,
             text_is_valid: bool = None,
             context_is_valid: bool = None,
-            recovered=None,
-            extra=None
+            converted_val=None,
+            recovered_val=None,
+            extra=None,
+            cell_mapping: CellMapping = None,
+            messages: MessageStorage = None,
     ):
         self.value = value
-        self.text = text_is_valid
-        self.context = context_is_valid
-        self.recovered = recovered
+        self.text_is_valid = text_is_valid
+        self.context_is_valid = context_is_valid
+        self.recovered_val = recovered_val
+        self.converted_val = converted_val
         self.extra = extra
+        self.cell_mapping = cell_mapping
+        self.messages = messages or MessageStorage([], [])
 
     def __repr__(self):
         return create_repr_from_dict_xor_slots(self)
+
+    def write_messages_to_table_cell(
+            self,
+            sep='\n',
+            color: RGBColor = None,
+    ):
+        new_txt = sep.join(f'*{m}' for m in self.messages.chain())
+        if new_txt:
+            _cell = self.cell_mapping.cell
+            _cell.text = f'{_cell.text}{sep}{new_txt}'
+            para = _cell.paragraphs[0]
+            para.runs[0].font.color.rgb = color or self.RGB_RED
+            para.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        return self
+
 
 
 class AbstractRow:
     def __init__(self, row: Sequence[CellData] | MutableSequence[CellData]):
         self._row = row
-
-    # def __repr__(self):
-    #     return create_repr_from_dict_xor_slots(self, splitter='\n')
 
     def represent(
             self,
@@ -95,11 +130,11 @@ class AbstractRow:
 
     @property
     def is_valid(self):
-        return all(el.context for el in self._row)
+        return all(el.context_is_valid for el in self._row)
 
     @property
     def is_empty(self):
-        return all(not el.text for el in self._row)
+        return all(not el.text_is_valid for el in self._row)
 
 
 class HeadRow(AbstractRow):
@@ -109,16 +144,16 @@ class HeadRow(AbstractRow):
 class DirectionRow(AbstractRow):
 
     @property
-    def num_direction(self) -> tuple[int, CellData]:
-        return 0, self._row[0]
+    def num_direction(self) -> CellData:
+        return self._row[0]
 
     @property
-    def entity(self) -> tuple[int, CellData]:
-        return 1, self._row[1]
+    def entity(self) -> CellData:
+        return self._row[1]
 
     @property
-    def stages(self) -> tuple[int, CellData]:
-        return 2, self._row[2]
+    def stages(self) -> CellData:
+        return self._row[2]
 
     @property
     def traffic_lights(self) -> CellData:

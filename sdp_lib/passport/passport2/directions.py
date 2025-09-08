@@ -187,11 +187,11 @@ class DirectionRow(AbstractRow, ReprMixin):
     def _get_values_to_set_in_cells(self) -> Iterable:
         if len(self._row.cells) == _Types.exclude_tzz_fields14:
             return itertools.chain(
-                (self._row.cells[i].text for i in range(10)),
+                (self._row.cells[i].text_is_valid for i in range(10)),
                 (None, ),
-                (self._row.cells[i].text for i in range(10, _Types.exclude_tzz_fields14))
+                (self._row.cells[i].text_is_valid for i in range(10, _Types.exclude_tzz_fields14))
             )
-        return (cell.text for cell in self._cells)
+        return (cell.text_is_valid for cell in self._cells)
 
         # for i, cell in enumerate(self._row.cells):
         #     yield cell.text

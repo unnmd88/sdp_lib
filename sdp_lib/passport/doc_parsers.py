@@ -80,7 +80,7 @@ def check_is_time_program_table(cells) -> bool:
 
 def identify_table_entity(table_rows) -> Tables:
     for row in table_rows:
-        cells = [cell.text for cell in row.cells]
+        cells = [cell.text_is_valid for cell in row.cells]
         if check_is_directions_table(cells):
             print(cells)
             return Tables.directions
@@ -118,4 +118,4 @@ if __name__ == '__main__':
         if v:
             for row in doc.tables[k].rows:
                 # cells = [cell.text for cell in row.cells]
-                print('|'.join(cell.text for cell in row.cells))
+                print('|'.join(cell.text_is_valid for cell in row.cells))

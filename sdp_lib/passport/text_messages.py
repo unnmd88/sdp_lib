@@ -11,15 +11,17 @@ class Text(StrEnum):
         f'Допускаются номера в виде целых чисел("1", "2", "6" и т.д) или '
         f'числа через точку("1.1", "1.2", "4.1" и т.д.)'
     )
-
+    name_error = 'Ошибка в названии'
     cell_is_empty = 'Ячейка пуста '
-
+    invalid_name = 'Недопустимое название'
     is_not_a_number = 'Значение не является числом'
 
     always_red_must_be_empty = (
         f'У группы типа "{DirectionEntities.always_red}" не должно быть фаз в '
         f'колонке "{ColNamesDirectionsTable.stages}"'
     )
+
+    bad_number = 'Неверный номер'
 
     income_table_text_rule = (
         f'Некорректные входные данные для обработки. Каждая строка таблицы'

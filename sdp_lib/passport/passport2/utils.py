@@ -1,15 +1,31 @@
+import itertools
 import re
-from collections.abc import Iterable, Container
+from collections.abc import Iterable, Container, Generator
 from enum import Enum
+from typing import Any
 
 from docx import Document
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.shared import RGBColor
 from docx.table import _Cell
 
 from sdp_lib.passport.constants import Patterns
+from sdp_lib.passport.passport2.base2 import CellData
 
 
-def remove_left_light_spaces_from_cells(cells: Iterable[_Cell]):
-    return (s.text.rstrip().lstrip() for s in cells)
+# def remove_left_light_spaces_from_cell_text(cells: Iterable[_Cell]) -> Generator[str, Any, None]:
+#     return (c.text.lstrip().rstrip() for c in cells)
+    # for i, cell in enumerate(cells):
+    #     cell.text = cell.text.lstrip().rstrip()
+    #     yield CellMapping(i, cell)
+
+RGB_RED = RGBColor(255, 0, 0)
+
+
+def remove_left_light_spaces_from_cell_text(cell: _Cell) ->_Cell:
+    cell.text = cell.text.lstrip().rstrip()
+    return cell
+
 
 
 def remove_spaces_and_invalid_sep(string, sep=','):
@@ -23,16 +39,34 @@ def remove_spaces_and_invalid_sep(string, sep=','):
     return  re.sub(f'^{sep}|{sep}+$|.\s', '', string)
 
 
+def add_text_co_cell(cell: _Cell, messages: Iterable[str], text_color: RGBColor | tuple[int, int, int] = None):
+    new_line = '\n'
+    cell.text += f'{new_line}{new_line.join(f"*{t}" for t in messages)}'
+    cell.paragraphs[0].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    if text_color:
+        cell.paragraphs[0].runs[0].font.color.rgb = text_color if isinstance(text_color, RGBColor) else RGBColor(text_color)
+
+
+def write_messages_to_cell(*cells: CellData, color: RGBColor = None, sep='\n'):
+    for cell in cells:
+        new_txt = sep.join(f'*{m}' for m in cell.messages.chain())
+        if new_txt:
+            cell.cell_mapping.cell.text = f'{cell.cell_mapping.cell.text}{sep}{new_txt}'
+            color = color or RGB_RED
+            para = cell.cell_mapping.cell.paragraphs[0]
+            para.runs[0].font.color.rgb = color
+            para.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
 
 def _display_all_tables(doc_x):
     """ Выводит на экран данные всех таблиц doc(x) файла. """
-    for table in doc_x.tables:
-        print(f'-- Start Table --')
-        print(f'Столбцов: {len(table.rows[0].cells)} | Строк: {len(table.rows)}')
-        for i, row in enumerate(table.rows):
-            print(f'{i}: {[cell.text for cell in row.cells]}')
-        print(f'-- End Table --')
+    for i, table in enumerate(doc_x.tables, 1):
+        print(f'-- Start Table {i} --')
+        # print(f'Столбцов: {len(table.rows[0].cells)} | Строк: {len(table.rows)}')
+        print(f'Столбцов: {len(table.columns)} | Строк: {len(table.rows)}')
+        for ii, row in enumerate(table.rows):
+            print(f'{ii}: {[cell.text_is_valid for cell in row.cells]}')
+        print(f'-- End Table {i} --')
         print(f'*' * 100)
 
 
@@ -40,21 +74,10 @@ if __name__ == '__main__':
     path = '/home/auser/Downloads/СО_2120_Северный_б_р_Санникова_ул_Декабристов_ул_'
     pattern = '/home/auser/Downloads/ПД Паспорт шаблон 2025'
     path_sdp = "C:\Programms\py.projects\sdp_lib\sdp_lib\passport\СО_2094_ул_Островитянова_ул_Ак_Волгина (2)"
-    doc = Document(f'{path_sdp}.docx')
-    # _display_all_tables(doc)
+    path5 = '/home/auser/py.projects/sdp_lib/sdp_lib/passport/СО_2094_ул_Островитянова_ул_Ак_Волгина_2.docx'
+    doc = Document(path5)
+    _display_all_tables(doc)
 
 
-    sepp = ','
-    sepp2 = ';'
-    strinnng1 = '   1,  ,2.3,  ,,,4,,,'
-    strinnng2 = '1;;2.3;;4;'
-    recovered = remove_spaces_and_invalid_sep(strinnng1, sepp)
-    print(recovered)
-    assert recovered == '1,2.3,4'
-
-    recovered2 = remove_spaces_and_invalid_sep(strinnng2, sepp2)
-    print(recovered2)
-    assert recovered2 == '1;2.3;4'
-    print(repr(remove_spaces_and_invalid_sep('', sepp2)))
 
 

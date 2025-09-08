@@ -2,28 +2,35 @@ import itertools
 import re
 from collections import Counter, defaultdict
 from collections.abc import Sequence, Callable, Generator, Iterable, Container
+from enum import IntEnum
 from functools import wraps
 from typing import Any
 
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import RGBColor
-from docx.table import _Rows, _Row
+from docx.table import _Rows, _Row, Table
 
 from sdp_lib.passport.constants import TableNames, row0_14_dt, patterns_row1_15_dt, row1_14_dt, \
     patterns_row1_14_dt, allowed_column_lengths_dt, allowed_min_num_rows, patterns_row0_14_dt, \
-    DirectionEntities, PatternsDirectionTable, HeadRowsDirectionTableData, dt_mapping, ColNamesDirectionsTable, \
+    DirectionEntities, PatternsDirectionTable, HeadRowsDirectionTableData, dt_mapping_from_length, ColNamesDirectionsTable, \
     dt_timing_columns, dt_timing_columns_mapping, matches, AllowedValues
-from sdp_lib.passport.passport2.base2 import AbstractRow, DirectionRow, CellData, NumberValidation
-from sdp_lib.passport.passport2.utils import remove_left_light_spaces_from_cells
+from sdp_lib.passport.passport2.base2 import AbstractRow, DirectionRow, CellData, NumberValidation, CellMapping, \
+    MessageStorage
+from sdp_lib.passport.passport2.utils import remove_left_light_spaces_from_cell_text, add_text_co_cell
 from sdp_lib.passport.passport2.validation.base import  CheckListDirectionRow, \
     BaseCellValidationResult, CheckListTable, BaseValidationResult, Cell
-from sdp_lib.passport.passport2.validation.common_validators import validate_geometry, match_cells_one_to_one, \
-    validate_sequence_directions_or_stages_nums_and_create_cell, match_cells_one_string_to_many_patterns, \
-    validate_number_and_create_cell
+from sdp_lib.passport.passport2.validation.common_validators import validate_geometry, \
+    validate_sequence_directions_or_stages_nums_and_create_cell, \
+    match_cells_one_string_to_many_patterns_and_create_cell, \
+    validate_number_and_create_cell, match_one_to_one_and_load_errors_if_has_and_create_cell, create_cells_for_head_row, \
+    create_default_cells
 from sdp_lib.passport.text_messages import Text
+from sdp_lib.passport.passport2.utils import write_messages_to_cell
 from sdp_lib.utils_common.utils_common import to_json, timed, remove_left_light_spaces, \
     get_stage_or_direction_number_or_none
+
+
 
 
 entity_patterns_and_aliases = (
@@ -59,30 +66,31 @@ def _check_is_directions_table(rows: _Rows) -> bool:
 def _get_head_rows_iter(row0_cells, row1_cells, names_and_patterns):
     return (
         (
-            remove_left_light_spaces_from_cells(row0_cells),
+            remove_left_light_spaces_from_cell_text(row0_cells),
             names_and_patterns.first_row_patterns,
             names_and_patterns.first_row_names
         ),
 
         (
-            remove_left_light_spaces_from_cells(row1_cells),
+            remove_left_light_spaces_from_cell_text(row1_cells),
             names_and_patterns.second_row_patterns,
             names_and_patterns.second_row_names
         ),
     )
 
 
-def get_two_head_rows(row0_cells, row1_cells) -> Iterable[DirectionRow, DirectionRow]:
-    rows_length = len(row0_cells)
-    names_and_patterns: HeadRowsDirectionTableData = dt_mapping[rows_length]
-    for row, patterns, recover in (_get_head_rows_iter(row0_cells, row1_cells, names_and_patterns)):
-        yield DirectionRow(tuple(match_cells_one_to_one(row, patterns, recover, True)))
-
-
-def validate_num_and_create_cell(val) -> CellData:
-    num = get_stage_or_direction_number_or_none(val)
+def num_validate_and_load_errors_if_has_and_create_cell(cell: CellMapping) -> CellData:
+    txt = cell.cell.text
+    num = get_stage_or_direction_number_or_none(txt)
     is_valid = bool(num)
-    return CellData(val, is_valid, is_valid, recovered=num)
+    return CellData(
+        value=txt,
+        text_is_valid=is_valid,
+        context_is_valid=is_valid,
+        converted_val=num if is_valid else None,
+        cell_mapping=cell,
+        messages=MessageStorage([Text.bad_number] if not is_valid and txt else [], [])
+    )
 
 
 def validate_tlc(direction_entity, val):
@@ -96,14 +104,14 @@ def validate_timings(direction_entity, t_name: str, val: str):
         val_i = int(val)
         text_is_valid = True
         if direction_entity is None:
-            return CellData(val, text_is_valid, None, recovered=val_i, extra=tv)
+            return CellData(val, text_is_valid, None, recovered_txt=val_i, extra=tv)
     except ValueError:
         tv.errors.append(Text.is_not_a_number)
         return CellData(val, text_is_valid, text_is_valid, extra=tv)
     values: AllowedValues = matches[(direction_entity, t_name)]
 
     if values.min <= val_i <= values.max:  # OK case
-        return CellData(val, text_is_valid, text_is_valid, recovered=val_i, extra=tv)
+        return CellData(val, text_is_valid, text_is_valid, recovered_txt=val_i, extra=tv)
 
     if val_i < values.min:
         err = Text.val_must_be_gt(values.min)
@@ -112,58 +120,69 @@ def validate_timings(direction_entity, t_name: str, val: str):
     else:
         raise Exception(f'Debug: val_to_validate not fully validated')
     tv.errors.append(err)
-    return CellData(val, text_is_valid, False, recovered=val_i, extra=tv)
+    return CellData(val, text_is_valid, False, recovered_txt=val_i, extra=tv)
+
+
+class DirectionTablePositionMapping(IntEnum):
+    num                 = 0
+    entity              = 1
+    stages              = 2
+    tlc                 = 3
+    t_green_ext         = 4
+    t_green_flashing    = 5
+    t_green_yellow      = 6
+    t_red               = 7
+    t_red_yellow        = 8
+    t_z                 = 9
+    t_zz                = 10
+    always_red          = 11
+    toov_red            = 12
+    toov_green          = 13
+    description         = 14
 
 
 @timed
-def validate_directions_table(rows: _Rows) -> CheckListTable:
+def validate_directions_table(i_table: int, table: Table, ) -> CheckListTable:
+    rows: _Rows = table.rows
     geometry_check_list = validate_geometry(rows, allowed_column_lengths_dt, allowed_min_num_rows)
-    first_row, second_row = get_two_head_rows(rows[0].cells, rows[1].cells)
-    length = len(rows[0].cells)
-    data_rows = []
-    timing_columns = dt_timing_columns_mapping[length]
-    print(first_row)
-    for i in range(2, length):
-        new_line = '\n'
-        if i == 5:
-            rows[i].cells[2].text += f'{new_line}{new_line.join(t for t in ("abra1", "abra2", "cadanra4"))}'
-            rows[i].cells[2].paragraphs[0].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            rows[i].cells[2].paragraphs[0].runs[0].font.color.rgb = RGBColor(250, 0 , 0)
+    length = len(table.columns)
+    names_and_patterns: HeadRowsDirectionTableData = dt_mapping_from_length[length]
+    first_row = tuple(create_default_cells(i_table, 0, rows[0].cells))
+    second_row = tuple(create_cells_for_head_row(
+        i_table, 1, rows[1].cells, names_and_patterns.second_row_patterns, names_and_patterns.second_row_names
+    ))
 
-            doc.save('abra.docx')
-        cells = remove_left_light_spaces_from_cells(rows[i].cells)
-        num = validate_num_and_create_cell(next(cells))
-        entity = match_cells_one_string_to_many_patterns(next(cells), entity_patterns_and_aliases, True)
-        stages = validate_sequence_directions_or_stages_nums_and_create_cell(next(cells))
-        tlc = CellData(next(cells))
-        timings = (validate_timings(entity.recovered, col_name, next(cells)) if entity.recovered == DirectionEntities.vehicle else CellData('PLUG') for col_name in timing_columns)
+    print(f'length: {length}')
+    timing_columns = dt_timing_columns_mapping[length]
+    # print(first_row)
+    for i in range(2, length):
+        cells = rows[i].cells
+        num = num_validate_and_load_errors_if_has_and_create_cell(
+            CellMapping(i_table, 0, i, remove_left_light_spaces_from_cell_text(cells[0]))
+        ).write_messages_to_table_cell()
+
+        # entity = match_cells_one_string_to_many_patterns_and_create_cell(next(cells), entity_patterns_and_aliases, True)
+        entity = match_cells_one_string_to_many_patterns_and_create_cell(
+            CellMapping(i_table, 1, i, remove_left_light_spaces_from_cell_text(cells[1])),
+            entity_patterns_and_aliases,
+            True
+        ).write_messages_to_table_cell()
+
+        # stages = validate_sequence_directions_or_stages_nums_and_create_cell(next(cells))
+        # tlc = CellData(next(cells))
+        # timings = (validate_timings(entity.recovered_val, col_name, next(cells)) if entity.recovered_val == DirectionEntities.vehicle else CellData('PLUG') for col_name in timing_columns)
 
         # tzd = validate_number_and_create_cell((entity.recovered, ColNamesDirectionsTable.t_green_ext), next(cells))
         # res = (num, entity, stages, tlc, tzd) + tuple(CellData('PLUG') for _ in range(9))
         chain = itertools.chain(
-            (num, entity, stages, tlc, ),
-            timings,
-           (CellData('PLUG') for _ in range(4)),
+            (num, entity, ),
+           (CellData('PLUG') for _ in range(12)),
 
         )
         r =  DirectionRow(tuple(c for c in chain))
         print(r.represent(attr_splitter='\n') if i in (8, length - 100) else r)
 
-
-
-
-# @timed
-# def validate_directions_table(rows_cells: _Rows) -> CheckListTable:
-#     length_columns, min_num_rows = validate_geometry(
-#         (check_columns_length, len(rows_cells[0].cells), allowed_column_lengths_dt),
-#         (check_min_num_rows, len(rows_cells), allowed_column_lengths_dt)
-#     )
-#     check_list = CheckListTable(length_columns, min_num_rows)
-#     print(check_list)
-#     for i in range(2, len(rows_cells)):
-#         check_list.data_rows.append(validate_data_row_dt(rows_cells[i].cells))
-#     print(to_json(check_list.dump(), 'ff'))
-#     return check_list
+    doc.save('abra.docx')
 
 
 if __name__ == '__main__':
@@ -176,8 +195,10 @@ if __name__ == '__main__':
     path2 = '/home/auser/Downloads/ПД Паспорт шаблон 2025 (Копия)'
     path3 = '/home/auser/Downloads/СО_2120_Северный_б_р_Санникова_ул_Декабристов_ул_ (1)'
     path4 = "C:\Programms\py.projects\sdp_lib\sdp_lib\passport\СО_2094_ул_Островитянова_ул_Ак_Волгина (2).docx"
+    path5 = '/home/auser/py.projects/sdp_lib/sdp_lib/passport/СО_2094_ул_Островитянова_ул_Ак_Волгина_2.docx'
 
-    doc = Document(f'{path4}')
+
+    doc = Document(path5)
     # c = CheckListTable()
-    validate_directions_table(doc.tables[0].rows)
+    validate_directions_table(0, doc.tables[0])
 

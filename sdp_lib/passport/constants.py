@@ -125,6 +125,7 @@ class ColNamesDirectionsTable(StrEnum):
     toov_green = 'Зелен.'
     toov_red = 'Красн.'
     description = 'Примечание'
+    empty = ''
 
 
 # row0_15_dt = ('№ нап.', 'Тип направления', 'Фазы, в кот. участ. направ.', 'Светофоры', '"Запрет"', '"Запрет"', '"Запрет"', '"Запрет"', '"Разрешение"', '"Разрешение"', '"Разрешение"', 'Пост. красное', 'ТООВ ', 'ТООВ ', 'Примечание')
@@ -161,7 +162,7 @@ row1_15_dt = (
     ColNamesDirectionsTable.always_red,
     ColNamesDirectionsTable.toov_red,
     ColNamesDirectionsTable.toov_green,
-    ColNamesDirectionsTable.description,
+    ColNamesDirectionsTable.empty,
 
 )
 row0_14_dt = gen_seq(row0_15_dt, {10})
@@ -200,7 +201,7 @@ class HeadRowsDirectionTableData(NamedTuple):
 dt15 = HeadRowsDirectionTableData(row0_15_dt, row1_15_dt, patterns_row0_15_dt, tuple(patterns_row1_15_dt))
 dt14_no_tzz = HeadRowsDirectionTableData(row0_14_dt, row1_14_dt, patterns_row0_14_dt, tuple(patterns_row1_14_dt))
 
-dt_mapping = {
+dt_mapping_from_length = {
     14: dt14_no_tzz,
     15: dt15
 }

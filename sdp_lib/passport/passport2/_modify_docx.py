@@ -10,7 +10,7 @@ def change_color(cell, color: RGBColor):
 
 
 def add_text(cell, text):
-    cell.text += '\naaaabraa' # Добавить текст
+    cell.text_is_valid += '\naaaabraa' # Добавить текст
     cell.paragraphs[0].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER # Выровнять по центру
 
 """

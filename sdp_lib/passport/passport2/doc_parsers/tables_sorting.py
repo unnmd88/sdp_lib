@@ -217,15 +217,15 @@ def _check_is_directions_table(rows) -> bool:
     first_and_second_rows_is_head = all(
         re.search(p, s) is not None for p, s in zip(
             (DirectionTablePatterns.row1_cell0.value, DirectionTablePatterns.row1_cell1.value),
-            (rows[1].cells[0].text, rows[1].cells[1].text),
+            (rows[1].cells[0].text_is_valid, rows[1].cells[1].text_is_valid),
             strict=True
         )
     )
     try:
         assert first_and_second_rows_is_head
         # Проверка, что третья строка(индекс=2) это строка с первой группой
-        cell_num_group = int(rows[2].cells[0].text)
-        cell_t_green_ext = (int(rows[2].cells[5].text) - 3)
+        cell_num_group = int(rows[2].cells[0].text_is_valid)
+        cell_t_green_ext = (int(rows[2].cells[5].text_is_valid) - 3)
         assert cell_num_group - 1  >= 0
         assert cell_t_green_ext >= 0
     except (AssertionError, ValueError):
@@ -246,25 +246,25 @@ def _check_length_and_col_names_dt(row_cells):
 def _check_bad_col_names_directions_table(row) -> tuple[int | None, MutableSequence[InvalidCellName]]:
     for i, data in enumerate(zip(DirectionTablePatterns.get_patterns_len(len(row.cells)), row.cells)):
         pattern, cell = data
-        if re.search(pattern, cell.text) is None:
-            yield InvalidCellName(i, cell.text)
+        if re.search(pattern, cell.text_is_valid) is None:
+            yield InvalidCellName(i, cell.text_is_valid)
 
 
 def _check_is_time_program_table_ft(rows) -> bool:
     return bool(
         len(rows[0].cells) == 10
-        and re.search(TimeProgramFtPatterns.row1_cell0.value, rows[1].cells[0].text) is not None
-        and re.search(TimeProgramFtPatterns.row1_cell1.value, rows[1].cells[1].text) is not None
-        and re.search(TimeProgramFtPatterns.row1_cell9.value, rows[1].cells[9].text) is not None
+        and re.search(TimeProgramFtPatterns.row1_cell0.value, rows[1].cells[0].text_is_valid) is not None
+        and re.search(TimeProgramFtPatterns.row1_cell1.value, rows[1].cells[1].text_is_valid) is not None
+        and re.search(TimeProgramFtPatterns.row1_cell9.value, rows[1].cells[9].text_is_valid) is not None
     )
 
 
 def _check_is_time_program_table_va(rows) -> bool:
     return bool(
         len(rows[0].cells) == 11
-        and re.search(TimeProgramVaPatterns.row1_cell0.value, rows[1].cells[0].text) is not None
-        and re.search(TimeProgramVaPatterns.row1_cell1.value, rows[1].cells[1].text) is not None
-        and re.search(TimeProgramVaPatterns.row1_cell10.value, rows[1].cells[10].text) is not None
+        and re.search(TimeProgramVaPatterns.row1_cell0.value, rows[1].cells[0].text_is_valid) is not None
+        and re.search(TimeProgramVaPatterns.row1_cell1.value, rows[1].cells[1].text_is_valid) is not None
+        and re.search(TimeProgramVaPatterns.row1_cell10.value, rows[1].cells[10].text_is_valid) is not None
     )
 
 
@@ -308,18 +308,18 @@ def _get_values_for_direction_table_row(
         for i, data in enumerate(docx_row):
             if i == 10 and len(docx_row) == TableDirectionsAllowedLengths.exclude_tzz_14:
                 yield Cell(None, val_tzz_if_has_not_in_docx_row, '')
-            yield Cell(i, data.text, '')
+            yield Cell(i, data.text_is_valid, '')
     else:
         for i, data in enumerate(docx_row):
             if i == 10 and len(docx_row) == TableDirectionsAllowedLengths.exclude_tzz_14:
                 yield Cell(None, val_tzz_if_has_not_in_docx_row, '')
 
             if i >= 2 or i == 0:
-                yield Cell(i, data.text, '')
+                yield Cell(i, data.text_is_valid, '')
             elif i == 2:
-                yield StageOrDirectionNumsCell(i, data.text)
+                yield StageOrDirectionNumsCell(i, data.text_is_valid)
             elif i == 1:
-                yield DirectionTypeCell(i, data.text)
+                yield DirectionTypeCell(i, data.text_is_valid)
             else:
                 raise ValueError
 
@@ -333,18 +333,18 @@ def _get_values_for_direction_table_row(
         for i, data in enumerate(docx_row):
             if i == 10 and len(docx_row) == TableDirectionsAllowedLengths.exclude_tzz_14:
                 yield Cell(None, val_tzz_if_has_not_in_docx_row, '')
-            yield Cell(i, data.text, '')
+            yield Cell(i, data.text_is_valid, '')
     else:
         for i, data in enumerate(docx_row):
             if i == 10 and len(docx_row) == TableDirectionsAllowedLengths.exclude_tzz_14:
                 yield Cell(None, val_tzz_if_has_not_in_docx_row, '')
 
             if i >= 2 or i == 0:
-                yield Cell(i, data.text, '')
+                yield Cell(i, data.text_is_valid, '')
             elif i == 2:
-                yield StageOrDirectionNumsCell(i, data.text)
+                yield StageOrDirectionNumsCell(i, data.text_is_valid)
             elif i == 1:
-                yield DirectionTypeCell(i, data.text)
+                yield DirectionTypeCell(i, data.text_is_valid)
             else:
                 raise ValueError
 
@@ -412,7 +412,7 @@ def _display_all_tables(doc_x):
         print(f'len(rows): {len(table.rows)}')
         print(f'len(cells): {len(table.rows[0].cells)}')
         for i, row in enumerate(table.rows):
-            print(f'{i}: {[cell.text for cell in row.cells]}')
+            print(f'{i}: {[cell.text_is_valid for cell in row.cells]}')
         print(f'*' * 100)
 
 

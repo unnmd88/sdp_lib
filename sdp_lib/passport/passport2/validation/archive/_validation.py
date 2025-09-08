@@ -234,14 +234,14 @@ dt_struct_validation_functions: Sequence[Callable] = (check_length_cols_directio
 
 
 def validate_data_row_dt(cells) -> CheckListDirectionRow:
-    is_empty = all(not v.text for v in cells)
-    num_from_cell = cells[0].text
+    is_empty = all(not v.text_is_valid for v in cells)
+    num_from_cell = cells[0].text_is_valid
     num_validation = BaseCellValidationResult(num_from_cell)
     num_validation.set_is_checked(True)
     err_num_msg = check_num_direction_or_stage(num_from_cell)
     num_validation.add_errors(err_num_msg)
     num_validation.set_ok(not bool(err_num_msg))
-    stages = cells[2].text
+    stages = cells[2].text_is_valid
     stages_validation = check_directions_or_stages_string(stages)
     stages_validation.set_is_checked(True)
     return CheckListDirectionRow(num_validation, check_directions_or_stages_string(stages), is_empty)

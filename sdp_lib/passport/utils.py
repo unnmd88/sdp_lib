@@ -73,7 +73,7 @@ def get_max_num_or_curr_val(curr_val: int | float, for_comparison: int | float |
 
 
 def get_pretty_string(data: Iterable[Message]):
-    return '; '.join((f'{i}) {msg.text}' for i, msg in enumerate(data, 1)))
+    return '; '.join((f'{i}) {msg.text_is_valid}' for i, msg in enumerate(data, 1)))
 
 
 
