@@ -1,14 +1,23 @@
 import itertools
-from collections.abc import MutableSequence, Sequence, MutableMapping
-from functools import cached_property
-from typing import NamedTuple, Any
+from collections.abc import (
+    MutableSequence,
+    Sequence,
+    MutableMapping, Iterable, Hashable
+)
+from typing import (
+    NamedTuple,
+    Any
+)
 
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import RGBColor
 from docx.table import _Cell
 
 from sdp_lib.passport.constants import MessageCategories
-from sdp_lib.utils_common.utils_common import add_record, create_repr_from_dict_xor_slots
+from sdp_lib.utils_common.utils_common import (
+    create_repr_from_dict_xor_slots,
+    add_record
+)
 
 
 class Message(NamedTuple):
@@ -55,12 +64,6 @@ class ValidationData(NamedTuple):
     is_valid: bool
 
 
-class BadNumDirectionOrStage(NamedTuple):
-    pos: int
-    value: str
-    is_empty: bool
-
-
 class CellMapping(NamedTuple):
     i_table: int
     i_col: int
@@ -74,8 +77,17 @@ class CellData:
     RGB_GREEN = RGBColor(0, 255, 0)
     RGB_BLUE = RGBColor(0, 0, 255)
 
-    __slots__ = ('value', 'text_is_valid', 'context_is_valid', 'recovered_val', 'extra', 'cell_mapping',
-                 'converted_val', 'messages')
+    __slots__ = (
+        'value',
+        'text_is_valid',
+        'context_is_valid',
+        'recovered_val',
+        'converted_val',
+        'extra',
+        'cell_mapping',
+        'messages'
+    )
+
 
     def __init__(
             self,
@@ -117,6 +129,7 @@ class CellData:
 
 
 class AbstractRow:
+
     def __init__(self, row: Sequence[CellData] | MutableSequence[CellData]):
         self._row = row
 
@@ -215,13 +228,14 @@ class DirectionsOrStagesSequenceValidation(NamedTuple):
     is_empty: bool
     nums: MutableMapping
     bad_nums: MutableSequence
-    errors: MutableSequence
     compare: Comparison
+
+    def gen_doubles(self):
+        return ((n, cnt - 1) for n, cnt in self.nums.items() if cnt > 1)
 
 
 class NumberValidation(NamedTuple):
     errors: MutableSequence
-
 
 
 if __name__ == '__main__':

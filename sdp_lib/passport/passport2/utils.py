@@ -1,6 +1,6 @@
 import itertools
 import re
-from collections.abc import Iterable, Container, Generator
+from collections.abc import Iterable, Container, Generator, Sequence
 from enum import Enum
 from typing import Any
 
@@ -13,12 +13,6 @@ from sdp_lib.passport.constants import Patterns
 from sdp_lib.passport.passport2.base2 import CellData
 
 
-# def remove_left_light_spaces_from_cell_text(cells: Iterable[_Cell]) -> Generator[str, Any, None]:
-#     return (c.text.lstrip().rstrip() for c in cells)
-    # for i, cell in enumerate(cells):
-    #     cell.text = cell.text.lstrip().rstrip()
-    #     yield CellMapping(i, cell)
-
 RGB_RED = RGBColor(255, 0, 0)
 
 
@@ -27,16 +21,14 @@ def remove_left_light_spaces_from_cell_text(cell: _Cell) ->_Cell:
     return cell
 
 
-
-def remove_spaces_and_invalid_sep(string, sep=','):
-    if (string:= string.replace(' ', '')) == '':
-        return string
-    # string = string.replace(' ', '')
-    if sep == ',':
-        string = re.sub(Patterns.more_than_one_comma.value, sep, string)
-        return re.sub(Patterns.comma_is_start_end_or_spaces.value, '', string)
-    string = re.sub(f'{sep}{sep}+', sep, string)
-    return  re.sub(f'^{sep}|{sep}+$|.\s', '', string)
+def repair_string_if_sep_in_illegal_pos(
+    string: str,
+    sep=',',
+) -> str:
+    if string:
+        string = re.sub(Patterns.several_commas.value if sep == ',' else sep, sep, string)
+        return re.sub(Patterns.comma_is_start_end_or_end.value if sep == ',' else sep, '', string)
+    return  string
 
 
 def add_text_co_cell(cell: _Cell, messages: Iterable[str], text_color: RGBColor | tuple[int, int, int] = None):
@@ -58,6 +50,13 @@ def write_messages_to_cell(*cells: CellData, color: RGBColor = None, sep='\n'):
             para.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
 
+def found_pos_start_num(src: Iterable[str]) -> int | None:
+    for i, char in enumerate(src):
+        if char.isdigit():
+            return i
+    return None
+
+
 def _display_all_tables(doc_x):
     """ Выводит на экран данные всех таблиц doc(x) файла. """
     for i, table in enumerate(doc_x.tables, 1):
@@ -65,9 +64,13 @@ def _display_all_tables(doc_x):
         # print(f'Столбцов: {len(table.rows[0].cells)} | Строк: {len(table.rows)}')
         print(f'Столбцов: {len(table.columns)} | Строк: {len(table.rows)}')
         for ii, row in enumerate(table.rows):
-            print(f'{ii}: {[cell.text_is_valid for cell in row.cells]}')
+            print(f'{ii}: {[cell.text for cell in row.cells]}')
         print(f'-- End Table {i} --')
         print(f'*' * 100)
+
+
+
+
 
 
 if __name__ == '__main__':
@@ -78,6 +81,7 @@ if __name__ == '__main__':
     doc = Document(path5)
     _display_all_tables(doc)
 
+    print(repair_string_if_sep_in_illegal_pos(',,,,,,,,,, 1,2,,,,3,4 ,5, 6,,'))
 
 
-
+    print(re.search('д/с', 'adsaД/сdasd', re.IGNORECASE))

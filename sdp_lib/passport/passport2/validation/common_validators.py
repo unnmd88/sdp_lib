@@ -1,25 +1,42 @@
-import functools
-import itertools
 import re
-import time
 from collections import defaultdict
-from collections.abc import Iterable, MutableMapping, MutableSequence, Sequence, Generator, Callable, Container
-from itertools import zip_longest
-from typing import Any, NamedTuple
+from collections.abc import (
+    Iterable,
+    Sequence,
+    Container
+)
 
 from docx import Document
-from docx.table import Table, _Rows, _Cell
-from setuptools.command.build_ext import if_dl
+from docx.table import (
+    _Rows,
+    _Cell
+)
 
-from sdp_lib.passport.constants import row0_14_dt, row1_14_dt, row0_15_dt, allowed_min_num_rows, \
-    Patterns, AllowedValues, matches
-from sdp_lib.passport.passport2.base2 import MessageStorage, ValidationData, CellData, \
-    DirectionsOrStagesSequenceValidation, Comparison, NumberValidation, CellMapping
+from sdp_lib.passport.constants import (
+    row0_14_dt,
+    row1_14_dt,
+    row0_15_dt,
+    Patterns,
+    AllowedValues,
+    matches,
+    PatternsDirectionTable
+)
+from sdp_lib.passport.passport2.base2 import (
+    MessageStorage,
+    ValidationData,
+    CellData,
+    DirectionsOrStagesSequenceValidation,
+    Comparison,
+    NumberValidation,
+    CellMapping
+)
 from sdp_lib.passport.passport2.check_lists import TableGeometryCheckList
-from sdp_lib.passport.passport2.utils import remove_spaces_and_invalid_sep, remove_left_light_spaces_from_cell_text
-from sdp_lib.passport.passport2.validation.base import Cell
+from sdp_lib.passport.passport2.utils import (
+    repair_string_if_sep_in_illegal_pos,
+    remove_left_light_spaces_from_cell_text
+)
 from sdp_lib.passport.text_messages import Text
-from sdp_lib.utils_common.utils_common import timed, remove_chars, get_stage_or_direction_number_or_none
+from sdp_lib.utils_common.utils_common import get_stage_or_direction_number_or_none
 
 """
 
@@ -32,6 +49,26 @@ from sdp_lib.utils_common.utils_common import timed, remove_chars, get_stage_or_
 ** Проверка дублей в строке(row) **
 
 """
+
+
+def check_is_directions_table(rows: _Rows) -> bool:
+    first_and_second_rows_is_head = all(
+        re.match(p, s) is not None for p, s in zip(
+            (PatternsDirectionTable.num_direction.value, PatternsDirectionTable.entity_direction.value),
+            (rows[1].cells[0].text, rows[1].cells[1].text),
+            strict=True
+        )
+    )
+    try:
+        assert first_and_second_rows_is_head
+        # Проверка, что третья строка(индекс=2) это строка с первой группой
+        cell_num_group = int(rows[2].cells[0].text)
+        cell_t_green_ext = (int(rows[2].cells[5].text) - 3)
+        assert cell_num_group - 1  >= 0
+        assert cell_t_green_ext >= 0
+    except (AssertionError, ValueError):
+        return False
+    return True
 
 
 def validate_geometry(
@@ -47,6 +84,15 @@ def validate_geometry(
         ValidationData(num_cols, num_cols in allowed_lengths),
         ValidationData(num_rows, num_rows >= min_rows),
     )
+
+
+def gen_cell_mappings_and_lrstrip_in_cell_text(
+    i_table: int,
+    i_row: int,
+    docx_cells: Iterable[_Cell],
+):
+    return (CellMapping(i_table, i, i_row, remove_left_light_spaces_from_cell_text(c)) for i, c in enumerate(docx_cells))
+
 
 def create_default_cells(
     i_table: int,
@@ -86,22 +132,17 @@ def create_cells_for_head_row(
         ).write_messages_to_table_cell()
 
 
-def match_one_to_one_and_load_errors_if_has_and_create_cell(
-    cell: CellMapping,
-    pattern: str | re.Pattern,
-    to_recover: str = None,
-    duplicate_pattern_result_to_context=True
-):
+def num_validate_and_create_cell(cell: CellMapping) -> CellData:
     txt = cell.cell.text
-    res = bool(re.match(pattern, txt))
-    was_recovered = to_recover if len(txt) != len(to_recover) else None
+    num = get_stage_or_direction_number_or_none(txt)
+    is_valid = bool(num)
     return CellData(
         value=txt,
-        text_is_valid=res,
-        context_is_valid=res if duplicate_pattern_result_to_context else None,
-        recovered_val=was_recovered,
+        text_is_valid=is_valid,
+        context_is_valid=is_valid,
+        converted_val=num if is_valid else None,
         cell_mapping=cell,
-        messages=MessageStorage([Text.name_error] if was_recovered else [], [])
+        messages=MessageStorage([Text.bad_number] if not is_valid and txt else [], [])
     )
 
 
@@ -120,14 +161,12 @@ def match_cells_one_string_to_many_patterns_and_create_cell(
 ):
     txt = cell_mapping.cell.text
     alias = get_alias(txt, patterns_and_aliases)
-    # print(f'alias: {alias}')
-    # print(f'txt: {txt}')
     is_valid = bool(alias)
-    was_recovered = alias if alias is not None and len(alias) != len(txt) else None
+    recovered_val_by_alias = alias if alias is not None and len(alias) != len(txt) else None
     if alias and len(alias) == len(txt) or not txt:
         err_has_differences_in_src_text_and_alias = []
     elif alias and len(alias) != len(txt):
-        err_has_differences_in_src_text_and_alias = [Text.name_error]
+        err_has_differences_in_src_text_and_alias = [Text.typo_in_name]
     elif txt and alias is None:
         err_has_differences_in_src_text_and_alias = [Text.invalid_name]
     else:
@@ -136,7 +175,7 @@ def match_cells_one_string_to_many_patterns_and_create_cell(
         value=txt,
         text_is_valid=is_valid,
         context_is_valid=is_valid if duplicate_pattern_result_to_context else None,
-        recovered_val=was_recovered,
+        recovered_val=recovered_val_by_alias,
         converted_val=alias,
         cell_mapping=cell_mapping,
         messages=MessageStorage(err_has_differences_in_src_text_and_alias, [])
@@ -144,32 +183,39 @@ def match_cells_one_string_to_many_patterns_and_create_cell(
 
 
 def validate_sequence_directions_or_stages_nums_and_create_cell(
-    string: str,
+    cell_mapping: CellMapping,
     sep=',',
     always_red_pattern: str | re.Pattern = Patterns.always_red.value
 ) -> CellData:
-    recovered_string = remove_spaces_and_invalid_sep(string)
-    is_always_red = bool(re.match(always_red_pattern, recovered_string))
-    is_empty = len(recovered_string) == 0
-    res = DirectionsOrStagesSequenceValidation(is_always_red, is_empty, defaultdict(int), [], [], Comparison())
+    nums, bad_nums, = defaultdict(int), []
+    ms = MessageStorage([], [])
+    src_txt = cell_mapping.cell.text
+    repaired_string1 = src_txt.replace(' ', '')
+    if len(repaired_string1) == 0:
+        is_empty, is_always_red = True, False
+    else:
+        is_empty, is_always_red = False, bool(re.match(always_red_pattern, repaired_string1))
+    seq_validation = DirectionsOrStagesSequenceValidation(is_empty, is_always_red, nums, bad_nums, Comparison())
+    repaired_string2 = repair_string_if_sep_in_illegal_pos(repaired_string1)
+    if len(repaired_string1) != len(repaired_string2):
+        ms.add_errors(Text.illegal_pos_for_char(sep))
     if is_empty:
-        res.errors.append(Text.cell_is_empty)
-        return CellData(string, False, False, extra=res)
-
-    split_string = recovered_string.split(sep)
+        ms.add_errors(Text.cell_is_empty)
+        return CellData(src_txt, False, False, extra=seq_validation, messages=ms, cell_mapping=cell_mapping)
+    split_string = repaired_string2.split(sep)
     for i, n in enumerate(split_string):
         num = get_stage_or_direction_number_or_none(n)
         if num is not None:
-            res.nums[num] += 1
+            nums[num] += 1
         elif num is None:
-            res.bad_nums.append(n)
-    if res.bad_nums:
-        res.nums.clear()
-        return CellData(string, False, False, extra=res)
-    return CellData(string, True, recovered_txt=recovered_string, extra=res)
-
-
-    # return CellData(string, is_valid)
+            bad_nums.append(n)
+    if doubles:= tuple(seq_validation.gen_doubles()):
+        ms.add_errors(Text.doubles(doubles))
+    if bad_nums:
+        ms.add_errors(Text.invalid_nums(bad_nums))
+        nums.clear()
+        return CellData(src_txt, False, False, extra=seq_validation, messages=ms, cell_mapping=cell_mapping)
+    return CellData(src_txt, True, recovered_val=repaired_string2, extra=seq_validation, messages=ms,  cell_mapping=cell_mapping)
 
 
 def validate_number_and_create_cell(key_for_matches, val_to_validate: str) -> CellData:

@@ -11,10 +11,13 @@ class Text(StrEnum):
         f'Допускаются номера в виде целых чисел("1", "2", "6" и т.д) или '
         f'числа через точку("1.1", "1.2", "4.1" и т.д.)'
     )
+    typo_in_name = 'Опечатка в названии'
     name_error = 'Ошибка в названии'
     cell_is_empty = 'Ячейка пуста '
     invalid_name = 'Недопустимое название'
     is_not_a_number = 'Значение не является числом'
+    has_not_num_tlc = 'Нет номеров светофоров'
+    invalid_type_tlc = 'Неверный тип светофора'
 
     always_red_must_be_empty = (
         f'У группы типа "{DirectionEntities.always_red}" не должно быть фаз в '
@@ -28,6 +31,23 @@ class Text(StrEnum):
         f'должна начинаться с новой строки("/n"), а каждое значение в'
         f'строке должно быть разделено пробелом или табуляцией.'
     )
+
+    @classmethod
+    def invalid_nums(cls, nums: Iterable):
+        return f'Некорректные номера: {", ".join(str(n) for n in nums)}'
+
+    @classmethod
+    def doubles(cls, doubles: Iterable[tuple[Any, int]]):
+        _doubles = ", ".join(f'{str(el)}: {str(cnt)}' for el, cnt in doubles)
+        return f'Найдены дубли: {_doubles}'
+
+    @classmethod
+    def illegal_pos_for_char(cls, char):
+        return f'Ошибка "{char}" в строке'
+
+    @classmethod
+    def several_char_together(cls, char):
+        return f'Несколько {char} подряд'
 
     @classmethod
     def bad_value(cls, val, expected=''):
@@ -68,7 +88,3 @@ class Text(StrEnum):
         return f'Тип направления не задан'
 
 
-
-    @classmethod
-    def get_has_doubles(cls, entity: str, column_name: str, doubles: Any):
-        return f'У {entity} найдены дубли в "{column_name}": {[el for el in doubles]}'

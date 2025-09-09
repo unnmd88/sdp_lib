@@ -11,8 +11,8 @@ from sdp_lib.utils_common.utils_common import gen_seq, get_vector_from_enum
 
 class Patterns(Enum):
     always_red = re.compile(r'кр|-|поко', re.IGNORECASE)
-    comma_is_start_end_or_spaces = re.compile('^,|,+$')
-    more_than_one_comma = re.compile(',{2,}')
+    comma_is_start_end_or_end = re.compile('^,*|,*$')
+    several_commas = re.compile(',{2,}')
 
 
 # class _DirectionTablePatterns(Enum):
@@ -112,7 +112,7 @@ class ColNamesDirectionsTable(StrEnum):
     t_red = 'Тк'
     t_red_yellow = 'Ткж'
     t_z = 'Тз'
-    t_zz = 'Тз'
+    t_zz = 'Тзз'
 
     number = '№ нап.'
     direction_entity = 'Тип направления'
@@ -268,15 +268,30 @@ class DirectionEntities(StrEnum):
 
 
 substrings_vehicle = (
-    f'{DirectionEntities.vehicle[:2]}'.lower(),
+    re.compile(DirectionEntities.vehicle[:2], re.IGNORECASE),
 )
-substrings_arrow = ('д/c', )
-substrings_pedestrian = ('пеш', )
+substrings_arrow = (
+    re.compile('д/c', re.IGNORECASE),
+)
+substrings_pedestrian = (
+    re.compile('пеш', re.IGNORECASE),
+)
+
+substrings_public = (
+    re.compile('б/л', re.IGNORECASE),
+)
+
+substring_for_search_tlc = {
+    DirectionEntities.vehicle: substrings_vehicle,
+    DirectionEntities.pedestrian: substrings_pedestrian,
+    DirectionEntities.arrow: substrings_arrow,
+    DirectionEntities.public: substrings_public,
+}
 
 standard_directions = {el for el in DirectionEntities}
-startswith_tlc = {
-    DirectionEntities.vehicle: (f'{DirectionEntities.vehicle[:2]}', ),
-}
+# startswith_tlc = {
+#     DirectionEntities.vehicle: (f'{DirectionEntities.vehicle[:2]}', ),
+# }
 
 
 class StagesMapping(IntEnum):
