@@ -471,7 +471,7 @@ min0_max10_default3  = AllowedValues(3, 10, 3)
 min1_max3_default1  = AllowedValues(1, 3, 1)
 
 
-matches = {
+timing_matches = {
     (DirectionEntities.vehicle, ColNamesDirectionsTable.t_green_ext): min0_max10_default0,
     (DirectionEntities.vehicle, ColNamesDirectionsTable.t_flashing_green): min3_max3_default3,
     (DirectionEntities.vehicle, ColNamesDirectionsTable.t_yellow): min3_max3_default3,
@@ -489,6 +489,14 @@ matches = {
     (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_zz): 0,
 
     (DirectionEntities.arrow, ColNamesDirectionsTable.t_green_ext): 0,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_flashing_green): 3,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_yellow): 0,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_red): 3,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_red_yellow): 0,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_z): 0,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_zz): 0,
+
+    (DirectionEntities.public, ColNamesDirectionsTable.t_green_ext): 0,
     (DirectionEntities.arrow, ColNamesDirectionsTable.t_flashing_green): 3,
     (DirectionEntities.arrow, ColNamesDirectionsTable.t_yellow): 0,
     (DirectionEntities.arrow, ColNamesDirectionsTable.t_red): 3,

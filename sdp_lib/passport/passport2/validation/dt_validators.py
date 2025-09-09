@@ -16,7 +16,7 @@ from sdp_lib.passport.constants import (
     HeadRowsDirectionTableData,
     dt_mapping_from_length,
     dt_timing_columns_mapping,
-    matches,
+    timing_matches,
     AllowedValues,
     substring_for_search_tlc
 )
@@ -91,21 +91,24 @@ def validate_tlc(direction_entity, cell_mapping: CellMapping):
     )
 
 
-def validate_timings(direction_entity, t_name: str, val: str):
-    tv = NumberValidation([])
+def validate_timings(cell_mapping: CellMapping, direction_entity, t_name: str):
+    ms = MessageStorage([], [])
+    txt = cell_mapping.cell.text
     text_is_valid = False
     try:
-        val_i = int(val)
+        val_i = int(txt)
         text_is_valid = True
         if direction_entity is None:
-            return CellData(val, text_is_valid, None, recovered_txt=val_i, extra=tv)
+            return CellData(
+                txt, text_is_valid, None, converted_val=val_i, messages=ms, cell_mapping=cell_mapping
+            )
     except ValueError:
-        tv.errors.append(Text.is_not_a_number)
-        return CellData(val, text_is_valid, text_is_valid, extra=tv)
-    values: AllowedValues = matches[(direction_entity, t_name)]
+        ms.add_errors(Text.is_not_a_number)
+        return CellData(txt, text_is_valid, text_is_valid, messages=ms, cell_mapping=cell_mapping)
+    values: AllowedValues = timing_matches[(direction_entity, t_name)]
 
     if values.min <= val_i <= values.max:  # OK case
-        return CellData(val, text_is_valid, text_is_valid, recovered_txt=val_i, extra=tv)
+        return CellData(txt, text_is_valid, text_is_valid, converted_val=val_i, messages=ms, cell_mapping=cell_mapping)
 
     if val_i < values.min:
         err = Text.val_must_be_gt(values.min)
@@ -113,8 +116,8 @@ def validate_timings(direction_entity, t_name: str, val: str):
         err = Text.val_must_be_lt(values.max)
     else:
         raise Exception(f'Debug: val_to_validate not fully validated')
-    tv.errors.append(err)
-    return CellData(val, text_is_valid, False, recovered_txt=val_i, extra=tv)
+    ms.add_errors(err)
+    return CellData(txt, text_is_valid, False, messages=ms, cell_mapping=cell_mapping)
 
 
 class DirectionTablePositionMapping(IntEnum):
@@ -169,12 +172,17 @@ def validate_directions_table(i_table: int, table: Table, ):
         tlc = validate_tlc(entity.converted_val, next(gen_cell_mappings)).write_messages_to_table_cell()
 
         # timings = (validate_timings(entity.recovered_val, col_name, next(cells)) if entity.recovered_val == DirectionEntities.vehicle else CellData('PLUG') for col_name in timing_columns)
+        timings = (
+            validate_timings(next(gen_cell_mappings), entity.converted_val, col_name,).write_messages_to_table_cell()
+            for col_name in timing_columns
+        )
 
         # tzd = validate_number_and_create_cell((entity.recovered, ColNamesDirectionsTable.t_green_ext), next(cells))
         # res = (num, entity, stages, tlc, tzd) + tuple(CellData('PLUG') for _ in range(9))
         chain = itertools.chain(
             (num, entity, stages, tlc),
-           (CellData('PLUG') for _ in range(10)),
+            timings,
+           (CellData('PLUG') for _ in range(4)),
 
         )
         r =  DirectionRow(tuple(c for c in chain))

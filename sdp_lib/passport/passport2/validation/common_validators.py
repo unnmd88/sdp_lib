@@ -18,7 +18,7 @@ from sdp_lib.passport.constants import (
     row0_15_dt,
     Patterns,
     AllowedValues,
-    matches,
+    timing_matches,
     PatternsDirectionTable
 )
 from sdp_lib.passport.passport2.base2 import (
@@ -225,7 +225,7 @@ def validate_number_and_create_cell(key_for_matches, val_to_validate: str) -> Ce
     except ValueError:
         tv.errors.append(Text.is_not_a_number)
         return CellData(val_to_validate, False, False, extra=tv)
-    values: AllowedValues = matches[key_for_matches]
+    values: AllowedValues = timing_matches[key_for_matches]
     if values.min <= val_f <= values.max: # OK case
         return CellData(val_to_validate, True, True, recovered_txt=int(val_f) if val_f.is_integer() else val_f, extra=tv)
 
