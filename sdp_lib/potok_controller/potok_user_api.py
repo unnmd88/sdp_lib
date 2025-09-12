@@ -10,8 +10,8 @@ from .parser import pg
 from .condition_string import ConditionStringPotokTlc
 
 
-lexer = LexerValuesInConditionString.get_lexer().build()
-parser = pg.build()
+lexer = LexerValuesInConditionString.get_lexer().make()
+parser = pg.make()
 
 
 class BaseCondition(metaclass=abc.ABCMeta):
@@ -74,7 +74,7 @@ class ConditionResult(BaseCondition):
             self.condition_string_for_parse
         )
 
-        result: int = parser.parse(lexer.lex(self.condition_string_for_parse))
+        result: int = parser.sort(lexer.lex(self.condition_string_for_parse))
         if not isinstance(result, int):
             raise TypeError(f"Ошибка возвращаемого значения: {type(result)}. Должен быть int")  # Для этапа отладки
         self.current_result = bool(result)

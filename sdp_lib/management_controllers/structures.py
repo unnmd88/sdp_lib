@@ -15,6 +15,7 @@ class SnmpResponseStructure(IntEnum):
     ERROR_INDEX      = 2
     VAR_BINDS        = 3
 
+
 class HttpResponseStructure(IntEnum):
 
     ERROR    = 0
@@ -29,3 +30,8 @@ class InputsStructure(IntEnum):
     STATE     = 3
     TIME      = 4
     ACTUATOR  = 5
+
+
+class TrapTransport(IntEnum):
+    ip_address = 0
+    port = 1

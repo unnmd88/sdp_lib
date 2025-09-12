@@ -2,6 +2,7 @@ import os
 from enum import StrEnum
 from dotenv import load_dotenv
 
+from sdp_lib.management_controllers.fields_names import FieldsNames
 
 load_dotenv()
 
@@ -10,6 +11,8 @@ class Oids(StrEnum):
     """
     В классе собраны оиды для ДК по протоколам STCIP и UG405
     """
+
+    time_ticks = '1.3.6.1.2.1.1.3.0'
 
     """ STCIP """
     # Command

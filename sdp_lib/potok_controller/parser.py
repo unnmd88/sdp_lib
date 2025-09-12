@@ -46,11 +46,11 @@ if __name__ == '__main__':
     txt = "not 1 * not 0 + (1 + 5 * 0) * 0 * not 1"
     txt__ = "int(not 1) * int(not 0) + (1 + 5 * 0) * 0 * int not 1"
     from lexer import lg
-    lexer = lg.build()
+    lexer = lg.make()
     print([token for token in lexer.lex(txt)])
 
-    parser = pg.build()
-    res = parser.parse(lexer.lex(txt))
+    parser = pg._build()
+    res = parser.sort(lexer.lex(txt))
     print(f'res: {res}')
     print(f'equal: {eval("int(not 1) * int(not 0) + (1 + 5 * 0) * 0") == res}')
 
