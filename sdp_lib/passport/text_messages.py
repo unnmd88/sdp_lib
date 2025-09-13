@@ -19,6 +19,7 @@ class Text(StrEnum):
     has_not_num_tlc = 'Нет номеров светофоров'
     invalid_type_tlc = 'Неверный тип светофора'
     invalid_value = 'Недопустимое значение'
+    invalid_value_for_direction_entity = 'Недопустимое значение для данного типа направления'
 
     always_red_must_be_empty = (
         f'У группы типа "{DirectionEntities.always_red}" не должно быть фаз в '

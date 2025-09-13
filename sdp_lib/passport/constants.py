@@ -13,6 +13,12 @@ class Patterns(Enum):
     always_red = re.compile(r'кр|-|поко', re.IGNORECASE)
     comma_is_start_end_or_end = re.compile('^,*|,*$')
     several_commas = re.compile(',{2,}')
+    on = re.compile('^Вкл\.?$', re.IGNORECASE)
+    off = re.compile('^Выкл\.?$', re.IGNORECASE)
+    # on_off = re.compile('^Выкл\.?$|^Вкл\.?$', re.IGNORECASE)
+    on_off = re.compile('^Вы?кл\.?$', re.IGNORECASE)
+    dash = re.compile('^-$', re.IGNORECASE)
+
 
 
 # class _DirectionTablePatterns(Enum):
@@ -70,8 +76,15 @@ class PatternsDirectionTable(Enum):
 
     toov = re.compile('^ТООВ')
 
+    toov_red_green_dash = (
+        Patterns.on.value,
+        Patterns.off.value,
+        Patterns.dash.value,
+    )
+
     toov_green = re.compile('^Зел', re.IGNORECASE)
     toov_red = re.compile('^Красн', re.IGNORECASE)
+
     description = re.compile('^примечание', re.IGNORECASE)
     empty = re.compile('', re.IGNORECASE)
 
@@ -508,6 +521,14 @@ timing_matches = {
     (DirectionEntities.arrow, ColNamesDirectionsTable.t_zz): min0_max10_default0,
 }
 
+
+toov_matches = {
+    DirectionEntities.vehicle: (Patterns.on_off.value, ),
+    DirectionEntities.always_red: (Patterns.on_off.value, ),
+    DirectionEntities.pedestrian: (Patterns.on_off.value, ),
+    DirectionEntities.arrow: (Patterns.dash.value, ),
+    DirectionEntities.public: (Patterns.dash.value, ),
+}
 
 if __name__ == '__main__':
     pass

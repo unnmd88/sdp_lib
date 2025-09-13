@@ -20,7 +20,7 @@ from sdp_lib.passport.constants import (
     dt_timing_columns_mapping,
     timing_matches,
     AllowedValues,
-    substring_for_search_tlc
+    substring_for_search_tlc, toov_matches
 )
 from sdp_lib.passport.passport2.base2 import (
     DirectionRow,
@@ -37,7 +37,7 @@ from sdp_lib.passport.passport2.utils import (
 from sdp_lib.passport.passport2.validation.common_validators import (
     validate_geometry,
     validate_sequence_directions_or_stages_nums_and_create_cell,
-    match_one_string_to_many_patterns_and_create_cell,
+    match_one_string_to_many_patterns_and_get_alias_and_create_cell,
     create_cells_for_head_row,
     num_validate_and_create_cell, lrstrip_in_cell_and_create_cell_mappings, gen_default_cells, create_default_cell
 )
@@ -157,6 +157,20 @@ def validate_always_red_col_and_create_cell_data(
     )
 
 
+def validate_toov(cell_mapping: CellMapping, direction_entity,):
+    if direction_entity is None:
+        return create_default_cell(cell_mapping)
+    txt = cell_mapping.cell.text
+    text_is_valid = any(re.match(p, txt) is not None for p in toov_matches[direction_entity])
+
+    return CellData(
+        value=txt,
+        text_is_valid=text_is_valid,
+        context_is_valid=False if not text_is_valid else None,
+        cell_mapping=cell_mapping,
+        messages=MessageStorage([Text.invalid_value_for_direction_entity] if not text_is_valid else [], [])
+    )
+
 
 class DirectionTablePositionMapping(IntEnum):
     num                 = 0
@@ -242,8 +256,6 @@ def validate_directions_table(i_table: int, table: Table, ):
     ))
 
     timing_columns = dt_timing_columns_mapping[length]
-    for iii in range(length - 5, length):
-        print(f'iii: {iii}')
     i_alw_red, i_toov_red, i_toov_green, i_description = range(length - 4, length)
     for i in range(2, len(rows)):
         print(f'i: {i}')
@@ -253,7 +265,7 @@ def validate_directions_table(i_table: int, table: Table, ):
             r = DirectionRow(tuple(gen_default_cells(c) for c in cell_mappings))
         else:
             num = num_validate_and_create_cell(cell_mappings[0]).write_messages_to_table_cell()
-            entity = match_one_string_to_many_patterns_and_create_cell(
+            entity = match_one_string_to_many_patterns_and_get_alias_and_create_cell(
                 cell_mappings[1],
                 entity_patterns_and_aliases,
                 True,
@@ -271,13 +283,20 @@ def validate_directions_table(i_table: int, table: Table, ):
                 for ii, col_name in enumerate(timing_columns, 4)
             )
             always_red = validate_always_red_col_and_create_cell_data(
-                cell_mappings[i_alw_red], entity
+                cell_mappings[i_alw_red], entity.converted_val
             ).write_messages_to_table_cell()
+            toov_red = validate_toov(
+                cell_mappings[i_toov_red], entity.converted_val
+            ).write_messages_to_table_cell()
+            toov_green = validate_toov(
+                cell_mappings[i_toov_green], entity.converted_val
+            ).write_messages_to_table_cell()
+            description = create_default_cell(cell_mappings[i_description])
             chain = itertools.chain(
                 (num, entity, stages, tl),
                 timings,
-                (always_red, ),
-                (CellData('PLUG') for _ in range(3)),
+                (always_red, toov_red, toov_green, description),
+                # (CellData('PLUG') for _ in range(3)),
             )
             r = DirectionRow(tuple(c for c in chain))
             print(r.represent(attr_splitter='\n') if i in (11, length - 100) else r)

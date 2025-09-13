@@ -8,6 +8,6 @@ from typing import NamedTuple
 
 
 if __name__ == '__main__':
-    print(re.search('д/[c,с]','д/с ' ))
+    print(re.search('^-$','-]' ))
 
 

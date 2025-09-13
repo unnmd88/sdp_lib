@@ -161,6 +161,25 @@ def get_alias(string, patterns_and_aliases: Sequence[tuple[re.Pattern | str, str
 
 def match_one_string_to_many_patterns_and_create_cell(
     cell_mapping: CellMapping,
+    patterns: Sequence[str | re.Pattern, str],
+    duplicate_pattern_result_to_context=False
+):
+    txt = cell_mapping.cell.text
+    is_valid = any(re.match(txt, p) is not None for p in patterns)
+    return CellData(
+        value=txt,
+        text_is_valid=is_valid,
+        context_is_valid=is_valid if duplicate_pattern_result_to_context else None,
+        recovered_val=recovered_val_by_alias,
+        converted_val=alias,
+        cell_mapping=cell_mapping,
+        messages=MessageStorage(err_has_differences_in_src_text_and_alias, [])
+    )
+
+
+
+def match_one_string_to_many_patterns_and_get_alias_and_create_cell(
+    cell_mapping: CellMapping,
     patterns_and_aliases: Sequence[tuple[str | re.Pattern, str]],
     duplicate_pattern_result_to_context=False
 ):
