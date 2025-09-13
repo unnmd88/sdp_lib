@@ -1,5 +1,5 @@
 import re
-from collections.abc import Container, Sequence
+from collections.abc import Sequence
 from enum import (
     StrEnum,
     IntEnum, Enum,
@@ -51,6 +51,7 @@ class PatternsDirectionTable(Enum):
     public = re.compile('^общ.*тр', re.IGNORECASE)
     tram = re.compile('^трамвайное', re.IGNORECASE)
     always_red = re.compile('^пост.+крас', re.IGNORECASE)
+    always_red_text_yes = re.compile('^да', re.IGNORECASE)
     num_direction  = re.compile('^№\s*нап', re.IGNORECASE)
     entity_direction  = re.compile('^тип\s*направления', re.IGNORECASE)
     stages  = re.compile('^фазы.*кот.*направ', re.IGNORECASE)
@@ -271,7 +272,7 @@ substrings_vehicle = (
     re.compile(DirectionEntities.vehicle[:2], re.IGNORECASE),
 )
 substrings_arrow = (
-    re.compile('д/c', re.IGNORECASE),
+    re.compile('д/[c,с]', re.IGNORECASE),
 )
 substrings_pedestrian = (
     re.compile('пеш', re.IGNORECASE),
@@ -469,40 +470,42 @@ min0_max10_default0 = AllowedValues(0, 10, 0)
 min3_max3_default3  = AllowedValues(3, 3, 3)
 min0_max10_default3  = AllowedValues(3, 10, 3)
 min1_max3_default1  = AllowedValues(1, 3, 1)
+min0_max0_default0  = AllowedValues(0, 0, 0)
+min3_max10_default3  = AllowedValues(3, 10, 3)
 
 
 timing_matches = {
     (DirectionEntities.vehicle, ColNamesDirectionsTable.t_green_ext): min0_max10_default0,
     (DirectionEntities.vehicle, ColNamesDirectionsTable.t_flashing_green): min3_max3_default3,
     (DirectionEntities.vehicle, ColNamesDirectionsTable.t_yellow): min3_max3_default3,
-    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_red): min0_max10_default3,
+    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_red): min0_max10_default0,
     (DirectionEntities.vehicle, ColNamesDirectionsTable.t_red_yellow): min1_max3_default1,
     (DirectionEntities.vehicle, ColNamesDirectionsTable.t_z): min0_max10_default0,
     (DirectionEntities.vehicle, ColNamesDirectionsTable.t_zz): min0_max10_default0,
 
     (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_green_ext): min0_max10_default0,
-    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_flashing_green): 3,
-    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_yellow): 0,
-    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_red): 3,
-    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_red_yellow): 0,
-    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_z): 0,
-    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_zz): 0,
+    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_flashing_green): min3_max3_default3,
+    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_yellow): min0_max0_default0,
+    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_red): min3_max10_default3,
+    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_red_yellow): min0_max0_default0,
+    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_z): min0_max10_default0,
+    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_zz): min0_max10_default0,
 
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_green_ext): 0,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_flashing_green): 3,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_yellow): 0,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_red): 3,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_red_yellow): 0,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_z): 0,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_zz): 0,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_green_ext): min0_max10_default0,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_flashing_green): min3_max3_default3,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_yellow): min0_max0_default0,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_red): min3_max10_default3,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_red_yellow): min0_max0_default0,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_z): min0_max10_default0,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_zz): min0_max10_default0,
 
-    (DirectionEntities.public, ColNamesDirectionsTable.t_green_ext): 0,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_flashing_green): 3,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_yellow): 0,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_red): 3,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_red_yellow): 0,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_z): 0,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_zz): 0,
+    (DirectionEntities.public, ColNamesDirectionsTable.t_green_ext): min0_max10_default0,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_flashing_green): min3_max3_default3,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_yellow): min0_max0_default0,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_red): min3_max10_default3,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_red_yellow): min0_max0_default0,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_z): min0_max10_default0,
+    (DirectionEntities.arrow, ColNamesDirectionsTable.t_zz): min0_max10_default0,
 }
 
 

@@ -18,6 +18,7 @@ class Text(StrEnum):
     is_not_a_number = 'Значение не является числом'
     has_not_num_tlc = 'Нет номеров светофоров'
     invalid_type_tlc = 'Неверный тип светофора'
+    invalid_value = 'Недопустимое значение'
 
     always_red_must_be_empty = (
         f'У группы типа "{DirectionEntities.always_red}" не должно быть фаз в '

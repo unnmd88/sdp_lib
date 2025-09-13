@@ -86,27 +86,32 @@ def validate_geometry(
     )
 
 
-def gen_cell_mappings_and_lrstrip_in_cell_text(
+def lrstrip_in_cell_and_create_cell_mappings(
     i_table: int,
     i_row: int,
     docx_cells: Iterable[_Cell],
-):
-    return (CellMapping(i_table, i, i_row, remove_left_light_spaces_from_cell_text(c)) for i, c in enumerate(docx_cells))
+) -> tuple[Sequence[CellMapping], int]:
+    empty_cells = 0
+    cell_mappings = []
+    for i, c in enumerate(docx_cells):
+        cm = CellMapping(i_table, i, i_row, remove_left_light_spaces_from_cell_text(c))
+        if cm.cell.text == '':
+            empty_cells += 1
+        cell_mappings.append(cm)
+    return cell_mappings, empty_cells
 
 
-def create_default_cells(
-    i_table: int,
-    i_row: int,
-    cells: Iterable[_Cell],
-):
-    for i_col, c in enumerate(cells):
-        src_txt = c.text
-        txt_without_spaces = remove_left_light_spaces_from_cell_text(c).text
-        yield CellData(
-            value=src_txt,
-            recovered_val=txt_without_spaces if len(src_txt) != len(txt_without_spaces) else None,
-            cell_mapping=CellMapping(i_table, i_col, i_row, c),
-        )
+def create_default_cell(cell_mapping: CellMapping):
+    return CellData(
+        value=cell_mapping.cell.text,
+        messages=MessageStorage([], []),
+        cell_mapping=cell_mapping,
+    )
+
+
+def gen_default_cells(cell_mappings: Sequence[CellMapping]):
+    return (create_default_cell(cm) for cm in cell_mappings)
+    # return (CellData(value=cell_mappings[i_col].cell.text, cell_mapping=cm) for i_col, cm in enumerate(cell_mappings))
 
 
 def create_cells_for_head_row(
@@ -154,7 +159,7 @@ def get_alias(string, patterns_and_aliases: Sequence[tuple[re.Pattern | str, str
     return None
 
 
-def match_cells_one_string_to_many_patterns_and_create_cell(
+def match_one_string_to_many_patterns_and_create_cell(
     cell_mapping: CellMapping,
     patterns_and_aliases: Sequence[tuple[str | re.Pattern, str]],
     duplicate_pattern_result_to_context=False
@@ -220,23 +225,23 @@ def validate_sequence_directions_or_stages_nums_and_create_cell(
 
 def validate_number_and_create_cell(key_for_matches, val_to_validate: str) -> CellData:
     tv = NumberValidation([])
-    try:
-        val_f = float(val_to_validate.replace(',', '.', 1))
-    except ValueError:
-        tv.errors.append(Text.is_not_a_number)
-        return CellData(val_to_validate, False, False, extra=tv)
-    values: AllowedValues = timing_matches[key_for_matches]
-    if values.min <= val_f <= values.max: # OK case
-        return CellData(val_to_validate, True, True, recovered_txt=int(val_f) if val_f.is_integer() else val_f, extra=tv)
-
-    if val_f < values.min:
-        err = Text.val_must_be_gt(values.min)
-    elif val_f > values.max:
-        err = Text.val_must_be_lt(values.max)
-    else:
-        raise Exception(f'Debug: val_to_validate not fully validated')
-    tv.errors.append(err)
-    return CellData(val_to_validate, True, False, recovered_txt=int(val_f) if val_f.is_integer() else val_f, extra=tv)
+    # try:
+    #     val_f = float(val_to_validate.replace(',', '.', 1))
+    # except ValueError:
+    #     tv.errors.append(Text.is_not_a_number)
+    #     return CellData(val_to_validate, False, False, extra=tv)
+    # values: AllowedValues = timing_matches[key_for_matches]
+    # if values.min <= val_f <= values.max: # OK case
+    #     return CellData(val_to_validate, True, True, recovered_txt=int(val_f) if val_f.is_integer() else val_f, extra=tv)
+    #
+    # if val_f < values.min:
+    #     err = Text.val_must_be_gt(values.min)
+    # elif val_f > values.max:
+    #     err = Text.val_must_be_lt(values.max)
+    # else:
+    #     raise Exception(f'Debug: val_to_validate not fully validated')
+    # tv.errors.append(err)
+    # return CellData(val_to_validate, True, False, recovered_txt=int(val_f) if val_f.is_integer() else val_f, extra=tv)
 
 
 
