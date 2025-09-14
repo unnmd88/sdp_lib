@@ -179,8 +179,8 @@ row1_15_dt = (
     ColNamesDirectionsTable.empty,
 
 )
-row0_14_dt = gen_seq(row0_15_dt, {10})
-row1_14_dt = gen_seq(row1_15_dt, {10})
+# row0_14_dt = gen_seq(row0_15_dt, {10})
+# row1_14_dt = gen_seq(row1_15_dt, {10})
 
 
 patterns_row0_15_dt = (
@@ -200,28 +200,28 @@ patterns_row0_15_dt = (
     PatternsDirectionTable.toov.value,
     PatternsDirectionTable.description.value,
 )
-patterns_row0_14_dt = patterns_row0_15_dt[:10] + patterns_row0_15_dt[11:]
+# patterns_row0_14_dt = patterns_row0_15_dt[:10] + patterns_row0_15_dt[11:]
 patterns_row1_15_dt = PatternsDirectionTable.get_patterns_row1(15)
-patterns_row1_14_dt = PatternsDirectionTable.get_patterns_row1(14)
+# patterns_row1_14_dt = PatternsDirectionTable.get_patterns_row1(14)
 
 
 class HeadRowsDirectionTableData(NamedTuple):
-    first_row_names: Sequence[str]
-    second_row_names: Sequence[str]
-    first_row_patterns: Sequence[re.Pattern | str]
-    second_row_patterns: Sequence[re.Pattern | str]
+    row0_col_names: Sequence[str]
+    row1_col_names: Sequence[str]
+    row0_col_patterns: Sequence[re.Pattern | str]
+    row1_col_patterns: Sequence[re.Pattern | str]
 
 
-dt15 = HeadRowsDirectionTableData(row0_15_dt, row1_15_dt, patterns_row0_15_dt, tuple(patterns_row1_15_dt))
-dt14_no_tzz = HeadRowsDirectionTableData(row0_14_dt, row1_14_dt, patterns_row0_14_dt, tuple(patterns_row1_14_dt))
+head_rows_data_dt = HeadRowsDirectionTableData(row0_15_dt, row1_15_dt, patterns_row0_15_dt, tuple(patterns_row1_15_dt))
+# dt14_no_tzz = HeadRowsDirectionTableData(row0_14_dt, row1_14_dt, patterns_row0_14_dt, tuple(patterns_row1_14_dt))
 
-dt_mapping_from_length = {
-    14: dt14_no_tzz,
-    15: dt15
-}
+# dt_mapping_from_length = {
+#     14: dt14_no_tzz,
+#     15: head_rows_data_dt
+# }
 
 
-allowed_column_lengths_dt = (14, 15)
+allowed_column_lengths_dt = {15}
 allowed_min_num_rows = 3
 
 
@@ -529,6 +529,74 @@ toov_matches = {
     DirectionEntities.arrow: (Patterns.dash.value, ),
     DirectionEntities.public: (Patterns.dash.value, ),
 }
+
+
+class DirectionDataContainer(NamedTuple):
+    entity: DirectionEntities
+    tl_patterns: Sequence[str | re.Pattern]
+    t_green_extension: AllowedValues
+    t_green_flashing: AllowedValues
+    t_yellow: AllowedValues
+    t_red: AllowedValues
+    t_red_yellow: AllowedValues
+    t_z: AllowedValues
+    t_zz: AllowedValues
+    can_be_always_red: bool
+    toov_patterns: Sequence[str | re.Pattern]
+
+
+vehicle_data = DirectionDataContainer(
+    entity=DirectionEntities.vehicle,
+    tl_patterns=(re.compile(DirectionEntities.vehicle[:2], re.IGNORECASE), ),
+    t_green_extension=min0_max10_default0,
+    t_green_flashing=min3_max3_default3,
+    t_yellow=min3_max3_default3,
+    t_red=min0_max10_default0,
+    t_red_yellow=min1_max3_default1,
+    t_z=min0_max10_default0,
+    t_zz=min0_max10_default0,
+    can_be_always_red=True,
+    toov_patterns=(Patterns.on_off.value, ),
+)
+
+
+pedestrian_data = DirectionDataContainer(
+    entity=DirectionEntities.pedestrian,
+    tl_patterns=(re.compile('пеш', re.IGNORECASE), ),
+    t_green_extension=min0_max10_default0,
+    t_green_flashing=min3_max3_default3,
+    t_yellow=min0_max0_default0,
+    t_red=min0_max10_default0,
+    t_red_yellow=min0_max0_default0,
+    t_z=min0_max10_default0,
+    t_zz=min0_max10_default0,
+    can_be_always_red=True,
+    toov_patterns=(Patterns.on_off.value, ),
+)
+
+
+arrow_data = DirectionDataContainer(
+    entity=DirectionEntities.arrow,
+    tl_patterns=(re.compile('д/[c,с]', re.IGNORECASE), ),
+    t_green_extension=min0_max10_default0,
+    t_green_flashing=min3_max3_default3,
+    t_yellow=min0_max0_default0,
+    t_red=min0_max10_default0,
+    t_red_yellow=min0_max0_default0,
+    t_z=min0_max10_default0,
+    t_zz=min0_max10_default0,
+    can_be_always_red=True,
+    toov_patterns=(Patterns.dash.value, ),
+)
+
+mapping_direction_data = {
+    DirectionEntities.vehicle: vehicle_data,
+    DirectionEntities.pedestrian: pedestrian_data,
+    DirectionEntities.arrow: arrow_data,
+}
+
+
+
 
 if __name__ == '__main__':
     pass

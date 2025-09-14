@@ -1,15 +1,18 @@
 from collections.abc import Container
 from typing import NamedTuple, Any
 
-from sdp_lib.passport.passport2.base2 import CellData, ValidationData
+from sdp_lib.passport.passport2.base2 import CellData, ValidationData, MessageStorage
 
 
-class TableGeometryCheckList(NamedTuple):
+class TableGeometry(NamedTuple):
     allowed_col_lengths: Container
     allowed_min_num_rows: int
     num_columns: ValidationData
     num_rows: ValidationData
 
+    @property
+    def is_valid(self):
+        return bool(self.num_columns.is_valid and self.num_rows.is_valid)
 
 # class DirectionRowCheckList:
 #     def __init__(

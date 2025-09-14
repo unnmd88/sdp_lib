@@ -2,18 +2,19 @@ import itertools
 from collections.abc import (
     MutableSequence,
     Sequence,
-    MutableMapping, Iterable, Hashable
+    MutableMapping,  Container
 )
 from typing import (
     NamedTuple,
-    Any
+    Any, TypeVar, Self
 )
 
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import RGBColor
-from docx.table import _Cell
+from docx.table import _Cell, Table
 
 from sdp_lib.passport.constants import MessageCategories
+from sdp_lib.passport.text_messages import Text
 from sdp_lib.utils_common.utils_common import (
     create_repr_from_dict_xor_slots,
     add_record
@@ -57,6 +58,9 @@ class MessageStorage(NamedTuple):
     #                 str(Fields.messages): [m]
     #             }
     #     return res
+
+
+
 
 
 class ValidationData(NamedTuple):
@@ -128,7 +132,7 @@ class CellData:
 
 
 
-class AbstractRow:
+class AbstractDataRow:
 
     def __init__(self, row: Sequence[CellData] | MutableSequence[CellData]):
         self._row = row
@@ -150,11 +154,10 @@ class AbstractRow:
         return all(not el.text_is_valid for el in self._row)
 
 
-class HeadRow(AbstractRow):
-    pass
+T_Row = TypeVar('T_Row', bound=AbstractDataRow)
 
 
-class DirectionRow(AbstractRow):
+class DirectionDataRow(AbstractDataRow):
 
     @property
     def num_direction(self) -> CellData:
@@ -215,6 +218,45 @@ class DirectionRow(AbstractRow):
     @property
     def description(self) -> CellData:
         return self._row[14 if len(self._row) == 15 else 13]
+
+
+class TableGeometry(NamedTuple):
+    allowed_col_lengths: Container
+    allowed_min_num_rows: int
+    num_columns: ValidationData
+    num_rows: ValidationData
+    # messages: MessageStorage
+
+    def get_errors(self):
+        if not self.num_columns.is_valid:
+            yield Text.bad_cols_num(self.num_columns.value, self.allowed_col_lengths)
+        if not self.num_rows.is_valid:
+            yield Text.bad_cols_num(self.num_columns.value, self.allowed_min_num_rows)
+
+    @property
+    def is_valid(self) -> bool:
+        return bool(self.num_columns.is_valid and self.num_rows.is_valid)
+
+
+class TheTable:
+    def __init__(
+            self,
+            i_table: int,
+            table: Table,
+            geometry_check_list: TableGeometry,
+            head_rows: Sequence[T_Row] = None,
+            data_rows: Sequence[T_Row] = None,
+            messages: MessageStorage = MessageStorage([], []),
+    ):
+        self.i_table = i_table
+        self.table = table
+        self.geometry_check_list = geometry_check_list
+        self.head_rows = head_rows
+        self.data_rows = data_rows
+        self.messages = messages
+
+    def load_data_rows(self, data_rows: Sequence[T_Row]):
+        self.data_rows = data_rows
 
 
 class Comparison:

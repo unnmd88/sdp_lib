@@ -35,6 +35,18 @@ class Text(StrEnum):
     )
 
     @classmethod
+    def bad_cols_num(cls, num: int, expected: Any):
+        return f'Недопустимое количество колонок: {num}. Допустимо: {expected}'
+
+    @classmethod
+    def bad_min_rows_num(cls, num: int, expected_gt: int):
+        return f'Минимальное количество строк должно быть больше: {expected_gt}. В таблице: {num}'
+
+    @classmethod
+    def misspell(cls, expected: str):
+        return f'Опечатка в названии. Используйте: <{expected}>'
+
+    @classmethod
     def invalid_nums(cls, nums: Iterable):
         return f'Некорректные номера: {", ".join(str(n) for n in nums)}'
 

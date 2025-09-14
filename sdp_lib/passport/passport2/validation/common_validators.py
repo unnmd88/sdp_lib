@@ -9,12 +9,10 @@ from collections.abc import (
 from docx import Document
 from docx.table import (
     _Rows,
-    _Cell
+    _Cell, Table
 )
 
 from sdp_lib.passport.constants import (
-    row0_14_dt,
-    row1_14_dt,
     row0_15_dt,
     Patterns,
     AllowedValues,
@@ -28,9 +26,9 @@ from sdp_lib.passport.passport2.base2 import (
     DirectionsOrStagesSequenceValidation,
     Comparison,
     NumberValidation,
-    CellMapping
+    CellMapping, TableGeometry
 )
-from sdp_lib.passport.passport2.check_lists import TableGeometryCheckList
+
 from sdp_lib.passport.passport2.utils import (
     repair_string_if_sep_in_illegal_pos,
     remove_left_light_spaces_from_cell_text
@@ -72,16 +70,16 @@ def check_is_directions_table(rows: _Rows) -> bool:
 
 
 def validate_geometry(
-    rows: _Rows,
-    allowed_lengths: Container,
+    table: Table,
+    allowed_col_lengths: Container,
     min_rows: int,
-) -> TableGeometryCheckList:
-    num_cols = len(rows[0].cells)
-    num_rows = len(rows)
-    return TableGeometryCheckList(
-        allowed_lengths,
+) -> TableGeometry:
+    num_cols = len(table.columns)
+    num_rows = len(table.rows)
+    return TableGeometry(
+        allowed_col_lengths,
         min_rows,
-        ValidationData(num_cols, num_cols in allowed_lengths),
+        ValidationData(num_cols, num_cols in allowed_col_lengths),
         ValidationData(num_rows, num_rows >= min_rows),
     )
 
@@ -119,22 +117,51 @@ def create_cells_for_head_row(
     i_row: int,
     cells: Iterable[_Cell],
     patterns: Iterable[str | re.Pattern],
-    to_recover: Iterable[str] = None,
+    names_to_recover: Iterable[str],
 ):
     cells_lr_strip = (remove_left_light_spaces_from_cell_text(c) for c in  cells)
-    for i_col, (c, p, r) in enumerate(zip(cells_lr_strip, patterns, to_recover, strict=True)):
+    # names_to_recover = names_to_recover or (None for _ in cells)
+    for i_col, (c, p, r) in enumerate(zip(cells_lr_strip, patterns, names_to_recover, strict=True)):
+        ms = MessageStorage([], [])
         cm = CellMapping(i_table, i_col, i_row, c)
-        txt = c.text
-        res = bool(re.match(p, txt))
-        was_recovered = to_recover if len(txt) != len(r) else None
+        src_txt = c.text
+        res = bool(re.match(p, src_txt))
+        if not res:
+            ms.add_errors(Text.name_error)
+            was_recovered = None
+        elif (was_recovered := (r if (res and (r is not None) and (len(src_txt) != len(r))) else None)) is not None:
+            ms.add_errors(Text.misspell(was_recovered))
         yield CellData(
-            value=txt,
+            value=src_txt,
             text_is_valid=res,
             context_is_valid=res,
             recovered_val=was_recovered,
             cell_mapping=cm,
-            messages=MessageStorage([Text.name_error] if was_recovered else [], [])
+            messages=ms,
         ).write_messages_to_table_cell()
+
+
+# def create_cells_for_head_row(
+#     i_table: int,
+#     i_row: int,
+#     cells: Iterable[_Cell],
+#     patterns: Iterable[str | re.Pattern],
+#     to_recover: Iterable[str] = None,
+# ):
+#     cells_lr_strip = (remove_left_light_spaces_from_cell_text(c) for c in  cells)
+#     for i_col, (c, p, r) in enumerate(zip(cells_lr_strip, patterns, to_recover, strict=True)):
+#         cm = CellMapping(i_table, i_col, i_row, c)
+#         txt = c.text
+#         res = bool(re.match(p, txt))
+#         was_recovered = to_recover if len(txt) != len(r) else None
+#         yield CellData(
+#             value=txt,
+#             text_is_valid=res,
+#             context_is_valid=res,
+#             recovered_val=was_recovered,
+#             cell_mapping=cm,
+#             messages=MessageStorage([Text.name_error] if was_recovered else [], [])
+#         ).write_messages_to_table_cell()
 
 
 def num_validate_and_create_cell(cell: CellMapping) -> CellData:
