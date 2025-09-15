@@ -6,6 +6,11 @@ from sdp_lib.passport.validation.dt_validators import validate_and_create_direct
 
 
 def create_passport(docx: Document) -> Passport:
+    """
+    Проверяет ошибки и создает паспорт светофорного объекта.
+    :param docx: Исходный docx файл.
+    :return: Экземпляр паспорта.
+    """
     passport = Passport(docx)
     for i, table in enumerate(docx.tables):
         if check_is_directions_table(table.rows):
