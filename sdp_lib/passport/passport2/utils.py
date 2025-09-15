@@ -1,7 +1,6 @@
 import re
 from collections.abc import Iterable
 
-
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import RGBColor
