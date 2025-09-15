@@ -19,7 +19,7 @@ from sdp_lib.passport.constants import (
     AllowedValues,
     mapping_direction_data,
     DirectionDataContainer,
-    head_rows_data_dt
+    head_rows_data_dt, Patterns
 )
 from sdp_lib.passport.base import (
     DirectionDataRow,
@@ -73,7 +73,8 @@ def validate_traffic_lights(
     else:
         tlc_entity = repaired_text[:pos_start_nums_tlc] # Из примера: "Тр. "
         nums = repaired_text[pos_start_nums_tlc:].replace(' ', '') # Из примера: "7,8,9,10"
-    if bad_nums := [n for n in nums.split(',') if not n.isdigit()]:
+    split_nums = nums.split(',') if nums else ''
+    if bad_nums := [n for n in split_nums if not re.sub(Patterns.s_char.value, '', n).isdigit()]:
         tlc_nums_is_valid = False
         ms.add_errors(Text.invalid_nums(bad_nums))
     if direction_entity is not None:
@@ -238,7 +239,7 @@ def validate_and_create_directions_table(i_table: int, table: Table, ) -> TheTab
             ).write_messages_to_table_cell()
             tl_patterns = direction_data.tl_patterns if direction_data is not None else None
             tl = validate_traffic_lights(cell_mappings[3], entity_name, tl_patterns).write_messages_to_table_cell()
-            timing_cells_iterator: Iterable = direction_data.get_timings() if direction_data is not None else range(8)
+            timing_cells_iterator: Iterable = direction_data.get_timings() if direction_data is not None else range(7)
             timings: Generator[CellData, Any, None] = (
                 validate_timings(
                     cell_mappings[ii],
@@ -269,18 +270,10 @@ def validate_and_create_directions_table(i_table: int, table: Table, ) -> TheTab
     return the_table
 
 if __name__ == '__main__':
-    # strings = ('1,2,2,4', '1.1,1.4,5,7,10', '', '     ', '1e,2dqd')
-    # for s in strings:
-    #     rr = check_directions_or_stages_string(s)
-    #
-    # # path = 'C://Programms//py.projects//sdp_lib//sdp_lib//passport//СО_2094_ул_Островитянова_ул_Ак_Волгина (2)'
-    path1 = '/home/auser/Downloads/СО_2120_Северный_б_р_Санникова_ул_Декабристов_ул_'
-    path2 = '/home/auser/Downloads/ПД Паспорт шаблон 2025 (Копия)'
-    path3 = '/home/auser/Downloads/СО_2120_Северный_б_р_Санникова_ул_Декабристов_ул_ (1)'
+
     path4 = "C:\Programms\py.projects\sdp_lib\sdp_lib\passport\СО_2094_ул_Островитянова_ул_Ак_Волгина (2).docx"
     path5 = '/home/auser/py.projects/sdp_lib/sdp_lib/passport/СО_2094_ул_Островитянова_ул_Ак_Волгина_2.docx'
     path6 = '/home/auser/py.projects/sdp_lib/sdp_lib/passport/passport2/validation/ПД Паспорт шаблон 2025.docx'
-
 
     doc = Document(path5)
     # c = CheckListTable()

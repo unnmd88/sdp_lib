@@ -10,6 +10,7 @@ from sdp_lib.utils_common.utils_common import gen_seq, get_vector_from_enum
 
 
 class Patterns(Enum):
+    s_char = re.compile('\s')
     always_red = re.compile(r'кр|-|поко', re.IGNORECASE)
     comma_is_start_end_or_end = re.compile('^,*|,*$')
     several_commas = re.compile(',{2,}')
