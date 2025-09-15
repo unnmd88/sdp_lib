@@ -13,7 +13,7 @@ from docx.table import (
 )
 
 from sdp_lib.passport.constants import (
-    row0_15_dt,
+    row0_dt_names,
     Patterns,
     AllowedValues,
     timing_matches,
@@ -127,7 +127,7 @@ def create_cells_for_head_row(
         src_txt = c.text
         res = bool(re.match(p, src_txt))
         if not res:
-            ms.add_errors(Text.name_error)
+            ms.add_errors(Text.expected_col_name(r))
             was_recovered = None
         elif (was_recovered := (r if (res and (r is not None) and (len(src_txt) != len(r))) else None)) is not None:
             ms.add_errors(Text.misspell(was_recovered))
@@ -294,7 +294,7 @@ def validate_number_and_create_cell(key_for_matches, val_to_validate: str) -> Ce
 
 if __name__ == '__main__':
     print(row0_14_dt)
-    print(row0_15_dt)
+    print(row0_dt_names)
     print(row1_14_dt)
     print(len(row1_14_dt))
     r2 = ('№ нап.', 'Тип направления', 'Фазы, в кот. участ. направ.', 'Светофоры', 'Тзд', 'Тзм', 'Тж', 'Тк', 'Ткж', 'Ткж', 'Пост. красное', 'Красн.', 'Зелен.', '')

@@ -246,6 +246,7 @@ class TheTable:
             geometry_check_list: TableGeometry,
             head_rows: Sequence[T_Row] = None,
             data_rows: Sequence[T_Row] = None,
+            empty_rows: Sequence[T_Row] = None,
             messages: MessageStorage = MessageStorage([], []),
     ):
         self.i_table = i_table
@@ -253,10 +254,18 @@ class TheTable:
         self.geometry_check_list = geometry_check_list
         self.head_rows = head_rows
         self.data_rows = data_rows
+        self.empty_rows = empty_rows
         self.messages = messages
+
+    def load_head_rows(self, head_rows: Sequence[T_Row] ):
+        self.head_rows = head_rows
 
     def load_data_rows(self, data_rows: Sequence[T_Row]):
         self.data_rows = data_rows
+
+    def load_empty_rows(self, empty_rows: Sequence[T_Row] ):
+        self.empty_rows = empty_rows
+
 
 
 class Comparison:

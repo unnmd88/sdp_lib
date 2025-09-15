@@ -20,35 +20,6 @@ class Patterns(Enum):
     dash = re.compile('^-$', re.IGNORECASE)
 
 
-
-# class _DirectionTablePatterns(Enum):
-#     row1_cell0  = re.compile('^№\s*нап', re.IGNORECASE)
-#     row1_cell1  = re.compile('^тип\s*направления', re.IGNORECASE)
-#     row1_cell2  = re.compile('^фазы.*кот.*направ', re.IGNORECASE)
-#     row1_cell3  = re.compile('^светофоры', re.IGNORECASE)
-#     row1_cell4  = re.compile('^Тзд', re.IGNORECASE)
-#     row1_cell5  = re.compile('^Тзм', re.IGNORECASE)
-#     row1_cell6  = re.compile('^Тж', re.IGNORECASE)
-#     row1_cell7  = re.compile('^Тк', re.IGNORECASE)
-#     row1_cell8  = re.compile('^Ткж', re.IGNORECASE)
-#     row1_cell9  = re.compile('^Тз', re.IGNORECASE)
-#     row1_cell10 = re.compile('^Тзз', re.IGNORECASE)
-#     row1_cell11 = re.compile('^пост.+крас', re.IGNORECASE)
-#     row1_cell12 = re.compile('^Зел', re.IGNORECASE)
-#     row1_cell13 = re.compile('^Красн', re.IGNORECASE)
-#     row1_cell14 = re.compile('', re.IGNORECASE)
-#
-#     @classmethod
-#     def get_patterns_len(cls, length: int):
-#         if length == 15:
-#             for pattern in cls:
-#                 yield pattern.value
-#         elif length == 14:
-#             for i, pattern in enumerate(cls):
-#                 if i != 10:
-#                     yield pattern.value
-
-
 class PatternsDirectionTable(Enum):
     allowed_entities = re.compile('Транспортное|Поворотное|Пешеходное|общ.*тр|пос.*крас', re.IGNORECASE)
     vehicle = re.compile('^Транспортное', re.IGNORECASE)
@@ -88,36 +59,6 @@ class PatternsDirectionTable(Enum):
     description = re.compile('^примечание', re.IGNORECASE)
     empty = re.compile('', re.IGNORECASE)
 
-    row1_cells = (
-        re.compile('^№\s*нап', re.IGNORECASE),
-        re.compile('^тип\s*направления', re.IGNORECASE),
-        re.compile('^фазы.*кот.*направ', re.IGNORECASE),
-        re.compile('^светофоры', re.IGNORECASE),
-        re.compile('^Тзд', re.IGNORECASE),
-        re.compile('^Тзм', re.IGNORECASE),
-        re.compile('^Тж', re.IGNORECASE),
-        re.compile('^Тк', re.IGNORECASE),
-        re.compile('^Ткж', re.IGNORECASE),
-        re.compile('^Тз', re.IGNORECASE),
-        re.compile('^Тзз', re.IGNORECASE),
-        re.compile('^пост.+крас', re.IGNORECASE),
-        re.compile('^Зел', re.IGNORECASE),
-        re.compile('^Красн', re.IGNORECASE),
-        re.compile('', re.IGNORECASE),
-    )
-
-
-    @classmethod
-    def get_patterns_row1(cls, length: int):
-        print(cls.row1_cells.value)
-        if length == 15:
-            for pattern in cls.row1_cells.value:
-                yield pattern
-        elif length == 14:
-            for i, pattern in enumerate(cls.row1_cells.value):
-                if i != 10:
-                    yield pattern
-
 
 class ColNamesDirectionsTable(StrEnum):
     t_green_ext = 'Тзд'
@@ -143,7 +84,7 @@ class ColNamesDirectionsTable(StrEnum):
 
 
 # row0_15_dt = ('№ нап.', 'Тип направления', 'Фазы, в кот. участ. направ.', 'Светофоры', '"Запрет"', '"Запрет"', '"Запрет"', '"Запрет"', '"Разрешение"', '"Разрешение"', '"Разрешение"', 'Пост. красное', 'ТООВ ', 'ТООВ ', 'Примечание')
-row0_15_dt = (
+row0_dt_names = (
     ColNamesDirectionsTable.number,
     ColNamesDirectionsTable.direction_entity,
     ColNamesDirectionsTable.stages,
@@ -161,7 +102,7 @@ row0_15_dt = (
     ColNamesDirectionsTable.description,
 )
 # row1_15_dt = ('№ нап.', 'Тип направления', 'Фазы, в кот. участ. направ.', 'Светофоры', 'Тзд', 'Тзм', 'Тж', 'Тк', 'Ткж', 'Тз', 'Тзз', 'Пост. красное', 'Красн.', 'Зелен.', '')
-row1_15_dt = (
+row1_dt_names = (
     ColNamesDirectionsTable.number,
     ColNamesDirectionsTable.direction_entity,
     ColNamesDirectionsTable.stages,
@@ -177,13 +118,9 @@ row1_15_dt = (
     ColNamesDirectionsTable.toov_red,
     ColNamesDirectionsTable.toov_green,
     ColNamesDirectionsTable.empty,
-
 )
-# row0_14_dt = gen_seq(row0_15_dt, {10})
-# row1_14_dt = gen_seq(row1_15_dt, {10})
 
-
-patterns_row0_15_dt = (
+row0_dt_patterns = (
     PatternsDirectionTable.num_direction.value,
     PatternsDirectionTable.entity_direction.value,
     PatternsDirectionTable.stages.value,
@@ -200,9 +137,24 @@ patterns_row0_15_dt = (
     PatternsDirectionTable.toov.value,
     PatternsDirectionTable.description.value,
 )
-# patterns_row0_14_dt = patterns_row0_15_dt[:10] + patterns_row0_15_dt[11:]
-patterns_row1_15_dt = PatternsDirectionTable.get_patterns_row1(15)
-# patterns_row1_14_dt = PatternsDirectionTable.get_patterns_row1(14)
+
+row1_dt_patterns = (
+    PatternsDirectionTable.num_direction.value,
+    PatternsDirectionTable.entity_direction.value,
+    PatternsDirectionTable.stages.value,
+    PatternsDirectionTable.traffic_lights.value,
+    PatternsDirectionTable.t_green_extension.value,
+    PatternsDirectionTable.t_green_flashing.value,
+    PatternsDirectionTable.t_yellow.value,
+    PatternsDirectionTable.t_red.value,
+    PatternsDirectionTable.t_red_yellow.value,
+    PatternsDirectionTable.t_z.value,
+    PatternsDirectionTable.t_zz.value,
+    PatternsDirectionTable.always_red.value,
+    PatternsDirectionTable.toov_red.value,
+    PatternsDirectionTable.toov_green.value,
+    PatternsDirectionTable.empty.value,
+)
 
 
 class HeadRowsDirectionTableData(NamedTuple):
@@ -212,13 +164,7 @@ class HeadRowsDirectionTableData(NamedTuple):
     row1_col_patterns: Sequence[re.Pattern | str]
 
 
-head_rows_data_dt = HeadRowsDirectionTableData(row0_15_dt, row1_15_dt, patterns_row0_15_dt, tuple(patterns_row1_15_dt))
-# dt14_no_tzz = HeadRowsDirectionTableData(row0_14_dt, row1_14_dt, patterns_row0_14_dt, tuple(patterns_row1_14_dt))
-
-# dt_mapping_from_length = {
-#     14: dt14_no_tzz,
-#     15: head_rows_data_dt
-# }
+head_rows_data_dt = HeadRowsDirectionTableData(row0_dt_names, row1_dt_names, row0_dt_patterns, row1_dt_patterns)
 
 
 allowed_column_lengths_dt = {15}
@@ -281,31 +227,28 @@ class DirectionEntities(StrEnum):
         # return ', '.join(str(d) for d in cls if d not in {cls.common, cls.empty})
 
 
-substrings_vehicle = (
-    re.compile(DirectionEntities.vehicle[:2], re.IGNORECASE),
-)
-substrings_arrow = (
-    re.compile('д/[c,с]', re.IGNORECASE),
-)
-substrings_pedestrian = (
-    re.compile('пеш', re.IGNORECASE),
-)
+# substrings_vehicle = (
+#     re.compile(DirectionEntities.vehicle[:2], re.IGNORECASE),
+# )
+# substrings_arrow = (
+#     re.compile('д/[c,с]', re.IGNORECASE),
+# )
+# substrings_pedestrian = (
+#     re.compile('пеш', re.IGNORECASE),
+# )
+#
+# substrings_public = (
+#     re.compile('б/л', re.IGNORECASE),
+# )
 
-substrings_public = (
-    re.compile('б/л', re.IGNORECASE),
-)
-
-substring_for_search_tlc = {
-    DirectionEntities.vehicle: substrings_vehicle,
-    DirectionEntities.pedestrian: substrings_pedestrian,
-    DirectionEntities.arrow: substrings_arrow,
-    DirectionEntities.public: substrings_public,
-}
+# substring_for_search_tlc = {
+#     DirectionEntities.vehicle: substrings_vehicle,
+#     DirectionEntities.pedestrian: substrings_pedestrian,
+#     DirectionEntities.arrow: substrings_arrow,
+#     DirectionEntities.public: substrings_public,
+# }
 
 standard_directions = {el for el in DirectionEntities}
-# startswith_tlc = {
-#     DirectionEntities.vehicle: (f'{DirectionEntities.vehicle[:2]}', ),
-# }
 
 
 class StagesMapping(IntEnum):
@@ -332,13 +275,13 @@ class ColNamesDirectionsTable(StrEnum):
     description = 'Примечание'
 
 
-dt_timing_columns = tuple(get_vector_from_enum(ColNamesDirectionsTable, 't_'))
-dt_timing_columns_exclude_tzz = tuple(get_vector_from_enum(ColNamesDirectionsTable, 't_', (ColNamesDirectionsTable.t_zz, )))
-
-dt_timing_columns_mapping = {
-    14: dt_timing_columns_exclude_tzz,
-    15: dt_timing_columns,
-}
+# dt_timing_columns = tuple(get_vector_from_enum(ColNamesDirectionsTable, 't_'))
+# dt_timing_columns_exclude_tzz = tuple(get_vector_from_enum(ColNamesDirectionsTable, 't_', (ColNamesDirectionsTable.t_zz, )))
+#
+# dt_timing_columns_mapping = {
+#     14: dt_timing_columns_exclude_tzz,
+#     15: dt_timing_columns,
+# }
 
 
 class ColNamesTimeProgramsTable(StrEnum):
@@ -522,13 +465,13 @@ timing_matches = {
 }
 
 
-toov_matches = {
-    DirectionEntities.vehicle: (Patterns.on_off.value, ),
-    DirectionEntities.always_red: (Patterns.on_off.value, ),
-    DirectionEntities.pedestrian: (Patterns.on_off.value, ),
-    DirectionEntities.arrow: (Patterns.dash.value, ),
-    DirectionEntities.public: (Patterns.dash.value, ),
-}
+# toov_matches = {
+#     DirectionEntities.vehicle: (Patterns.on_off.value, ),
+#     DirectionEntities.always_red: (Patterns.on_off.value, ),
+#     DirectionEntities.pedestrian: (Patterns.on_off.value, ),
+#     DirectionEntities.arrow: (Patterns.dash.value, ),
+#     DirectionEntities.public: (Patterns.dash.value, ),
+# }
 
 
 class DirectionDataContainer(NamedTuple):
@@ -543,6 +486,18 @@ class DirectionDataContainer(NamedTuple):
     t_zz: AllowedValues
     can_be_always_red: bool
     toov_patterns: Sequence[str | re.Pattern]
+
+    def get_timings(self):
+        return (self[i] for i in range(2, 9))
+        # return (
+        #     self.t_green_extension,
+        #     self.t_green_flashing,
+        #     self.t_yellow,
+        #     self.t_red,
+        #     self.t_red_yellow,
+        #     self.t_z,
+        #     self.t_zz,
+        # )
 
 
 vehicle_data = DirectionDataContainer(
@@ -600,7 +555,7 @@ mapping_direction_data = {
 
 if __name__ == '__main__':
     pass
-    print(dt_timing_columns)
-    print(dt_timing_columns_exclude_tzz)
+    # print(dt_timing_columns)
+    # print(dt_timing_columns_exclude_tzz)
     # print(PatternsDirectionTable.row1_cells.value)
     # print(tuple(PatternsDirectionTable.get_patterns_row1(14)))

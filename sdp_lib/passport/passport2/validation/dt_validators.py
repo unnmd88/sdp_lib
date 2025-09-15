@@ -1,6 +1,6 @@
 import itertools
 import re
-from collections.abc import Generator, Sequence
+from collections.abc import Generator, Sequence, Iterable
 from enum import IntEnum
 from typing import Any, NamedTuple
 
@@ -16,24 +16,18 @@ from sdp_lib.passport.constants import (
     allowed_min_num_rows,
     DirectionEntities,
     PatternsDirectionTable,
-    HeadRowsDirectionTableData,
-    # dt_mapping_from_length,
-    dt_timing_columns_mapping,
-    timing_matches,
     AllowedValues,
-    substring_for_search_tlc, toov_matches, mapping_direction_data, DirectionDataContainer, head_rows_data_dt
+    mapping_direction_data, DirectionDataContainer, head_rows_data_dt, timing_matches
 )
 from sdp_lib.passport.passport2.base2 import (
     DirectionDataRow,
     CellData,
-    NumberValidation,
     CellMapping,
     MessageStorage, TheTable
 )
 from sdp_lib.passport.passport2.utils import (
-    remove_left_light_spaces_from_cell_text,
     found_pos_start_num,
-    repair_string_if_sep_in_illegal_pos, write_messages_to_cell
+    repair_string_if_sep_in_illegal_pos
 )
 from sdp_lib.passport.passport2.validation.common_validators import (
     validate_geometry,
@@ -43,7 +37,7 @@ from sdp_lib.passport.passport2.validation.common_validators import (
     num_validate_and_create_cell, lrstrip_in_cell_and_create_cell_mappings, gen_default_cells, create_default_cell
 )
 from sdp_lib.passport.text_messages import Text
-from sdp_lib.utils_common.utils_common import  timed
+from sdp_lib.utils_common.utils_common import timed
 
 
 entity_patterns_and_aliases = (
@@ -56,7 +50,11 @@ entity_patterns_and_aliases = (
 )
 
 
-def validate_tlc(direction_data: DirectionDataContainer, cell_mapping: CellMapping):
+def validate_traffic_lights(
+    cell_mapping: CellMapping,
+    direction_entity: DirectionEntities,
+    tl_patterns: Sequence[str | re.Pattern],
+) -> CellData:
     ms = MessageStorage([], [])
     src_txt = cell_mapping.cell.text # Пример: "Тр. 7,8,9,10"
     repaired_text = repair_string_if_sep_in_illegal_pos(src_txt, ',')
@@ -73,8 +71,8 @@ def validate_tlc(direction_data: DirectionDataContainer, cell_mapping: CellMappi
     if bad_nums := [n for n in nums.split(',') if not n.isdigit()]:
         tlc_nums_is_valid = False
         ms.add_errors(Text.invalid_nums(bad_nums))
-    if direction_data.entity is not None:
-        if not any(re.search(p, tlc_entity) for p in direction_data.tl_patterns):
+    if direction_entity is not None:
+        if not any(re.search(p, tlc_entity) for p in tl_patterns):
             tlc_entity_is_valid = False
             ms.add_errors(Text.invalid_type_tlc)
     else:
@@ -90,30 +88,30 @@ def validate_tlc(direction_data: DirectionDataContainer, cell_mapping: CellMappi
     )
 
 
-def validate_timings_and_create_cell_data(cell_mapping: CellMapping, direction_data: DirectionDataContainer, t_name: str):
+def validate_timings(
+    cell_mapping: CellMapping,
+    direction_entity: DirectionEntities,
+    timings: AllowedValues,
+) -> CellData:
     ms = MessageStorage([], [])
     txt = cell_mapping.cell.text
     text_is_valid = False
     try:
         val_i = int(txt)
         text_is_valid = True
-        if direction_data.entity is None:
+        if direction_entity is None:
             return CellData(
                 txt, text_is_valid, None, converted_val=val_i, messages=ms, cell_mapping=cell_mapping
             )
     except ValueError:
         ms.add_errors(Text.is_not_a_number)
         return CellData(txt, text_is_valid, text_is_valid, messages=ms, cell_mapping=cell_mapping)
-    # values: AllowedValues = timing_matches[(direction_data.entity, t_name)]
-    values: AllowedValues = timing_matches[(direction_data.entity, t_name)]
-
-    if values.min <= val_i <= values.max:  # OK case
+    if timings.min <= val_i <= timings.max:  # OK case
         return CellData(txt, text_is_valid, text_is_valid, converted_val=val_i, messages=ms, cell_mapping=cell_mapping)
-
-    if val_i < values.min:
-        err = Text.val_must_be_gt(values.min)
-    elif val_i > values.max:
-        err = Text.val_must_be_lt(values.max)
+    if val_i < timings.min:
+        err = Text.val_must_be_gt(timings.min)
+    elif val_i > timings.max:
+        err = Text.val_must_be_lt(timings.max)
     else:
         raise Exception(f'Debug: val_to_validate not fully validated')
     ms.add_errors(err)
@@ -154,12 +152,15 @@ def validate_always_red_col_and_create_cell_data(
     )
 
 
-def validate_toov(cell_mapping: CellMapping, direction_data: DirectionDataContainer):
-    if direction_data.entity is None:
+def validate_toov(
+    cell_mapping: CellMapping,
+    direction_entity: DirectionDataContainer,
+    toov_patterns: Sequence[str | re.Pattern]
+) -> CellData:
+    if direction_entity is None:
         return create_default_cell(cell_mapping)
     txt = cell_mapping.cell.text
-    text_is_valid = any(re.match(p, txt) is not None for p in direction_data.toov_patterns)
-
+    text_is_valid = any(re.match(p, txt) is not None for p in toov_patterns)
     return CellData(
         value=txt,
         text_is_valid=text_is_valid,
@@ -169,7 +170,7 @@ def validate_toov(cell_mapping: CellMapping, direction_data: DirectionDataContai
     )
 
 
-class DirectionTablePositionMapping(IntEnum):
+class RowPosition(IntEnum):
     num                 = 0
     entity              = 1
     stages              = 2
@@ -187,146 +188,37 @@ class DirectionTablePositionMapping(IntEnum):
     description         = 14
 
 
-# @timed
-# def validate_directions_table(i_table: int, table: Table, ):
-#     rows: _Rows = table.rows
-#     geometry_check_list = validate_geometry(rows, allowed_column_lengths_dt, allowed_min_num_rows)
-#     length = len(table.columns)
-#     print(f'length: {length}')
-#     names_and_patterns: HeadRowsDirectionTableData = dt_mapping_from_length[length]
-#     print(names_and_patterns.second_row_names)
-#     first_row = tuple(create_default_cells(i_table, 0, rows[0].cells))
-#     second_row = tuple(create_cells_for_head_row(
-#         i_table, 1, rows[1].cells, names_and_patterns.second_row_patterns, names_and_patterns.second_row_names
-#     ))
-#
-#     print(f'length: {length}')
-#     timing_columns = dt_timing_columns_mapping[length]
-#     # print(first_row)
-#     for i in range(2, len(rows)):
-#         print(f'i: {i}')
-#         gen_cell_mappings = gen_cell_mappings_and_lrstrip_in_cell_text(i_table, i, rows[i].cells)
-#         num = num_validate_and_create_cell(
-#             next(gen_cell_mappings)
-#         ).write_messages_to_table_cell()
-#         entity = match_cells_one_string_to_many_patterns_and_create_cell(
-#             next(gen_cell_mappings),
-#             entity_patterns_and_aliases,
-#             True,
-#         ).write_messages_to_table_cell()
-#         stages = validate_sequence_directions_or_stages_nums_and_create_cell(
-#             next(gen_cell_mappings)
-#         ).write_messages_to_table_cell()
-#
-#         tlc = validate_tlc(entity.converted_val, next(gen_cell_mappings)).write_messages_to_table_cell()
-#
-#         # timings = (validate_timings(entity.recovered_val, col_name, next(cells)) if entity.recovered_val == DirectionEntities.vehicle else CellData('PLUG') for col_name in timing_columns)
-#         timings = (
-#             validate_timings(next(gen_cell_mappings), entity.converted_val, col_name,).write_messages_to_table_cell()
-#             for col_name in timing_columns
-#         )
-#
-#         # tzd = validate_number_and_create_cell((entity.recovered, ColNamesDirectionsTable.t_green_ext), next(cells))
-#         # res = (num, entity, stages, tlc, tzd) + tuple(CellData('PLUG') for _ in range(9))
-#         chain = itertools.chain(
-#             (num, entity, stages, tlc),
-#             timings,
-#            (CellData('PLUG') for _ in range(4)),
-#
-#         )
-#         r =  DirectionRow(tuple(c for c in chain))
-#         print(r.represent(attr_splitter='\n') if i in (8, length - 100) else r)
-#
-#     doc.save('cadabra.docx')
-
-
-# class _Validation:
-#     def __init__(self, i_table: int, table: Table, ):
-#         self.direction_rows: Sequence[DirectionRow] = []
-#         self.i_table = i_table
-#         self.table = table
-#         self.rows: _Rows = table.rows
-#         self.geometry_check_list = validate_geometry(self.rows, allowed_column_lengths_dt, allowed_min_num_rows)
-#         self.length = len(table.columns)
-#         self.first_row = lrstrip_in_cell_and_create_cell_mappings(i_table, 0, self.rows[0].cells)
-#         names_and_patterns_second_row: HeadRowsDirectionTableData = dt_mapping_from_length[self.length]
-#         self.second_row = tuple(create_cells_for_head_row(
-#             self.i_table,
-#             1,
-#             self.rows[1].cells,
-#             names_and_patterns_second_row.second_row_patterns,
-#             names_and_patterns_second_row.second_row_names
-#         ))
-#         self.timing_columns = dt_timing_columns_mapping[self.length]
-#         self.i_alw_red, self.i_toov_red, self.i_toov_green, self.i_description = range(self.length - 4, self.length)
-#
-
-class Structure(NamedTuple):
-    num: int
-    direction_entity: int
-    stages: int
-    tc: int
-    t_green_extension: int
-    t_green_flashing: int
-    t_yellow: int
-    t_red: int
-    t_red_yellow: int
-    t_z: int
-    t_zz: int | None
-    can_be_always_red: int
-    toov_red: int
-    toov_green: int
-    description: int
-
-
-
-
 @timed
-def validate_directions_table(i_table: int, table: Table, ):
-    rows: _Rows = table.rows
-    # geometry_check_list = validate_geometry(table, allowed_column_lengths_dt, allowed_min_num_rows)
-
-
+def validate_and_create_directions_table(i_table: int, table: Table, ) -> TheTable:
+    table_rows: _Rows = table.rows
     the_table = TheTable(
         i_table,
         table,
         validate_geometry(table, allowed_column_lengths_dt, allowed_min_num_rows)
     )
-
+    # Первый этап валидации - проверка корректности геометрии таблицы:
+    # Количество столбцов и минимальное количество строк.
     if not the_table.geometry_check_list.is_valid:
         for err in the_table.geometry_check_list.get_errors():
             the_table.messages.add_errors(err)
         target = table.add_row()
         target.cells[0].text = '\n'.join(f"*{e}" for e in the_table.messages.chain())
         target.cells[0].paragraphs[0].runs[0].font.color.rgb = RGBColor(255, 0, 0)
-        doc.save('cadabra.docx')
         return table
-
-        # names_and_patterns: HeadRowsDirectionTableData = head_rows_data_dt
-    # first_row = lrstrip_in_cell_and_create_cell_mappings(i_table, 0, rows[0].cells)
-    # first_row = tuple(gen_default_cells(first_row[0]))
+    first_row = lrstrip_in_cell_and_create_cell_mappings(i_table, 0, table_rows[0].cells)
+    first_row = tuple(gen_default_cells(first_row[0]))
     second_row = tuple(create_cells_for_head_row(
-        i_table, 1, rows[1].cells, head_rows_data_dt.row1_col_patterns, head_rows_data_dt.row1_col_names
+        i_table, 1, table_rows[1].cells, head_rows_data_dt.row1_col_patterns, head_rows_data_dt.row1_col_names
     ))
-    """ 
-    В данном блоке можно реализовать логику обработки валидности названий ячеек в колонках
-    шапки таблицы(row[0] и row[1]).
-    Например, прерывать валидацию, если присутствуют некорректные названия.
-    if not all(c.context_is_valid for c in second_row): return
-    """
-
-    if not all(c.context_is_valid for c in second_row):
-        doc.save('cadabra.docx')
-        return
-    return
-    timing_columns = dt_timing_columns_mapping[length]
-    i_alw_red, i_toov_red, i_toov_green, i_description = range(length - 4, length)
-    for i in range(2, len(rows)):
-        print(f'i: {i}')
-        # gen_cell_mappings = gen_cell_mappings_and_lrstrip_in_cell_text(i_table, i, rows[i].cells)
-        cell_mappings, empty_cells = lrstrip_in_cell_and_create_cell_mappings(i_table, i, rows[i].cells)
+    the_table.load_head_rows((DirectionDataRow(first_row), DirectionDataRow(second_row)))
+    # Второй этап валидации - проверка корректности названий колонок:
+    if not the_table.head_rows[1].is_valid:
+        return table
+    rows, empty_rows = [], []
+    for i in range(2, len(table_rows)):
+        cell_mappings, empty_cells = lrstrip_in_cell_and_create_cell_mappings(i_table, i, table_rows[i].cells)
         if len(cell_mappings) == empty_cells:
-            r = DirectionDataRow(tuple(gen_default_cells(c) for c in cell_mappings))
+            empty_rows.append(DirectionDataRow(tuple(gen_default_cells(c) for c in cell_mappings)))
         else:
             num = num_validate_and_create_cell(cell_mappings[0]).write_messages_to_table_cell()
             entity = match_one_string_to_many_patterns_and_get_alias_and_create_cell(
@@ -335,40 +227,41 @@ def validate_directions_table(i_table: int, table: Table, ):
                 True,
             ).write_messages_to_table_cell()
             direction_data: DirectionDataContainer = mapping_direction_data.get(entity.converted_val)
+            entity_name = direction_data.entity if direction_data is not None else None
             stages = validate_sequence_directions_or_stages_nums_and_create_cell(
                 cell_mappings[2]
             ).write_messages_to_table_cell()
-            tl = validate_tlc(direction_data, cell_mappings[3]).write_messages_to_table_cell()
+            tl_patterns = direction_data.tl_patterns if direction_data is not None else None
+            tl = validate_traffic_lights(cell_mappings[3], entity_name, tl_patterns).write_messages_to_table_cell()
+            timing_cells_iterator: Iterable = direction_data.get_timings() if direction_data is not None else range(8)
             timings: Generator[CellData, Any, None] = (
-                validate_timings_and_create_cell_data(
+                validate_timings(
                     cell_mappings[ii],
-                    entity.converted_val,
+                    entity_name,
                     col_name,
                 ).write_messages_to_table_cell()
-                for ii, col_name in enumerate(timing_columns, 4)
+                for ii, col_name in enumerate(timing_cells_iterator, 4)
             )
             always_red = validate_always_red_col_and_create_cell_data(
-                cell_mappings[i_alw_red], entity.converted_val
+                cell_mappings[11], entity_name
             ).write_messages_to_table_cell()
+            toov_patterns = direction_data.toov_patterns if direction_data is not None else None
             toov_red = validate_toov(
-                cell_mappings[i_toov_red], entity.converted_val
+                cell_mappings[12], direction_data, toov_patterns
             ).write_messages_to_table_cell()
             toov_green = validate_toov(
-                cell_mappings[i_toov_green], entity.converted_val
+                cell_mappings[13], direction_data, toov_patterns
             ).write_messages_to_table_cell()
-            description = create_default_cell(cell_mappings[i_description])
+            description = create_default_cell(cell_mappings[14])
             chain = itertools.chain(
                 (num, entity, stages, tl),
                 timings,
                 (always_red, toov_red, toov_green, description),
-                # (CellData('PLUG') for _ in range(3)),
             )
-            r = DirectionDataRow(tuple(c for c in chain))
-            print(r.represent(attr_splitter='\n') if i in (11, length - 100) else r)
-        # print(r.represent(attr_splitter='\n') if i in (8, length - 100) else r)
-
-    doc.save('cadabra.docx')
-
+            rows.append(DirectionDataRow(tuple(c for c in chain)))
+    the_table.load_data_rows(rows)
+    the_table.load_empty_rows(empty_rows)
+    return table
 
 if __name__ == '__main__':
     # strings = ('1,2,2,4', '1.1,1.4,5,7,10', '', '     ', '1e,2dqd')
@@ -386,5 +279,5 @@ if __name__ == '__main__':
 
     doc = Document(path5)
     # c = CheckListTable()
-    validate_directions_table(0, doc.tables[0])
+    validate_and_create_directions_table(0, doc.tables[0])
 

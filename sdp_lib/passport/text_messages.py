@@ -35,6 +35,10 @@ class Text(StrEnum):
     )
 
     @classmethod
+    def expected_col_name(cls, expected_name: str):
+        return f'Данная колонка должна иметь название: {expected_name}.'
+
+    @classmethod
     def bad_cols_num(cls, num: int, expected: Any):
         return f'Недопустимое количество колонок: {num}. Допустимо: {expected}'
 
