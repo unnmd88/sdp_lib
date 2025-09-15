@@ -1,8 +1,6 @@
-import itertools
 import re
-from collections.abc import Iterable, Container, Generator, Sequence
-from enum import Enum
-from typing import Any
+from collections.abc import Iterable
+
 
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -67,10 +65,6 @@ def _display_all_tables(doc_x):
             print(f'{ii}: {[cell.text for cell in row.cells]}')
         print(f'-- End Table {i} --')
         print(f'*' * 100)
-
-
-
-
 
 
 if __name__ == '__main__':
