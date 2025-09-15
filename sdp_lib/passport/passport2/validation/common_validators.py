@@ -141,29 +141,6 @@ def create_cells_for_head_row(
         ).write_messages_to_table_cell()
 
 
-# def create_cells_for_head_row(
-#     i_table: int,
-#     i_row: int,
-#     cells: Iterable[_Cell],
-#     patterns: Iterable[str | re.Pattern],
-#     to_recover: Iterable[str] = None,
-# ):
-#     cells_lr_strip = (remove_left_light_spaces_from_cell_text(c) for c in  cells)
-#     for i_col, (c, p, r) in enumerate(zip(cells_lr_strip, patterns, to_recover, strict=True)):
-#         cm = CellMapping(i_table, i_col, i_row, c)
-#         txt = c.text
-#         res = bool(re.match(p, txt))
-#         was_recovered = to_recover if len(txt) != len(r) else None
-#         yield CellData(
-#             value=txt,
-#             text_is_valid=res,
-#             context_is_valid=res,
-#             recovered_val=was_recovered,
-#             cell_mapping=cm,
-#             messages=MessageStorage([Text.name_error] if was_recovered else [], [])
-#         ).write_messages_to_table_cell()
-
-
 def num_validate_and_create_cell(cell: CellMapping) -> CellData:
     txt = cell.cell.text
     num = get_stage_or_direction_number_or_none(txt)
@@ -184,25 +161,6 @@ def get_alias(string, patterns_and_aliases: Sequence[tuple[re.Pattern | str, str
             if re.match(data[0], string) is not None:
                 return data[1]
     return None
-
-
-def match_one_string_to_many_patterns_and_create_cell(
-    cell_mapping: CellMapping,
-    patterns: Sequence[str | re.Pattern, str],
-    duplicate_pattern_result_to_context=False
-):
-    txt = cell_mapping.cell.text
-    is_valid = any(re.match(txt, p) is not None for p in patterns)
-    return CellData(
-        value=txt,
-        text_is_valid=is_valid,
-        context_is_valid=is_valid if duplicate_pattern_result_to_context else None,
-        recovered_val=recovered_val_by_alias,
-        converted_val=alias,
-        cell_mapping=cell_mapping,
-        messages=MessageStorage(err_has_differences_in_src_text_and_alias, [])
-    )
-
 
 
 def match_one_string_to_many_patterns_and_get_alias_and_create_cell(
@@ -269,34 +227,8 @@ def validate_sequence_directions_or_stages_nums_and_create_cell(
     return CellData(src_txt, True, recovered_val=repaired_string2, extra=seq_validation, messages=ms,  cell_mapping=cell_mapping)
 
 
-def validate_number_and_create_cell(key_for_matches, val_to_validate: str) -> CellData:
-    tv = NumberValidation([])
-    # try:
-    #     val_f = float(val_to_validate.replace(',', '.', 1))
-    # except ValueError:
-    #     tv.errors.append(Text.is_not_a_number)
-    #     return CellData(val_to_validate, False, False, extra=tv)
-    # values: AllowedValues = timing_matches[key_for_matches]
-    # if values.min <= val_f <= values.max: # OK case
-    #     return CellData(val_to_validate, True, True, recovered_txt=int(val_f) if val_f.is_integer() else val_f, extra=tv)
-    #
-    # if val_f < values.min:
-    #     err = Text.val_must_be_gt(values.min)
-    # elif val_f > values.max:
-    #     err = Text.val_must_be_lt(values.max)
-    # else:
-    #     raise Exception(f'Debug: val_to_validate not fully validated')
-    # tv.errors.append(err)
-    # return CellData(val_to_validate, True, False, recovered_txt=int(val_f) if val_f.is_integer() else val_f, extra=tv)
-
-
-
-
 if __name__ == '__main__':
-    print(row0_14_dt)
-    print(row0_dt_names)
-    print(row1_14_dt)
-    print(len(row1_14_dt))
+
     r2 = ('№ нап.', 'Тип направления', 'Фазы, в кот. участ. направ.', 'Светофоры', 'Тзд', 'Тзм', 'Тж', 'Тк', 'Ткж', 'Ткж', 'Пост. красное', 'Красн.', 'Зелен.', '')
 
     path1 = '/home/auser/Downloads/СО_2120_Северный_б_р_Санникова_ул_Декабристов_ул_'
