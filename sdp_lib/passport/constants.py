@@ -228,27 +228,6 @@ class DirectionEntities(StrEnum):
         # return ', '.join(str(d) for d in cls if d not in {cls.common, cls.empty})
 
 
-# substrings_vehicle = (
-#     re.compile(DirectionEntities.vehicle[:2], re.IGNORECASE),
-# )
-# substrings_arrow = (
-#     re.compile('д/[c,с]', re.IGNORECASE),
-# )
-# substrings_pedestrian = (
-#     re.compile('пеш', re.IGNORECASE),
-# )
-#
-# substrings_public = (
-#     re.compile('б/л', re.IGNORECASE),
-# )
-
-# substring_for_search_tlc = {
-#     DirectionEntities.vehicle: substrings_vehicle,
-#     DirectionEntities.pedestrian: substrings_pedestrian,
-#     DirectionEntities.arrow: substrings_arrow,
-#     DirectionEntities.public: substrings_public,
-# }
-
 standard_directions = {el for el in DirectionEntities}
 
 
@@ -274,15 +253,6 @@ class ColNamesDirectionsTable(StrEnum):
     toov_green = 'Зелен.'
     toov_red = 'Красн.'
     description = 'Примечание'
-
-
-# dt_timing_columns = tuple(get_vector_from_enum(ColNamesDirectionsTable, 't_'))
-# dt_timing_columns_exclude_tzz = tuple(get_vector_from_enum(ColNamesDirectionsTable, 't_', (ColNamesDirectionsTable.t_zz, )))
-#
-# dt_timing_columns_mapping = {
-#     14: dt_timing_columns_exclude_tzz,
-#     15: dt_timing_columns,
-# }
 
 
 class ColNamesTimeProgramsTable(StrEnum):
@@ -352,10 +322,6 @@ class Fields(StrEnum):
     time_program = 'time_program'
     missing_in_src = 'missing_in_src'
     missing_in_dst = 'missing_in_dst'
-    # keys_in_missing_container = 'keys_in_missing_container'
-    # values_in_missing_container = 'values_in_missing_container'
-    # src_meta = 'src_meta'
-    # dst_meta = 'dst_meta'
     max_stage = 'max_stage'
     max_direction = 'max_direction'
     directions_by_type = 'directions_by_type'
@@ -431,50 +397,6 @@ min0_max0_default0  = AllowedValues(0, 0, 0)
 min3_max10_default3  = AllowedValues(3, 10, 3)
 
 
-timing_matches = {
-    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_green_ext): min0_max10_default0,
-    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_flashing_green): min3_max3_default3,
-    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_yellow): min3_max3_default3,
-    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_red): min0_max10_default0,
-    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_red_yellow): min1_max3_default1,
-    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_z): min0_max10_default0,
-    (DirectionEntities.vehicle, ColNamesDirectionsTable.t_zz): min0_max10_default0,
-
-    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_green_ext): min0_max10_default0,
-    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_flashing_green): min3_max3_default3,
-    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_yellow): min0_max0_default0,
-    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_red): min3_max10_default3,
-    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_red_yellow): min0_max0_default0,
-    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_z): min0_max10_default0,
-    (DirectionEntities.pedestrian, ColNamesDirectionsTable.t_zz): min0_max10_default0,
-
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_green_ext): min0_max10_default0,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_flashing_green): min3_max3_default3,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_yellow): min0_max0_default0,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_red): min3_max10_default3,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_red_yellow): min0_max0_default0,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_z): min0_max10_default0,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_zz): min0_max10_default0,
-
-    (DirectionEntities.public, ColNamesDirectionsTable.t_green_ext): min0_max10_default0,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_flashing_green): min3_max3_default3,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_yellow): min0_max0_default0,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_red): min3_max10_default3,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_red_yellow): min0_max0_default0,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_z): min0_max10_default0,
-    (DirectionEntities.arrow, ColNamesDirectionsTable.t_zz): min0_max10_default0,
-}
-
-
-# toov_matches = {
-#     DirectionEntities.vehicle: (Patterns.on_off.value, ),
-#     DirectionEntities.always_red: (Patterns.on_off.value, ),
-#     DirectionEntities.pedestrian: (Patterns.on_off.value, ),
-#     DirectionEntities.arrow: (Patterns.dash.value, ),
-#     DirectionEntities.public: (Patterns.dash.value, ),
-# }
-
-
 class DirectionDataContainer(NamedTuple):
     entity: DirectionEntities
     tl_patterns: Sequence[str | re.Pattern]
@@ -490,15 +412,6 @@ class DirectionDataContainer(NamedTuple):
 
     def get_timings(self):
         return (self[i] for i in range(2, 9))
-        # return (
-        #     self.t_green_extension,
-        #     self.t_green_flashing,
-        #     self.t_yellow,
-        #     self.t_red,
-        #     self.t_red_yellow,
-        #     self.t_z,
-        #     self.t_zz,
-        # )
 
 
 vehicle_data = DirectionDataContainer(
