@@ -17,5 +17,6 @@ def create_passport(docx: Document) -> Passport:
 if __name__ == '__main__':
     path5 = '/home/auser/py.projects/sdp_lib/sdp_lib/passport/СО_2094_ул_Островитянова_ул_Ак_Волгина_2.docx'
     path6 = '/home/auser/py.projects/sdp_lib/sdp_lib/passport/passport2/validation/ПД Паспорт шаблон 2025.docx'
-    the_passport = create_passport(Document(path5))
+    path7 = '/home/auser/py.projects/sdp_lib/sdp_lib/passport/СО_72_Тургеневская_пл_Мясницкая_ул_Сретенский_б_р_Чистопрудный_б.docx'
+    the_passport = create_passport(Document(path7))
     print(f'the_passport: {the_passport}')

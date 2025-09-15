@@ -71,10 +71,7 @@ if __name__ == '__main__':
     pattern = '/home/auser/Downloads/ПД Паспорт шаблон 2025'
     path_sdp = "C:\Programms\py.projects\sdp_lib\sdp_lib\passport\СО_2094_ул_Островитянова_ул_Ак_Волгина (2)"
     path5 = '/home/auser/py.projects/sdp_lib/sdp_lib/passport/СО_2094_ул_Островитянова_ул_Ак_Волгина_2.docx'
-    doc = Document(path5)
+    path7 = '/home/auser/py.projects/sdp_lib/sdp_lib/passport/СО_72_Тургеневская_пл_Мясницкая_ул_Сретенский_б_р_Чистопрудный_б.docx'
+
+    doc = Document(path7)
     _display_all_tables(doc)
-
-    print(repair_string_if_sep_in_illegal_pos(',,,,,,,,,, 1,2,,,,3,4 ,5, 6,,'))
-
-
-    print(re.search('д/с', 'adsaД/сdasd', re.IGNORECASE))

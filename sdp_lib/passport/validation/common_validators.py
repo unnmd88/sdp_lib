@@ -46,6 +46,8 @@ from sdp_lib.utils_common.utils_common import get_stage_or_direction_number_or_n
 
 
 def check_is_directions_table(rows: _Rows) -> bool:
+    if len(rows) < 3:
+        return False
     first_and_second_rows_is_head = all(
         re.match(p, s) is not None for p, s in zip(
             (PatternsDirectionTable.num_direction.value, PatternsDirectionTable.entity_direction.value),
