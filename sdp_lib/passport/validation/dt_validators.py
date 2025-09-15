@@ -46,12 +46,13 @@ from sdp_lib.utils_common.utils_common import timed
 
 
 entity_patterns_and_aliases = (
-    (PatternsDirectionTable.vehicle.value, DirectionEntities.vehicle,),
-    (PatternsDirectionTable.arrow.value, DirectionEntities.arrow,),
-    (PatternsDirectionTable.pedestrian.value, DirectionEntities.pedestrian,),
-    (PatternsDirectionTable.always_red.value, DirectionEntities.always_red,),
+    (PatternsDirectionTable.vehicle.value, DirectionEntities.vehicle, ),
+    (PatternsDirectionTable.arrow.value, DirectionEntities.arrow, ),
+    (PatternsDirectionTable.pedestrian.value, DirectionEntities.pedestrian, ),
+    (PatternsDirectionTable.always_red.value, DirectionEntities.always_red, ),
     (PatternsDirectionTable.public.value, DirectionEntities.public,),
-    (PatternsDirectionTable.tram.value, DirectionEntities.tram,),
+    (PatternsDirectionTable.tram.value, DirectionEntities.tram, ),
+    (PatternsDirectionTable.velo.value, DirectionEntities.velo, ),
 )
 
 

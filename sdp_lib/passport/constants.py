@@ -29,6 +29,7 @@ class PatternsDirectionTable(Enum):
     pedestrian = re.compile('^Пешеходное', re.IGNORECASE)
     public = re.compile('^общ.*тр', re.IGNORECASE)
     tram = re.compile('^трамвайное', re.IGNORECASE)
+    velo = re.compile('^вело', re.IGNORECASE)
     always_red = re.compile('^пост.+крас', re.IGNORECASE)
     always_red_text_yes = re.compile('^да', re.IGNORECASE)
     num_direction  = re.compile('^№\s*нап', re.IGNORECASE)
@@ -222,6 +223,7 @@ class DirectionEntities(StrEnum):
     always_red = 'Пост. красн'
     public = 'Общ. транспорт'
     tram = 'Трамвайное'
+    velo = 'Велосипедное'
 
     @classmethod
     def get_standard_types(cls):
@@ -440,7 +442,7 @@ pedestrian_data = DirectionDataContainer(
     t_red_yellow=min0_max0_default0,
     t_z=min0_max10_default0,
     t_zz=min0_max10_default0,
-    can_be_always_red=True,
+    can_be_always_red=False,
     toov_patterns=(Patterns.on_off.value, ),
 )
 
@@ -455,17 +457,30 @@ arrow_data = DirectionDataContainer(
     t_red_yellow=min0_max0_default0,
     t_z=min0_max10_default0,
     t_zz=min0_max10_default0,
-    can_be_always_red=True,
+    can_be_always_red=False,
     toov_patterns=(Patterns.dash.value, ),
+)
+
+velo_data = DirectionDataContainer(
+    entity=DirectionEntities.velo,
+    tl_patterns=(re.compile('^Вел[.\s]', re.IGNORECASE), ),
+    t_green_extension=min0_max10_default0,
+    t_green_flashing=min3_max3_default3,
+    t_yellow=min3_max3_default3,
+    t_red=min0_max10_default0,
+    t_red_yellow=min1_max3_default1,
+    t_z=min0_max10_default0,
+    t_zz=min0_max10_default0,
+    can_be_always_red=False,
+    toov_patterns=(Patterns.on_off.value, ),
 )
 
 mapping_direction_data = {
     DirectionEntities.vehicle: vehicle_data,
     DirectionEntities.pedestrian: pedestrian_data,
     DirectionEntities.arrow: arrow_data,
+    DirectionEntities.velo: velo_data,
 }
-
-
 
 
 if __name__ == '__main__':
