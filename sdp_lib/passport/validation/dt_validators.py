@@ -2,10 +2,10 @@ import itertools
 import re
 from collections.abc import Generator, Sequence, Iterable
 from enum import IntEnum
-from typing import Any, NamedTuple
+from typing import Any
 
 from docx import Document
-from docx.shared import Length, Inches, RGBColor
+from docx.shared import  RGBColor
 from docx.table import (
     _Rows,
     Table
@@ -17,24 +17,29 @@ from sdp_lib.passport.constants import (
     DirectionEntities,
     PatternsDirectionTable,
     AllowedValues,
-    mapping_direction_data, DirectionDataContainer, head_rows_data_dt, timing_matches
+    mapping_direction_data,
+    DirectionDataContainer,
+    head_rows_data_dt
 )
-from sdp_lib.passport.passport2.base import (
+from sdp_lib.passport.base import (
     DirectionDataRow,
     CellData,
     CellMapping,
     MessageStorage, TheTable
 )
-from sdp_lib.passport.passport2.utils import (
+from sdp_lib.passport.utils import (
     found_pos_start_num,
     repair_string_if_sep_in_illegal_pos
 )
-from sdp_lib.passport.passport2.validation.common_validators import (
+from sdp_lib.passport.validation.common_validators import (
     validate_geometry,
     validate_sequence_directions_or_stages_nums_and_create_cell,
     match_one_string_to_many_patterns_and_get_alias_and_create_cell,
     create_cells_for_head_row,
-    num_validate_and_create_cell, lrstrip_in_cell_and_create_cell_mappings, gen_default_cells, create_default_cell
+    num_validate_and_create_cell,
+    lrstrip_in_cell_and_create_cell_mappings,
+    gen_default_cells,
+    create_default_cell
 )
 from sdp_lib.passport.text_messages import Text
 from sdp_lib.utils_common.utils_common import timed
@@ -261,7 +266,7 @@ def validate_and_create_directions_table(i_table: int, table: Table, ) -> TheTab
             rows.append(DirectionDataRow(tuple(c for c in chain)))
     the_table.load_data_rows(rows)
     the_table.load_empty_rows(empty_rows)
-    return table
+    return the_table
 
 if __name__ == '__main__':
     # strings = ('1,2,2,4', '1.1,1.4,5,7,10', '', '     ', '1e,2dqd')

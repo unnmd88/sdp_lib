@@ -7,7 +7,7 @@ from docx.shared import RGBColor
 from docx.table import _Cell
 
 from sdp_lib.passport.constants import Patterns
-from sdp_lib.passport.passport2.base import CellData
+from sdp_lib.passport.base import CellData
 
 
 RGB_RED = RGBColor(255, 0, 0)

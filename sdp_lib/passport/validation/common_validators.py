@@ -13,23 +13,19 @@ from docx.table import (
 )
 
 from sdp_lib.passport.constants import (
-    row0_dt_names,
     Patterns,
-    AllowedValues,
-    timing_matches,
     PatternsDirectionTable
 )
-from sdp_lib.passport.passport2.base import (
+from sdp_lib.passport.base import (
     MessageStorage,
     ValidationData,
     CellData,
     DirectionsOrStagesSequenceValidation,
     Comparison,
-    NumberValidation,
     CellMapping, TableGeometry
 )
 
-from sdp_lib.passport.passport2.utils import (
+from sdp_lib.passport.utils import (
     repair_string_if_sep_in_illegal_pos,
     remove_left_light_spaces_from_cell_text
 )
