@@ -19,7 +19,7 @@ from sdp_lib.passport.constants import (
     timing_matches,
     PatternsDirectionTable
 )
-from sdp_lib.passport.passport2.base2 import (
+from sdp_lib.passport.passport2.base import (
     MessageStorage,
     ValidationData,
     CellData,

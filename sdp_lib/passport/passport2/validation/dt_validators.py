@@ -19,7 +19,7 @@ from sdp_lib.passport.constants import (
     AllowedValues,
     mapping_direction_data, DirectionDataContainer, head_rows_data_dt, timing_matches
 )
-from sdp_lib.passport.passport2.base2 import (
+from sdp_lib.passport.passport2.base import (
     DirectionDataRow,
     CellData,
     CellMapping,
