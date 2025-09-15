@@ -2,7 +2,8 @@ import re
 from collections.abc import Sequence
 from enum import (
     StrEnum,
-    IntEnum, Enum,
+    IntEnum,
+    Enum,
 )
 from typing import NamedTuple
 
