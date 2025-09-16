@@ -546,7 +546,7 @@ async def main():
     # res = await obj.set_stage(2)
 
     while True:
-        obj = PotokP(ipv4='178.178.218.105', host_id='54', engine=snmp_engine)
+        obj = PotokP(ipv4='10.179.32.25', host_id='262', engine=snmp_engine)
         start_time = time.time()
         res = await obj.get_states()
         # res = await obj.get_current_stage()

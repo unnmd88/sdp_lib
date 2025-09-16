@@ -1,205 +1,319 @@
-import re
-from dataclasses import dataclass, field
-from typing import NamedTuple
-from abc import abstractmethod
+import itertools
 from collections.abc import (
     MutableSequence,
-    MutableMapping,
-    Iterable
+    Sequence,
+    MutableMapping,  Container
 )
-from typing import Any, TypeVar, TypeAlias
-
-from sdp_lib.passport.constants import (
-    ColNamesDirectionsTable,
-    StorageNames, ColNamesTimeProgramsTable, StagesMapping
+from typing import (
+    NamedTuple,
+    Any, TypeVar, Self
 )
-from sdp_lib.passport.storages import (
-    MessageStorage,
-    add_record,
-    Message
+
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.shared import RGBColor
+from docx.table import _Cell, Table
+
+from sdp_lib.passport.constants import MessageCategories, Fields
+from sdp_lib.passport.text_messages import Text
+from sdp_lib.utils_common.utils_common import (
+    create_repr_from_dict_xor_slots,
+    add_record
 )
-from sdp_lib.passport.utils import make_int_or_float_collection, get_int_or_float
-from sdp_lib.utils_common.utils_common import remove_chars
 
 
-# class ColumnValues:
-#     __slots__ = ('_col_name', '_init_val', '_default_val', '_value')
-#
-#     def __init__(
-#             self,
-#             col_name: ColNamesDirectionsTable | ColNamesTimeProgramsTable,
-#             init_val: Any,
-#             default_val: Any,
-#             value: Any
-#     ):
-#         self._col_name = col_name
-#         self._init_val = init_val
-#         self._default_val = default_val
-#         self._value = value
-#
-#     def __repr__(self):
-#         attrs = ' '.join(f'{attr}={getattr(self, attr)!r}' for attr in self.__slots__)
-#         return f'{self.__class__.__name__}({attrs})'
-#
-#     @property
-#     def col_name(self):
-#         return self._col_name
-#
-#     @property
-#     def init_val(self):
-#         return self._init_val
-#
-#     @property
-#     def default_val(self):
-#         return self._default_val
-#
-#     @property
-#     def value(self):
-#         return self._value
-#
-#     def set_value(self, value):
-#         self._value = value
+class Message(NamedTuple):
+    text: str
+    category: MessageCategories | int
 
 
-class ColumnData(NamedTuple):
-    col_name: ColNamesDirectionsTable | ColNamesTimeProgramsTable
-    init_val: Any
-    default_val: Any
+class MessageStorage(NamedTuple):
+
+    errors: MutableSequence[str]
+    warnings: MutableSequence[str]
+
+    def add_errors(self, *errors: str):
+        return add_record(self.errors, errors)
+
+    def add_warnings(self, *warnings: str):
+        return add_record(self.warnings, warnings)
+
+    def chain(self) -> itertools.chain:
+        return itertools.chain(self.errors, self.warnings)
+
+    def clear(self):
+
+        self.errors.clear()
+        self.warnings.clear()
+
+    # def get_errors_by_categories(self, message_as_text=True):
+    #     res = {}
+    #     for msg in self.errors:
+    #         m = msg.text if message_as_text else msg
+    #         try:
+    #             res[int(msg.category)][Fields.messages].append(m)
+    #         except KeyError:
+    #             cat, description = categories_descriptions.get(int(msg.category), (None, None))
+    #             res[cat] = {
+    #                 str(Fields.category_description): description,
+    #                 str(Fields.messages): [m]
+    #             }
+    #     return res
+
+
+
+
+
+class ValidationData(NamedTuple):
     value: Any
-    is_valid: bool = True
+    is_valid: bool
 
 
-class AbstractEntity:
-    """ Абстрактный базовый класс элемента паспорта(строка, таблица и т.д.) """
-
-    def __init__(self):
-        self._err_and_warn = MessageStorage()
-
-    def get_message_storage(self):
-        return self._err_and_warn
-
-    def _get_common_val(self, init_val, default_val=None) -> ColumnData:
-        return ColumnData(ColNamesDirectionsTable.stages, init_val, default_val, init_val or default_val)
+class CellMapping(NamedTuple):
+    i_table: int
+    i_col: int
+    i_row: int
+    cell: _Cell
 
 
-T_Row = TypeVar('T_Row', bound=AbstractEntity)
+class CellData:
 
+    RGB_RED = RGBColor(255, 0, 0)
+    RGB_GREEN = RGBColor(0, 255, 0)
+    RGB_BLUE = RGBColor(0, 0, 255)
 
-class AbstractTable(AbstractEntity):
-    """ Абстрактный базовый класс таблицы паспорта. """
-
-    table_name: str = ''
-
-    def __init__(self, income_data: str):
-        super().__init__()
-        self._raw_data = income_data
-        self._income_data_errors = MessageStorage(StorageNames.income_data)
-        self._check_raw_data()
-        self._rows: MutableMapping[float, T_Row] = {}
-        self._rows_with_errors: MutableMapping[float, T_Row] = {}
-
-    @abstractmethod
-    def _create_data_from_income_string(self):
-        """ Основной метод создания данных для таблицы. """
-        ...
-
-    def _check_raw_data(self) -> bool:
-        """
-        Проверяет валидность атрибута self._income_data
-        :return: True если входные данные валидны для обработки, иначе False.
-        """
-        if len(self._raw_data) < 4:
-            self._income_data_errors.add_errors(
-                Message(f'Некорректные данные для обработки и формирования таблицы {self.table_name}')
-            )
-        return self.income_data_is_valid
-
-    def _load_row(self, *args: tuple[float, T_Row]) -> int:
-        """
-         Добавляет пару ключ-значение в атрибут self._rows.
-        :param args: Каждый элемент args - кортеж из 2 элементов, у которого 0 элемент - ключ, а 1 - значение.
-        :return: Количество добавленных пар в self._rows
-        """
-        return add_record(self._rows, args)
-
-    def _load_row_with_err(self, *args: tuple[float, T_Row]):
-        """
-         Добавляет пару ключ-значение в атрибут self._rows_with_errors.
-        :param args: Каждый элемент args - кортеж из 2 элементов, у которого 0 элемент - ключ, а 1 - значение.
-        :return: Количество добавленных пар в self._rows_with_errors
-        """
-        return add_record(self._rows_with_errors, args)
-
-    def get_income_data(self):
-        """ Возвращает входные данные. """
-        return self._raw_data
-
-    @property
-    def income_data_is_valid(self) -> bool:
-        return not self._income_data_errors.errors
-
-    def get_rows_with_errors(self) -> MutableMapping[float, T_Row]:
-        return self._rows_with_errors
-
-    def get_all_rows(self) -> MutableMapping[float, T_Row]:
-        return self._rows
-
-
-stages_content_type: TypeAlias = MutableMapping[float, set[float]]
-
-
-@dataclass(slots=True, frozen=True)
-class StagesAndDirections:
-    column_data: ColumnData
-    is_red: bool
-    allow_to_compare: bool
-    container: frozenset[int | float]
-
-
-def get_number(
-    init_val: str | int | float,
-    name: ColNamesTimeProgramsTable | ColNamesDirectionsTable
-) -> ColumnData:
-    default_val, is_valid = None, True
-    try:
-        val = get_int_or_float(init_val)
-    except (ValueError, TypeError):
-        is_valid = False
-        val = init_val
-    return ColumnData(name, init_val, default_val, val, is_valid)
-
-
-def get_stage_or_direction_data(
-        string_data: Any,
-        red_pattern: re.Pattern,
-        name: ColNamesTimeProgramsTable | ColNamesDirectionsTable
-) -> StagesAndDirections:
-    default_val, is_valid, is_red, allow_to_compare = '', True, False, True
-    try:
-        processed_string_data = remove_chars(string_data, ' ')
-        collection_as_int_or_float: frozenset[float | int] = make_int_or_float_collection(
-            processed_string_data.split(','), frozenset
-        )
-        if not collection_as_int_or_float:
-            if re.findall(red_pattern, processed_string_data): # Если тип фазы "Фаза покоя"/"Пост. красн"
-                is_red = True
-            else:
-                raise ValueError
-    except (TypeError, ValueError):
-        allow_to_compare = False
-        is_valid = False
-        collection_as_int_or_float = frozenset()
-    return StagesAndDirections(
-        ColumnData(name, string_data, default_val, string_data, is_valid),
-        is_red,
-        allow_to_compare,
-        collection_as_int_or_float
+    __slots__ = (
+        'value',
+        'text_is_valid',
+        'context_is_valid',
+        'recovered_val',
+        'converted_val',
+        'extra',
+        'cell_mapping',
+        'messages'
     )
 
 
+    def __init__(
+            self,
+            value: str = None,
+            text_is_valid: bool = None,
+            context_is_valid: bool = None,
+            converted_val=None,
+            recovered_val=None,
+            extra=None,
+            cell_mapping: CellMapping = None,
+            messages: MessageStorage = None,
+    ):
+        self.value = value
+        self.text_is_valid = text_is_valid
+        self.context_is_valid = context_is_valid
+        self.recovered_val = recovered_val
+        self.converted_val = converted_val
+        self.extra = extra
+        self.cell_mapping = cell_mapping
+        self.messages = messages or MessageStorage([], [])
+
+    def __repr__(self):
+        return create_repr_from_dict_xor_slots(self)
+
+    def write_messages_to_table_cell(
+            self,
+            sep='\n',
+            color: RGBColor = None,
+    ):
+        new_txt = sep.join(f'*{m}' for m in self.messages.chain())
+        if new_txt:
+            _cell = self.cell_mapping.cell
+            _cell.text = f'{_cell.text}{sep}{new_txt}'
+            para = _cell.paragraphs[0]
+            para.runs[0].font.color.rgb = color or self.RGB_RED
+            para.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        return self
+
+
+
+class AbstractDataRow:
+
+    def __init__(self, row: Sequence[CellData] | MutableSequence[CellData]):
+        self._row = row
+
+    def get_row(self)-> Sequence[CellData] | MutableSequence[CellData]:
+        return self._row
+
+    def represent(
+            self,
+            include_properties=True,
+            exclude_startswith='__',
+            attr_splitter=' ',
+    ):
+        return create_repr_from_dict_xor_slots(self, include_properties, exclude_startswith, attr_splitter)
+
+    @property
+    def is_valid(self):
+        return all(el.context_is_valid for el in self._row)
+
+    @property
+    def is_empty(self):
+        return all(not el.text_is_valid for el in self._row)
+
+    def dump(self):
+        return [
+            {
+                'value': r.value,
+                'text_is_valid': r.text_is_valid,
+                'ctx_is_valid': r.context_is_valid,
+                'errors': r.messages.errors,
+                'warnings': r.messages.warnings,
+            }
+            for r in self._row
+        ]
+
+
+T_Row = TypeVar('T_Row', bound=AbstractDataRow)
+
+
+class DirectionDataRow(AbstractDataRow):
+
+    @property
+    def num_direction(self) -> CellData:
+        return self._row[0]
+
+    @property
+    def entity(self) -> CellData:
+        return self._row[1]
+
+    @property
+    def stages(self) -> CellData:
+        return self._row[2]
+
+    @property
+    def traffic_lights(self) -> CellData:
+        return self._row[3]
+
+    @property
+    def t_green_ext(self) -> CellData:
+        return self._row[4]
+
+    @property
+    def t_green_flashing(self) -> CellData:
+        return self._row[5]
+
+    @property
+    def t_yellow(self) -> CellData:
+        return self._row[6]
+
+    @property
+    def t_red(self) -> CellData:
+        return self._row[7]
+
+    @property
+    def t_red_yellow(self) -> CellData:
+        return self._row[8]
+
+    @property
+    def t_z(self) -> CellData:
+        return self._row[9]
+
+    @property
+    def t_zz(self) -> CellData:
+        return self._row[10] if len(self._row) == 15 else None
+
+    @property
+    def always_red(self) -> CellData:
+        return self._row[11 if len(self._row) == 15 else 10]
+
+    @property
+    def toov_red(self) -> CellData:
+        return self._row[12 if len(self._row) == 15 else 11]
+
+    @property
+    def toov_green(self) -> CellData:
+        return self._row[13 if len(self._row) == 15 else 12]
+
+    @property
+    def description(self) -> CellData:
+        return self._row[14 if len(self._row) == 15 else 13]
+
+
+class TableGeometry(NamedTuple):
+    allowed_col_lengths: Container
+    allowed_min_num_rows: int
+    num_columns: ValidationData
+    num_rows: ValidationData
+    # messages: MessageStorage
+
+    def get_errors(self):
+        if not self.num_columns.is_valid:
+            yield Text.bad_cols_num(self.num_columns.value, self.allowed_col_lengths)
+        if not self.num_rows.is_valid:
+            yield Text.bad_cols_num(self.num_columns.value, self.allowed_min_num_rows)
+
+    @property
+    def is_valid(self) -> bool:
+        return bool(self.num_columns.is_valid and self.num_rows.is_valid)
+
+
+class TheTable:
+    def __init__(
+            self,
+            i_table: int,
+            table: Table,
+            geometry_check_list: TableGeometry,
+            head_rows: Sequence[T_Row] = None,
+            data_rows: Sequence[T_Row] = None,
+            empty_rows: Sequence[T_Row] = None,
+            messages: MessageStorage = MessageStorage([], []),
+    ):
+        self.i_table = i_table
+        self.table = table
+        self.geometry_check_list = geometry_check_list
+        self.head_rows = head_rows
+        self.data_rows = data_rows
+        self.empty_rows = empty_rows
+        self.messages = messages
+
+    def load_head_rows(self, head_rows: Sequence[T_Row] ):
+        self.head_rows = head_rows
+
+    def load_data_rows(self, data_rows: Sequence[T_Row]):
+        self.data_rows = data_rows
+
+    def load_empty_rows(self, empty_rows: Sequence[T_Row] ):
+        self.empty_rows = empty_rows
+
+    def dump(self):
+        return {
+            Fields.geometry: {
+                Fields.col_length: self.geometry_check_list.num_columns.value,
+                Fields.num_rows: self.geometry_check_list.num_rows.value,
+                Fields.ok: self.geometry_check_list.is_valid,
+            },
+            Fields.head_rows: [[name.value for name in row_instance.get_row()] for row_instance in self.head_rows],
+            Fields.data_rows: [r.dump() for r in self.data_rows]
+        }
+
+
+class Comparison:
+    def __init__(self):
+        self._va = []
+        self._ft = []
+
+
+class DirectionsOrStagesSequenceValidation(NamedTuple):
+    is_always_red: bool
+    is_empty: bool
+    nums: MutableMapping
+    bad_nums: MutableSequence
+    compare: Comparison
+
+    def gen_doubles(self):
+        return ((n, cnt - 1) for n, cnt in self.nums.items() if cnt > 1)
+
+
+class NumberValidation(NamedTuple):
+    errors: MutableSequence
+
+
 if __name__ == '__main__':
-
-    o = get_number(0, ColNamesTimeProgramsTable.directions)
-    print(o)
-
-
+    inst = CellData()
+    print(inst)
