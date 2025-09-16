@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from enum import (
     StrEnum,
     IntEnum,
-    Enum,
+    Enum, unique,
 )
 from typing import NamedTuple
 
@@ -297,7 +297,16 @@ class ComparisonDescriptions(StrEnum):
     two_time_program_tables = 'Сравнение двух временных программ'
 
 
+@unique
 class Fields(StrEnum):
+    geometry = 'geometry'
+    col_length = 'col_length'
+    num_rows = 'num_rows'
+    head_rows = 'head_rows'
+    data_rows = 'data_rows'
+    empty_rows = 'empty_rows'
+    ok = 'ok'
+
     income_data = 'income_data'
     number = 'number'
     numCO = 'numCO'

@@ -13,7 +13,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import RGBColor
 from docx.table import _Cell, Table
 
-from sdp_lib.passport.constants import MessageCategories
+from sdp_lib.passport.constants import MessageCategories, Fields
 from sdp_lib.passport.text_messages import Text
 from sdp_lib.utils_common.utils_common import (
     create_repr_from_dict_xor_slots,
@@ -137,6 +137,9 @@ class AbstractDataRow:
     def __init__(self, row: Sequence[CellData] | MutableSequence[CellData]):
         self._row = row
 
+    def get_row(self)-> Sequence[CellData] | MutableSequence[CellData]:
+        return self._row
+
     def represent(
             self,
             include_properties=True,
@@ -152,6 +155,18 @@ class AbstractDataRow:
     @property
     def is_empty(self):
         return all(not el.text_is_valid for el in self._row)
+
+    def dump(self):
+        return [
+            {
+                'value': r.value,
+                'text_is_valid': r.text_is_valid,
+                'ctx_is_valid': r.context_is_valid,
+                'errors': r.messages.errors,
+                'warnings': r.messages.warnings,
+            }
+            for r in self._row
+        ]
 
 
 T_Row = TypeVar('T_Row', bound=AbstractDataRow)
@@ -266,6 +281,16 @@ class TheTable:
     def load_empty_rows(self, empty_rows: Sequence[T_Row] ):
         self.empty_rows = empty_rows
 
+    def dump(self):
+        return {
+            Fields.geometry: {
+                Fields.col_length: self.geometry_check_list.num_columns.value,
+                Fields.num_rows: self.geometry_check_list.num_rows.value,
+                Fields.ok: self.geometry_check_list.is_valid,
+            },
+            Fields.head_rows: [[name.value for name in row_instance.get_row()] for row_instance in self.head_rows],
+            Fields.data_rows: [r.dump() for r in self.data_rows]
+        }
 
 
 class Comparison:

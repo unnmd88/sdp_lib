@@ -3,6 +3,7 @@ from docx import Document
 from sdp_lib.passport.passport import Passport
 from sdp_lib.passport.validation.common_validators import check_is_directions_table
 from sdp_lib.passport.validation.dt_validators import validate_and_create_directions_table
+from sdp_lib.utils_common.utils_common import to_json
 
 
 def create_passport(docx: Document) -> Passport:
@@ -15,7 +16,9 @@ def create_passport(docx: Document) -> Passport:
     for i, table in enumerate(docx.tables):
         if check_is_directions_table(table.rows):
             passport.load_direction_table(validate_and_create_directions_table(i, table))
-    passport.get_docx().save('cadabrra.docx')
+    # passport.get_docx().save('cadabrra.docx')
+    print(passport.dump())
+    print(to_json(passport.dump()))
     return passport
 
 
