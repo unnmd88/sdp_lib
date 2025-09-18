@@ -211,7 +211,7 @@ def validate_and_create_directions_table(i_table: int, table: Table, ) -> TheTab
         target = table.add_row()
         target.cells[0].text = '\n'.join(f"*{e}" for e in the_table.messages.chain())
         target.cells[0].paragraphs[0].runs[0].font.color.rgb = RGBColor(255, 0, 0)
-        return table
+        return the_table
     first_row = lrstrip_in_cell_and_create_cell_mappings(i_table, 0, table_rows[0].cells)
     first_row = tuple(gen_default_cells(first_row[0]))
     second_row = tuple(create_cells_for_head_row(
@@ -220,7 +220,7 @@ def validate_and_create_directions_table(i_table: int, table: Table, ) -> TheTab
     the_table.load_head_rows((DirectionDataRow(first_row), DirectionDataRow(second_row)))
     # Второй этап валидации - проверка корректности названий колонок:
     if not the_table.head_rows[1].is_valid:
-        return table
+        return the_table
     rows, empty_rows = [], []
     for i in range(2, len(table_rows)):
         cell_mappings, empty_cells = lrstrip_in_cell_and_create_cell_mappings(i_table, i, table_rows[i].cells)
@@ -275,8 +275,9 @@ if __name__ == '__main__':
     path4 = "C:\Programms\py.projects\sdp_lib\sdp_lib\passport\СО_2094_ул_Островитянова_ул_Ак_Волгина (2).docx"
     path5 = '/home/auser/py.projects/sdp_lib/sdp_lib/passport/СО_2094_ул_Островитянова_ул_Ак_Волгина_2.docx'
     path6 = '/home/auser/py.projects/sdp_lib/sdp_lib/passport/passport2/validation/ПД Паспорт шаблон 2025.docx'
+    path7 = "C:\Programms\py.projects\sdp_lib\sdp_lib\passport\СО_4427_Зеленоград_Филаретовская_улица,_улица_Болдов_Ручей_21_11 (3).docx"
 
-    doc = Document(path5)
+    doc = Document(path7)
     # c = CheckListTable()
-    validate_and_create_directions_table(0, doc.tables[0])
-
+    print(validate_and_create_directions_table(0, doc.tables[0]))
+    doc.save('cada.docx')

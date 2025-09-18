@@ -48,23 +48,23 @@ from sdp_lib.utils_common.utils_common import get_stage_or_direction_number_or_n
 def check_is_directions_table(rows: _Rows) -> bool:
     if len(rows) < 3:
         return False
-    first_and_second_rows_is_head = all(
+    return all(
         re.match(p, s) is not None for p, s in zip(
             (PatternsDirectionTable.num_direction.value, PatternsDirectionTable.entity_direction.value),
             (rows[1].cells[0].text, rows[1].cells[1].text),
             strict=True
         )
     )
-    try:
-        assert first_and_second_rows_is_head
-        # Проверка, что третья строка(индекс=2) это строка с первой группой
-        cell_num_group = int(rows[2].cells[0].text)
-        cell_t_green_ext = (int(rows[2].cells[5].text) - 3)
-        assert cell_num_group - 1  >= 0
-        assert cell_t_green_ext >= 0
-    except (AssertionError, ValueError):
-        return False
-    return True
+    # try:
+    #     assert first_and_second_rows_is_head
+    #     # Проверка, что третья строка(индекс=2) это строка с первой группой
+    #     cell_num_group = int(rows[2].cells[0].text)
+    #     cell_t_green_ext = (int(rows[2].cells[5].text) - 3)
+    #     assert cell_num_group - 1  >= 0
+    #     assert cell_t_green_ext >= 0
+    # except (AssertionError, ValueError):
+    #     return False
+    # return True
 
 
 def validate_geometry(

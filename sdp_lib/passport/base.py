@@ -272,6 +272,16 @@ class TheTable:
         self.empty_rows = empty_rows
         self.messages = messages
 
+    def __str__(self):
+        return (
+            f'i_table: {self.i_table}\n'
+            f'geometry_check_list: {self.geometry_check_list}\n'
+            f'head_rows: {self.head_rows}\n'
+            f'data_rows: {self.data_rows}\n'
+            f'empty_rows: {self.empty_rows}\n'
+            f'messages: {self.messages}\n'
+        )
+
     def load_head_rows(self, head_rows: Sequence[T_Row] ):
         self.head_rows = head_rows
 
