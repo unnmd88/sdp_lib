@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from docx.document import Document
 
 from sdp_lib.passport.base import TheTable
@@ -6,9 +8,11 @@ from sdp_lib.passport.base import TheTable
 class Passport:
     def __init__(
             self,
+            filename: str | Path,
             docx: Document,
             direction_table: TheTable = None,
     ):
+        self.filename = Path(filename)
         self._docx = docx
         self._direction_table = direction_table
 
