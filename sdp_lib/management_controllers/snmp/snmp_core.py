@@ -404,6 +404,10 @@ class Ug405Hosts(SnmpHost):
         self._request_response_data_default.parser_obj.load_config_parser(default_processing_ug405_parser_config)
         return await self._make_request(self._request_response_data_default)
 
+    @property
+    def scn(self) -> ScnUg405:
+        return self._scn
+
 
 class StcipHosts(SnmpHost):
 
