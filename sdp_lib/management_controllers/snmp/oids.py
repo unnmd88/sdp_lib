@@ -64,6 +64,7 @@ class Oids(StrEnum):
     potokP_utcControRestartProgramm = os.getenv('potokP_utcControRestartProgramm')
     # -- Reply Bits --#(Spec PotokP)
     potokP_utcReplyPlanStatus = os.getenv('potokP_utcReplyPlanStatus')
+    potokP_utcReplyPromTact = os.getenv('potokP_utcReplyPromTact')
     potokP_utcReplyPlanSource = os.getenv('potokP_utcReplyPlanSource')
     potokP_utcReplyDarkStatus = os.getenv('potokP_utcReplyDarkStatus')
     potokP_utcReplyLocalAdaptiv = os.getenv('potokP_utcReplyLocalAdaptiv')
@@ -112,5 +113,6 @@ oids_scn_required = {
         Oids.potokP_utcReplyPlanSource, Oids.potokP_utcReplyDarkStatus,
         Oids.potokP_utcReplyLocalAdaptiv, Oids.potokP_utcReplyHardwareErr,
         Oids.potokP_utcReplySoftwareErr, Oids.potokP_utcReplyElectricalCircuitErr,
-        Oids.utcReplyMC, Oids.utcReplyCF, Oids.utcReplyVSn, Oids.utcType2ScootDetectorCount
+        Oids.utcReplyMC, Oids.utcReplyCF, Oids.utcReplyVSn, Oids.utcType2ScootDetectorCount,
+        Oids.potokP_utcReplyPromTact,
     }
