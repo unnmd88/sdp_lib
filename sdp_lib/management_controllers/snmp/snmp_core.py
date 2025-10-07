@@ -550,14 +550,14 @@ async def main():
     # res = await obj.set_stage(2)
 
     while True:
-        obj = PotokP(ipv4='10.179.32.25', host_id='262', engine=snmp_engine)
+        obj = PotokS(ipv4='10.179.52.81', host_id='62', engine=snmp_engine)
         start_time = time.time()
-        res = await obj.get_states()
+        # res = await obj.get_states()
         # res = await obj.get_current_stage()
-        # res = await obj.set_stage(0)
+        res = await obj.set_stage(12)
         print(json.dumps(res.build_response_as_dict(), indent=4, ensure_ascii=False))
         print(f'время составло: {time.time() - start_time}')
-        await asyncio.sleep(2)
+        await asyncio.sleep(.5)
 
     # print(obj.response_as_dict)
     # print(json.dumps(obj.response_as_dict, indent=4))

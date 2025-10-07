@@ -381,12 +381,4 @@ def get_vector_from_enum(src: Enum, startswith: str, exclude_names: Container = 
 
 if __name__ == '__main__':
 
-
-    print(remove_chars('пн   ,  вт ,с  р ,ч т  ,   пт:', ':', ' '))
-    print(get_max_or_default_if_target_is_empty([]))
-    """
-    Программа 1 Тц = 353 с. пн,вт,ср,чт,пт: 
-
-07:00:00-09:00:00 
-17:00:00-19:00:00 
-    """
+    pass

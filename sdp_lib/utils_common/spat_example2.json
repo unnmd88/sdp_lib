@@ -1,0 +1,437 @@
+{
+    "Fluent": {
+        "ItsState": null,
+        "TrafficLight": {
+            "StationId": 0,
+            "HasStationId": false,
+            "EntityId": {
+                "Id": 3139,
+                "Regional": 77,
+                "HasRegional": true
+            },
+            "States": [
+                {
+                    "SignalGroupId": 1,
+                    "StateTimings": [
+                        {
+                            "PhaseTiming": {
+                                "Fixed": null,
+                                "Adaptive": {
+                                    "StartTime": {
+                                        "Seconds": 1728628793,
+                                        "Nanos": 123623800
+                                    },
+                                    "MinimalPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628897,
+                                            "Nanos": 811028200
+                                        },
+                                        "FormatCase": 2
+                                    },
+                                    "MaximumPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628970,
+                                            "Nanos": 811028200
+                                        },
+                                        "FormatCase": 2
+                                    },
+                                    "MostLikelyPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628934,
+                                            "Nanos": 311028200
+                                        },
+                                        "FormatCase": 2
+                                    }
+                                },
+                                "TimingCase": 2
+                            },
+                            "State": 3
+                        }
+                    ]
+                },
+                {
+                    "SignalGroupId": 2,
+                    "StateTimings": [
+                        {
+                            "PhaseTiming": {
+                                "Fixed": null,
+                                "Adaptive": {
+                                    "StartTime": {
+                                        "Seconds": 1728628872,
+                                        "Nanos": 179122800
+                                    },
+                                    "MinimalPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628902,
+                                            "Nanos": 860520900
+                                        },
+                                        "FormatCase": 2
+                                    },
+                                    "MaximumPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628911,
+                                            "Nanos": 860520900
+                                        },
+                                        "FormatCase": 2
+                                    },
+                                    "MostLikelyPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628907,
+                                            "Nanos": 360520900
+                                        },
+                                        "FormatCase": 2
+                                    }
+                                },
+                                "TimingCase": 2
+                            },
+                            "State": 3
+                        }
+                    ]
+                },
+                {
+                    "SignalGroupId": 3,
+                    "StateTimings": [
+                        {
+                            "PhaseTiming": {
+                                "Fixed": null,
+                                "Adaptive": {
+                                    "StartTime": {
+                                        "Seconds": 1728628872,
+                                        "Nanos": 179122800
+                                    },
+                                    "MinimalPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628902,
+                                            "Nanos": 860520900
+                                        },
+                                        "FormatCase": 2
+                                    },
+                                    "MaximumPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628911,
+                                            "Nanos": 860520900
+                                        },
+                                        "FormatCase": 2
+                                    },
+                                    "MostLikelyPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628907,
+                                            "Nanos": 360520900
+                                        },
+                                        "FormatCase": 2
+                                    }
+                                },
+                                "TimingCase": 2
+                            },
+                            "State": 3
+                        }
+                    ]
+                },
+                {
+                    "SignalGroupId": 4,
+                    "StateTimings": [
+                        {
+                            "PhaseTiming": {
+                                "Fixed": null,
+                                "Adaptive": {
+                                    "StartTime": {
+                                        "Seconds": 1728628872,
+                                        "Nanos": 179122800
+                                    },
+                                    "MinimalPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628902,
+                                            "Nanos": 860520900
+                                        },
+                                        "FormatCase": 2
+                                    },
+                                    "MaximumPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628911,
+                                            "Nanos": 860520900
+                                        },
+                                        "FormatCase": 2
+                                    },
+                                    "MostLikelyPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628907,
+                                            "Nanos": 360520900
+                                        },
+                                        "FormatCase": 2
+                                    }
+                                },
+                                "TimingCase": 2
+                            },
+                            "State": 3
+                        }
+                    ]
+                },
+                {
+                    "SignalGroupId": 5,
+                    "StateTimings": [
+                        {
+                            "PhaseTiming": null,
+                            "State": 3
+                        }
+                    ]
+                },
+                {
+                    "SignalGroupId": 7,
+                    "StateTimings": [
+                        {
+                            "PhaseTiming": {
+                                "Fixed": null,
+                                "Adaptive": {
+                                    "StartTime": {
+                                        "Seconds": 1728628867,
+                                        "Nanos": 94673900
+                                    },
+                                    "MinimalPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628991,
+                                            "Nanos": 860532900
+                                        },
+                                        "FormatCase": 2
+                                    },
+                                    "MaximumPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728629033,
+                                            "Nanos": 860532900
+                                        },
+                                        "FormatCase": 2
+                                    },
+                                    "MostLikelyPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728629012,
+                                            "Nanos": 860532900
+                                        },
+                                        "FormatCase": 2
+                                    }
+                                },
+                                "TimingCase": 2
+                            },
+                            "State": 2
+                        }
+                    ]
+                },
+                {
+                    "SignalGroupId": 9,
+                    "StateTimings": [
+                        {
+                            "PhaseTiming": {
+                                "Fixed": null,
+                                "Adaptive": {
+                                    "StartTime": {
+                                        "Seconds": 1728628867,
+                                        "Nanos": 94673900
+                                    },
+                                    "MinimalPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628896,
+                                            "Nanos": 860532900
+                                        },
+                                        "FormatCase": 2
+                                    },
+                                    "MaximumPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628896,
+                                            "Nanos": 860532900
+                                        },
+                                        "FormatCase": 2
+                                    },
+                                    "MostLikelyPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628896,
+                                            "Nanos": 860532900
+                                        },
+                                        "FormatCase": 2
+                                    }
+                                },
+                                "TimingCase": 2
+                            },
+                            "State": 2
+                        }
+                    ]
+                },
+                {
+                    "SignalGroupId": 10,
+                    "StateTimings": [
+                        {
+                            "PhaseTiming": {
+                                "Fixed": null,
+                                "Adaptive": {
+                                    "StartTime": {
+                                        "Seconds": 1728628870,
+                                        "Nanos": 152853100
+                                    },
+                                    "MinimalPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628908,
+                                            "Nanos": 860532900
+                                        },
+                                        "FormatCase": 2
+                                    },
+                                    "MaximumPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628917,
+                                            "Nanos": 860532900
+                                        },
+                                        "FormatCase": 2
+                                    },
+                                    "MostLikelyPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628913,
+                                            "Nanos": 360532900
+                                        },
+                                        "FormatCase": 2
+                                    }
+                                },
+                                "TimingCase": 2
+                            },
+                            "State": 2
+                        }
+                    ]
+                },
+                {
+                    "SignalGroupId": 11,
+                    "StateTimings": [
+                        {
+                            "PhaseTiming": {
+                                "Fixed": null,
+                                "Adaptive": {
+                                    "StartTime": {
+                                        "Seconds": 1728628788,
+                                        "Nanos": 41574500
+                                    },
+                                    "MinimalPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628903,
+                                            "Nanos": 811053500
+                                        },
+                                        "FormatCase": 2
+                                    },
+                                    "MaximumPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628976,
+                                            "Nanos": 811053500
+                                        },
+                                        "FormatCase": 2
+                                    },
+                                    "MostLikelyPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628940,
+                                            "Nanos": 311053500
+                                        },
+                                        "FormatCase": 2
+                                    }
+                                },
+                                "TimingCase": 2
+                            },
+                            "State": 2
+                        }
+                    ]
+                },
+                {
+                    "SignalGroupId": 12,
+                    "StateTimings": [
+                        {
+                            "PhaseTiming": {
+                                "Fixed": null,
+                                "Adaptive": {
+                                    "StartTime": {
+                                        "Seconds": 1728628788,
+                                        "Nanos": 41574500
+                                    },
+                                    "MinimalPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628903,
+                                            "Nanos": 811053500
+                                        },
+                                        "FormatCase": 2
+                                    },
+                                    "MaximumPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628976,
+                                            "Nanos": 811053500
+                                        },
+                                        "FormatCase": 2
+                                    },
+                                    "MostLikelyPhaseEnd": {
+                                        "Duration": 0,
+                                        "HasDuration": false,
+                                        "Date": {
+                                            "Seconds": 1728628940,
+                                            "Nanos": 311053500
+                                        },
+                                        "FormatCase": 2
+                                    }
+                                },
+                                "TimingCase": 2
+                            },
+                            "State": 2
+                        }
+                    ]
+                }
+            ],
+            "TcStatuses": [
+                32
+            ]
+        },
+        "PriorityPass": null,
+        "TramSwitchgear": null,
+        "FluentCase": 2
+    },
+    "V2XCase": 4
+}
