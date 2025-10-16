@@ -1,6 +1,7 @@
 import logging
 import math
 import os
+import textwrap
 from collections.abc import Iterable
 from enum import IntEnum
 from typing import Type, Any, NamedTuple, Sequence
@@ -208,6 +209,18 @@ _potok_stcip_set_stage_varbinds = create_stcip_set_stage_varbinds(potok.MAX_STAG
 
 def parse_varbinds_to_dict(varbinds) -> dict[str, Any]:
     return {str(k): v.prettyPrint() for k, v in varbinds}
+
+
+class PrettyVsnString:
+    def __init__(self, samples: int):
+        self._samples = samples
+
+    def get_pretty_string(self, raw_string: str, splitter: str = '-'):
+        try:
+            res_str = splitter.join(textwrap.wrap(raw_string[2:], self._samples))
+        except Exception:
+            res_str = ''
+        return res_str
 
 
 class HostSnmpConfig(NamedTuple):
