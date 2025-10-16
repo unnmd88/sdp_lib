@@ -26,6 +26,12 @@ LOGGING_CONFIG = {
             "filename": "logs/penetrate_stage.log",
             "formatter": "simple2",
         },
+        "file3": {
+            "level": "DEBUG",
+            "class": "logging.FileHandler",
+            "filename": "vsn.log",
+            "formatter": "verbose",
+        },
         "file_in_cwd": {
             "level": "WARNING",
             "class": "logging.FileHandler",
