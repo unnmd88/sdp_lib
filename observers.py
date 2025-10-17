@@ -117,7 +117,7 @@ class BaseSwitchStateObserver:
             self._state = States.UNDEFINED
         elif curr_val == '0' or curr_val.isdigit() and int(curr_val) == 0:
             self._current_state = States.OFF
-        elif curr_val and int(curr_val, 16) > 1:
+        elif curr_val and int(curr_val, 16) >= 1:
             self._current_state = States.ON
 
     def check(self, curr_val):
