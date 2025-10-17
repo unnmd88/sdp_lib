@@ -40,8 +40,8 @@ async def post(ipv4, session: aiohttp.ClientSession):
     csrf_token = soup.find("input", {"name": "csrf_token"})["value"]
     print(f'csrf_token: {csrf_token}')
     data = {
-        "login": "operator",
-        "password": "operator",
+        "login": "",
+        "password": "",
         "csrf_token": csrf_token,
     }
     async with session.post(headers=headers, url=url, data=json.dumps(data)) as resp:
@@ -121,8 +121,8 @@ def sync_post(ipv4):
         soup = BeautifulSoup(response.text, "html.parser")
         csrf_token = soup.find("input", {"name": "csrf_token"})["value"]
         data = {
-            "login": "admin",
-            "password": "zBCTRuV7",
+            "login": "",
+            "password": "",
             "csrf_token": csrf_token,
         }
         r = s.post(url=url, data=data, headers=headers, verify=False)
