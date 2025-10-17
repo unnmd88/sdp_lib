@@ -468,4 +468,4 @@ peek_ug405_varbinds = VarbPeek()
 
 
 if __name__ == '__main__':
-    print(f'SCN: {convert_chars_string_to_ascii_string("CO0001")}')
+    print(f'SCN: {convert_chars_string_to_ascii_string("CO238")}')
