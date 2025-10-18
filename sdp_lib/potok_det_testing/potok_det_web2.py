@@ -1,7 +1,6 @@
 import asyncio
 import os
 from collections.abc import Container, Sequence
-from functools import cached_property
 
 import httpx
 
@@ -9,8 +8,8 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from httpx import Response
 
-from excel_logs import ExcelLogger, DET_HEAD
-from observers2 import BaseStateObserver
+from sdp_lib.loggers.excel import ExcelLogger, DET_HEAD
+from sdp_lib.observers.observers2 import BaseStateObserver
 
 load_dotenv()
 

@@ -3,18 +3,10 @@ from datetime import datetime as dt
 import time
 from collections.abc import MutableSequence
 from dataclasses import dataclass
-from enum import IntEnum, StrEnum
+from enum import StrEnum
 from functools import cached_property
 
-from excel_logs import ExcelLogger
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-# formatter = logging.Formatter('{name} [{levelname:^11}] {asctime} {message}', style='{')
-formatter = logging.Formatter('{asctime} {message}', style='{')
-file_handler = logging.FileHandler('observer.log')
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
+from sdp_lib.loggers.excel import ExcelLogger
 
 
 class States(StrEnum):
@@ -74,7 +66,6 @@ class BaseStateObserver:
             self._curr_period_data.end = dt.now()
             self._curr_period_data.duration = round(time.perf_counter() - self._gp_timer, 3)
             self._periods.append(self._curr_period_data)
-            logger.info(f'name: {self._name} {self._curr_period_data.state=} {self._curr_period_data.duration=}')
             self._curr_period_data = Period(state=self._current_state, start=dt.now())
             self._gp_timer = time.perf_counter()
         self._prev_state = self._current_state
@@ -95,7 +86,6 @@ class BaseStateObserver:
                     self._curr_period_data.duration
                 ]
             )
-            logger.info(f'name: {self._name} {self._curr_period_data.state=} {self._curr_period_data.duration=}')
             self._curr_period_data = Period(state=self._current_state, start=dt.now())
             self._gp_timer = time.perf_counter()
         self._prev_state = self._current_state
