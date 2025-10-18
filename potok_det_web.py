@@ -110,8 +110,8 @@ async def post2(client, ipv4):
     csrf_token = soup.find("input", {"name": "csrf_token"})["value"]
     print(f'csrf_token: {csrf_token}')
     data = {
-        "login": "",
-        "password": "",
+        "login": "admin",
+        "password": "zBCTRuV7",
         "csrf_token": csrf_token,
     }
     res = await client.post(url, data=data, follow_redirects=True)

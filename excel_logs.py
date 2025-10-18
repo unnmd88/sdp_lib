@@ -8,6 +8,7 @@ DET_HEAD = ['Начало', 'Конец', "Состояние", 'Детекто�
 
 
 class ExcelLogger:
+
     def __init__(
             self,
             wb_name: str,
@@ -45,7 +46,7 @@ class ExcelLogger:
 
         self._wb.save(wb_name)
 
-    def add_data_next_row(self, data: Iterable):
+    def append_to_next_row(self, data: Iterable):
         row = self.ws.max_row + 1
         for col, data in enumerate(data, 1):
             self.ws.cell(row=row, column=col).value = data

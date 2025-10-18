@@ -1,4 +1,5 @@
 import asyncio
+from typing import NamedTuple
 
 import openpyxl
 from openpyxl import Workbook
@@ -114,13 +115,6 @@ async def main(timeout: float = .8):
             await asyncio.sleep(timeout)
     except Exception as e:
         logger.critical('FAIL!!!!')
-
-
-
-
-
-
-
 
 
 if __name__ == '__main__':
