@@ -70,7 +70,8 @@ class BaseStateObserver:
             self._gp_timer = time.perf_counter()
         self._prev_state = self._current_state
 
-    def check_and_write_log(self, curr_val):
+    def check_is_switched_and_write_log(self, curr_val):
+        is_switched = False
         self._set_state(curr_val)
         print(f'{self._name=} {self._current_state=} {self._prev_state=}')
         if self._prev_state != self._current_state:
@@ -88,6 +89,8 @@ class BaseStateObserver:
             )
             self._curr_period_data = Period(state=self._current_state, start=dt.now())
             self._gp_timer = time.perf_counter()
+            is_switched = True
         self._prev_state = self._current_state
+        return is_switched
 
 

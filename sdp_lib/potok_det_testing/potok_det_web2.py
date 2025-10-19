@@ -105,7 +105,7 @@ async def main(timeout: float = 1):
         while True:
             detectors = await potok_web.get_det_detectors() # (['1', '1', 'DTR', '0', 'Не', 'занят', 'Занят', 'Нормальный'], ...)
             for obs in _observers:
-                obs.check_and_write_log(detectors[obs.position][DET_STATE])
+                obs.check_is_switched_and_write_log(detectors[obs.position][DET_STATE])
             await asyncio.sleep(timeout)
     finally:
         await client.aclose()

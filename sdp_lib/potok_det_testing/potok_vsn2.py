@@ -95,12 +95,12 @@ async def main(timeout: float = .8):
             )
             if err_indication or not varbinds:
                 for obs in _observers:
-                    obs.check_and_write_log(None)
+                    obs.check_is_switched_and_write_log(None)
             else:
                 octet_string_vsn = varbinds[0][1].prettyPrint()
                 print(f'PrettyOctStr: {pretty_vsn.get_pretty_string(octet_string_vsn)}')
                 for obs in _observers:
-                    obs.check_and_write_log(octet_string_vsn[2 + obs.position])
+                    obs.check_is_switched_and_write_log(octet_string_vsn[2 + obs.position])
             await asyncio.sleep(timeout)
     except Exception:
         logger.critical('Application was failed. ')
