@@ -52,11 +52,13 @@ class BaseStateObserver:
 
     def _set_state(self, curr_val):
         if curr_val is None:
-            self._current_state = States.UNDEFINED
+            return
+            # self._current_state = States.UNDEFINED
         elif curr_val == '0' or curr_val.isdigit() and int(curr_val) == 0:
             self._current_state = States.OFF
-        elif curr_val and int(curr_val, 16) >= 1:
+        elif curr_val is not None and int(curr_val, 16) >= 1:
             self._current_state = States.ON
+
 
     def check(self, curr_val):
         self._set_state(curr_val)
