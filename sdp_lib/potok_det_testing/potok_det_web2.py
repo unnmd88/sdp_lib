@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from httpx import Response
 
 from sdp_lib.loggers.excel import ExcelLogger, DET_HEAD
-from sdp_lib.observers.observers2 import BaseStateObserver
+from sdp_lib.observers.observers import BaseStateObserver
 
 load_dotenv()
 

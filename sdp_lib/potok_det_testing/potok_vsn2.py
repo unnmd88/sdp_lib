@@ -5,7 +5,7 @@ from collections.abc import Sequence, Collection
 from pysnmp.smi.rfc1902 import ObjectType, ObjectIdentity
 
 from loggers.excel import ExcelLogger, DET_HEAD
-from sdp_lib.observers.observers2 import BaseStateObserver
+from sdp_lib.observers.observers import BaseStateObserver
 from sdp_lib.management_controllers.snmp.oids import Oids
 from sdp_lib.management_controllers.snmp.snmp_core import PotokP
 from sdp_lib.management_controllers.snmp.snmp_requests import snmp_engine
